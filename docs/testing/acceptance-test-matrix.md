@@ -13,6 +13,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | PostgreSQL / migración | Compose limpio; esquema, versión de migración y tablas consultados en DB | **Probado:** PostgreSQL healthy, ocho tablas públicas y esquema `n8n` |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
 | CRUD de cursos en PostgreSQL | Cuenta admin y curso sintéticos temporales; crear, editar, desactivar y comparar catálogo público/admin; limpieza final | **Probado parcialmente:** escritura, persistencia y ocultamiento de inactivos; reactivación/filtros completos pendientes |
+| CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
@@ -22,7 +23,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | ID | Criterio | Verificación de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
 | API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | **Probado parcialmente:** alta HTTP 201 y sesión `/auth/me` contra DB real; duplicado/login/logout/expiración pendientes |
-| API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | Middleware implementado; prueba HTTP con PostgreSQL pendiente |
+| API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | **Probado parcialmente con DB:** mutación sin token (403) y estudiante en ruta admin (403); aislamiento de historial pendiente |
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | Implementado; esquemas unitarios probados; persistencia pendiente |
 | DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | **Probado:** aplicada al iniciar Compose limpio; ocho tablas públicas y versión consultadas; inspección completa de constraints pendiente |
 | DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
@@ -30,7 +31,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | Ruta 404 genérica probada; casos con DB pendientes |
 | API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | Esquema unitario probado; persistencia/duplicado pendientes |
 | API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | Implementado; prueba de integración pendiente |
-| API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado/404 probados; proveedores y DB pendientes |
+| API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado/404 y pregunta vacía (400) probados; fallos DB/proveedor/timeout pendientes |
 
 ## Qdrant, embeddings y RAG
 
