@@ -8,19 +8,22 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | --- | --- | --- |
 | Suite unitaria y HTTP local | `cd backend; npm test` | **Probado:** 12/12 pasan; no necesita PostgreSQL |
 | Sintaxis JavaScript backend | `node --check` sobre `backend/src` y `backend/tests` | **Probado:** 44 archivos pasan |
-| Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente:** 9 nodos de indexación y 14 de consulta |
-| Configuración Docker Compose | `docker compose --env-file .env.example config --quiet` | **Probado estáticamente**; no inicia servicios |
-| PostgreSQL, Qdrant, n8n, OpenRouter | Docker Desktop no conecta al daemon `dockerDesktopLinuxEngine` | **Pendiente de ejecución** |
-| Navegador/visual | Se detuvo la inspección automatizada porque no se pudo identificar la URL actual de forma segura | **Pendiente** |
+| Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente:** 11 nodos de indexación y 14 de consulta; importación real pendiente |
+| Configuración Docker Compose | `docker compose --env-file .env config --quiet` | **Probado**; stack local levantado |
+| PostgreSQL / migración | Compose limpio; esquema, versión de migración y tablas consultados en DB | **Probado:** PostgreSQL healthy, ocho tablas públicas y esquema `n8n` |
+| API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
+| Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; workflows aún no importados |
+| OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
+| Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
 
 ## API, datos y seguridad
 
 | ID | Criterio | Verificación de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | Implementado; pruebas de flujo con base pendientes |
+| API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | **Probado parcialmente:** alta HTTP 201 y sesión `/auth/me` contra DB real; duplicado/login/logout/expiración pendientes |
 | API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | Middleware implementado; prueba HTTP con PostgreSQL pendiente |
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | Implementado; esquemas unitarios probados; persistencia pendiente |
-| DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | SQL/migrator implementados; **pendiente de ejecutar** |
+| DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | **Probado:** aplicada al iniciar Compose limpio; ocho tablas públicas y versión consultadas; inspección completa de constraints pendiente |
 | DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
 | API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | Implementado; pruebas de integración PostgreSQL pendientes |
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | Ruta 404 genérica probada; casos con DB pendientes |

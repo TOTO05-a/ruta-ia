@@ -5,7 +5,7 @@ RutaIA es una aplicación web de orientación académica que recomienda cursos d
 ## Requisitos y tecnologías
 
 - Node.js 22 o posterior y npm.
-- Docker Desktop para PostgreSQL, Qdrant, n8n y el backend (Compose definido, pendiente de ejecutar).
+- Docker Desktop para PostgreSQL, Qdrant, n8n y el backend (Compose verificado en el entorno local).
 - Cuenta y clave API de OpenRouter para embeddings y generación.
 - Frontend HTML, CSS y JavaScript; API Node.js/Express; PostgreSQL; Qdrant; n8n.
 
@@ -14,12 +14,13 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 ## Estado real
 
 - Implementados en código: base modular Express, salud/readiness, CORS/Helmet, manejo de errores, migración inicial, registro/inicio/cierre de sesión, sesión HttpOnly, validación CSRF, perfil, listados de estudiantes para administración, CRUD/catálogo de cursos, consultas, historial, calificaciones, estadísticas y frontend conectado.
-- Pruebas ejecutadas: 12/12 unitarias y HTTP locales pasaron el 2 de noviembre de 2026; sintaxis verificada para 44 archivos JavaScript.
-- Pendiente de ejecución: migración y endpoints dependientes de PostgreSQL. Docker no pudo conectarse a su daemon en este entorno.
-- Workflows JSON de indexación y consulta implementados y validados estáticamente; importación/activación pendiente. PostgreSQL, Qdrant, n8n y OpenRouter siguen sin ejecución real verificada.
-- Pendiente de ejecutar/verificar: Docker Compose, umbral RAG calibrado, datos institucionales y verificación visual de la interfaz en navegador.
+- Pruebas ejecutadas: 12/12 pruebas unitarias/HTTP pasan; sintaxis verificada para 44 archivos JavaScript.
+- Entorno integrado local: PostgreSQL, Qdrant, n8n y Express están `healthy`; la API informa PostgreSQL listo. Migración aplicada en PostgreSQL limpio y ocho tablas públicas verificadas.
+- Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
+- Workflows JSON de indexación y consulta implementados y validados estáticamente; importación/configuración en la instancia n8n pendiente. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
+- Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
-- GitHub: `main`, `dev` y `trabajo` están publicadas; `main` y `dev` siguen en el commit inicial, el desarrollo continúa en `trabajo`.
+- GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo` (último commit `3269986`). `dev` y `main` esperan revisión e integración.
 
 El detalle de requisitos, rúbrica, límites y bloqueos está en [diagnóstico inicial](docs/architecture/initial-diagnosis.md).
 
@@ -35,7 +36,7 @@ Antes de iniciar, sustituye todos los valores `CHANGE_ME` de `.env` por secretos
 docker compose up --build
 ```
 
-El Compose publica PostgreSQL, Qdrant, n8n y la aplicación solo en `127.0.0.1`, persiste datos en volúmenes y aplica la migración PostgreSQL antes de iniciar la API. Los nodos/credenciales de n8n aún deben importarse y configurarse; el servicio levantado por Compose no implica que el flujo RAG esté listo.
+El Compose publica PostgreSQL, Qdrant, n8n y la aplicación solo en `127.0.0.1`, persiste datos en volúmenes y aplica la migración PostgreSQL antes de iniciar la API. En esta PC la aplicación está publicada en `http://localhost:3001` porque el puerto 3000 aparecía ocupado; una instalación limpia usa 3000 por defecto. Los nodos/credenciales de n8n aún deben importarse y configurarse; el servicio levantado por Compose no implica que el flujo RAG esté listo.
 
 ## Base de datos
 
@@ -60,7 +61,7 @@ cd backend
 npm run dev
 ```
 
-Abre `http://localhost:3000` para usar el frontend estático servido por Express.
+Abre `http://localhost:3000` para usar el frontend estático servido por Express (en el Compose activo de esta PC: `http://localhost:3001`).
 
 - API liveness: `GET http://localhost:3000/health`
 - PostgreSQL readiness: `GET http://localhost:3000/health/ready`
