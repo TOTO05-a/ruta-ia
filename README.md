@@ -108,7 +108,7 @@ En `.env`, configura `RUTAIA_TEST_DATABASE_URL` con el mismo usuario/contraseña
 npm run test:integration
 ```
 
-El comando aplica la migración en esa base y prueba registro, catálogo, aislamiento, callbacks, rating y estadísticas mediante HTTP real. Rechaza cualquier URL que no use `localhost`/`127.0.0.1` y el nombre de base `rutaia_test`. `npm test` mantiene la suite unitaria/HTTP sin conexión a PostgreSQL.
+El comando aplica la migración en esa base y prueba registro, catálogo, CSRF, autorización y roles, IDs inexistentes, aislamiento, callbacks, rating y estadísticas mediante HTTP real. Rechaza cualquier URL que no use `localhost`/`127.0.0.1` y el nombre de base `rutaia_test`. `npm test` mantiene la suite unitaria/HTTP sin conexión a PostgreSQL.
 
 ## Arquitectura y datos
 

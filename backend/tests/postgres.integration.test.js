@@ -124,6 +124,37 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const other = await register("other");
         await pool.query("UPDATE students SET role = 'admin' WHERE id = $1", [admin.id]);
 
+        const csrfDenied = await request("/api/v1/admin/courses", {
+            method: "POST", cookie: admin.cookie,
+            body: {
+                name: "RutaIA Integration CSRF denial",
+                description: "Este curso no debe crearse si falta la protección CSRF.",
+                category: "Integration",
+                level: "Básico",
+                durationHours: 1
+            }
+        });
+        assert.equal(csrfDenied.status, 403);
+        assert.equal((await csrfDenied.json()).error.code, "CSRF_INVALID");
+
+        const studentAdminRoute = await request(`/api/v1/students/${other.id}`, { cookie: owner.cookie });
+        assert.equal(studentAdminRoute.status, 403);
+        assert.equal((await studentAdminRoute.json()).error.code, "FORBIDDEN");
+
+        const missingId = "ffffffff-ffff-4fff-8fff-ffffffffffff";
+        const missingCourse = await request(`/api/v1/courses/${missingId}`);
+        assert.equal(missingCourse.status, 404);
+        assert.equal((await missingCourse.json()).error.code, "COURSE_NOT_FOUND");
+        const missingStudent = await request(`/api/v1/students/${missingId}`, { cookie: admin.cookie });
+        assert.equal(missingStudent.status, 404);
+        assert.equal((await missingStudent.json()).error.code, "STUDENT_NOT_FOUND");
+        const invalidCourseId = await request("/api/v1/courses/not-a-uuid");
+        assert.equal(invalidCourseId.status, 400);
+        assert.equal((await invalidCourseId.json()).error.code, "VALIDATION_ERROR");
+        const missingQuery = await request(`/api/v1/queries/${missingId}`, { cookie: owner.cookie });
+        assert.equal(missingQuery.status, 404);
+        assert.equal((await missingQuery.json()).error.code, "QUERY_NOT_FOUND");
+
         const duplicate = await request("/api/v1/auth/register", {
             method: "POST",
             body: {
