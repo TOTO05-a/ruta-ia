@@ -8,6 +8,18 @@ const errors = [];
 let operations = 0;
 let references = 0;
 const methods = new Set(['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace']);
+const appSource = fs.readFileSync(path.resolve(__dirname, '../src/app.js'), 'utf8');
+const routeImports = new Map([...appSource.matchAll(
+  /const\s+(\w+)\s*=\s*require\(["']\.\/routes\/([^"']+)["']\)/g
+)].map(([, variable, moduleName]) => [variable, moduleName]));
+const routeMounts = new Map();
+for (const [, mount, variable] of appSource.matchAll(/app\.use\(["']([^"']+)["']\s*,\s*(\w+)\s*\)/g)) {
+  const moduleName = routeImports.get(variable);
+  if (!moduleName) continue;
+  const mounts = routeMounts.get(moduleName) || [];
+  mounts.push(mount);
+  routeMounts.set(moduleName, mounts);
+}
 
 function walk(value, location = '#') {
   if (!value || typeof value !== 'object') return;
@@ -61,6 +73,34 @@ for (const [route, pathItem] of Object.entries(spec?.paths || {})) {
   }
 }
 
+const implementedOperations = new Set();
+for (const [moduleName, mounts] of routeMounts) {
+  const sourcePath = path.resolve(__dirname, `../src/routes/${moduleName.endsWith('.js') ? moduleName : `${moduleName}.js`}`);
+  const source = fs.readFileSync(sourcePath, 'utf8');
+  const routePattern = /router\.(get|post|put|patch|delete|options|head)\s*\(\s*["']([^"']+)["']/g;
+  for (const match of source.matchAll(routePattern)) {
+    const [, method, relativePath] = match;
+    for (const mount of mounts) {
+      const fullPath = relativePath === '/' ? mount : `${mount.replace(/\/$/, '')}/${relativePath.replace(/^\//, '')}`;
+      const openApiPath = fullPath.replace(/:([A-Za-z0-9_]+)/g, '{$1}');
+      implementedOperations.add(`${method.toUpperCase()} ${openApiPath}`);
+    }
+  }
+}
+
+const documentedOperations = new Set();
+for (const [route, pathItem] of Object.entries(spec?.paths || {})) {
+  for (const method of Object.keys(pathItem || {})) {
+    if (methods.has(method)) documentedOperations.add(`${method.toUpperCase()} ${route}`);
+  }
+}
+for (const operation of implementedOperations) {
+  if (!documentedOperations.has(operation)) errors.push(`${operation}: implemented Express route is missing from OpenAPI`);
+}
+for (const operation of documentedOperations) {
+  if (!implementedOperations.has(operation)) errors.push(`${operation}: documented OpenAPI operation has no registered Express route`);
+}
+
 walk(spec);
 
 if (errors.length) {
@@ -68,5 +108,5 @@ if (errors.length) {
   for (const error of errors) console.error(`- ${error}`);
   process.exitCode = 1;
 } else {
-  console.log(`OpenAPI structural validation passed: ${Object.keys(spec.paths).length} paths, ${operations} operations, ${references} resolved local references.`);
+  console.log(`OpenAPI validation passed: ${Object.keys(spec.paths).length} paths, ${operations} operations match Express, ${references} resolved local references.`);
 }

@@ -51,7 +51,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 ## Estado de entregables
 
 - `database/migrations/001_initial_schema.sql` y `docs/architecture/data-model.md`: **Aplicado en PostgreSQL limpio**; versión de migración y ocho tablas públicas verificadas.
-- API Express, frontend, validaciones, manejo de errores, autenticación, contratos de callback, OpenAPI, README y diagramas: **Implementado**; OpenAPI pasa validador estructural del proyecto (23 paths, 25 operaciones, 10 referencias locales); registro HTTP 201 y `/auth/me` probados con PostgreSQL real. La comparación exhaustiva de contratos y flujos adicionales de DB sigue pendiente.
+- API Express, frontend, validaciones, manejo de errores, autenticación, contratos de callback, OpenAPI, README y diagramas: **Implementado**; OpenAPI valida 25 paths, las 28 operaciones coinciden con declaraciones de routers y montajes de `app.js`, y resuelve 10 referencias locales; registro HTTP 201 y `/auth/me` probados con PostgreSQL real. La comparación exhaustiva de esquemas de request/response y flujos adicionales de DB sigue pendiente.
 - Pruebas: **Probado localmente**, 12/12 pruebas unitarias/HTTP, integración PostgreSQL aislada 1/1 y sintaxis comprobada para 48 archivos JavaScript.
 - Docker Compose y Dockerfile: **Arrancados y verificados**; PostgreSQL/Qdrant/n8n/API healthy.
 - Workflows `automation/n8n/index-courses.json` y `answer-query.json`: **Validados estáticamente e importados** en n8n 2.46.4, ambos inactivos; credenciales/modelos/ejecución pendientes.
