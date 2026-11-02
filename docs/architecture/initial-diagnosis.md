@@ -11,8 +11,8 @@ Fecha: 2026-11-02
 
 ## Diagnóstico y estado actualizado
 
-- Local: rama activa `trabajo`; repo sin commit base, todos los entregables locales aparecen como archivos no seguidos en Git. La sintaxis de 44 archivos JavaScript se verificó y 12/12 pruebas locales pasaron el 2026-11-02.
-- GitHub: `TOTO05-a/ruta-ia` existe y está vacío. El remoto está configurado, pero aún no hay ramas publicadas ni commits.
+- Local: rama activa `trabajo`; commit inicial `b1fdc2a`. Las ramas locales `main`, `dev` y `trabajo` siguen ese mismo commit. La sintaxis de 44 archivos JavaScript se verificó y 12/12 pruebas locales pasaron el 2026-11-02.
+- GitHub: `TOTO05-a/ruta-ia` accesible y con las ramas `main`, `dev` y `trabajo` publicadas desde el commit inicial `b1fdc2a`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
 - Docker: CLI y Compose instalados, conexión al engine denegada; no se inspeccionaron ni modificaron contenedores. PostgreSQL, Qdrant, n8n y OpenRouter no están ejecutándose/alcanzables en los puertos locales observados.
 - Catálogo institucional: no se encontró entre los archivos disponibles. No se fabricarán cursos institucionales para cumplir el mínimo de 20.
@@ -22,21 +22,23 @@ Fecha: 2026-11-02
 - `main`: versión estable entregable.
 - `dev`: integración de cambios revisados.
 - `trabajo`: desarrollo activo de esta etapa.
-- Git local no permite ramas persistentes sin un commit base. El remoto vacío requiere un commit inicial antes de publicar las tres ramas; no se hizo commit ni push.
+- El commit inicial da una base común a las tres ramas. Continuar el trabajo de desarrollo en `trabajo`, integrar cambios revisados en `dev` y mantener `main` como línea estable.
 
 ## Trazabilidad de rúbrica
 
-| Criterio | Puntos | Trabajo y evidencia requerida |
-| --- | ---: | --- |
-| Dominio y conocimiento del código | 10 | Comprensión de módulos, explicación y flujo reproducible |
-| Análisis, arquitectura y modelo de datos | 8 | Matriz de requisitos, ER y arquitectura |
-| Base de datos relacional | 7 | Migraciones, restricciones, seeds autorizados y consultas |
-| API REST (excepción aprobada: Express) | 8 | Endpoints, Swagger y pruebas HTTP |
-| Qdrant y embeddings | 9 | Indexación, recuperación, payload, score y calibración |
-| Automatización y RAG con n8n | 9 | Workflows y consulta fundamentada de extremo a extremo |
-| Frontend e integración | 7 | Flujos de estudiante integrados y responsive |
-| Validaciones y manejo de errores | 8 | Validaciones y estados de éxito/sin resultados/error |
-| Documentación | 5 | README, diagramas, pruebas y presentación |
+| Criterio | Puntos | Peso indicado | Trabajo y evidencia requerida |
+| --- | ---: | ---: | --- |
+| Dominio y conocimiento del código | 10 | 14.1% | Comprensión de módulos, explicación y flujo reproducible |
+| Análisis, arquitectura y modelo de datos | 8 | 11.3% | Matriz de requisitos, ER y arquitectura |
+| Base de datos relacional | 7 | 9.9% | Migraciones, restricciones, seeds autorizados y consultas |
+| API REST (excepción aprobada: Express) | 8 | 11.3% | Endpoints, Swagger y pruebas HTTP |
+| Qdrant y embeddings | 9 | 12.7% | Indexación, recuperación, payload, score y calibración |
+| Automatización y RAG con n8n | 9 | 12.7% | Workflows y consulta fundamentada de extremo a extremo |
+| Frontend e integración | 7 | 9.9% | Flujos de estudiante integrados y responsive |
+| Validaciones y manejo de errores | 8 | 11.3% | Validaciones y estados de éxito/sin resultados/error |
+| Documentación | 5 | 7.0% | README, diagramas, pruebas y presentación |
+
+El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo individual a una décima; los pesos exactos se calculan respecto de 71 y suman 100%.
 
 ## Decisiones técnicas pendientes de evidencia
 

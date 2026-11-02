@@ -210,6 +210,18 @@ paths:
         '202': { description: Resultado persistido }
         '200': { description: Callback duplicado; procesamiento idempotente }
         '401': { description: Callback no autenticado }
+  /api/v1/internal/courses/active:
+    get:
+      summary: Lista el catálogo activo para sincronización autenticada de n8n
+      parameters:
+        - in: header
+          name: X-N8N-Sync-Secret
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Cursos activos existentes en PostgreSQL }
+        '401': { description: Sincronización no autenticada }
+        '503': { description: Sincronización no configurada }
   /api/v1/recommendations/{id}/rating:
     post:
       summary: Califica una recomendación propia
@@ -330,6 +342,20 @@ paths:
           name: X-CSRF-Token
           required: true
           schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                name: { type: string, minLength: 2, maxLength: 180 }
+                description: { type: string, minLength: 20, maxLength: 10000 }
+                category: { type: string, minLength: 2, maxLength: 100 }
+                level: { type: string, enum: [Básico, Intermedio, Avanzado] }
+                durationHours: { type: number, exclusiveMinimum: 0 }
       responses:
         '200': { description: Curso actualizado }
         '404': { description: Curso no encontrado }

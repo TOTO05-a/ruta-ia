@@ -19,7 +19,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Pendiente de ejecución/verificación: PostgreSQL, Qdrant, workflows n8n y OpenRouter. Los contratos de callback están preparados, pero no hay workflows importados ni conexión real comprobada.
 - Pendiente de ejecutar/verificar: Docker Compose, umbral RAG calibrado, datos institucionales y verificación visual de la interfaz en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
-- El repositorio remoto está vacío; no se han hecho commits ni push.
+- GitHub: `main`, `dev` y `trabajo` están publicadas desde el commit inicial `b1fdc2a`; el trabajo continúa en `trabajo`.
 
 El detalle de requisitos, rúbrica, límites y bloqueos está en [diagnóstico inicial](docs/architecture/initial-diagnosis.md).
 
