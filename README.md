@@ -16,10 +16,10 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Implementados en código: base modular Express, salud/readiness, CORS/Helmet, manejo de errores, migración inicial, registro/inicio/cierre de sesión, sesión HttpOnly, validación CSRF, perfil, listados de estudiantes para administración, CRUD/catálogo de cursos, consultas, historial, calificaciones, estadísticas y frontend conectado.
 - Pruebas ejecutadas: 12/12 unitarias y HTTP locales pasaron el 2 de noviembre de 2026; sintaxis verificada para 44 archivos JavaScript.
 - Pendiente de ejecución: migración y endpoints dependientes de PostgreSQL. Docker no pudo conectarse a su daemon en este entorno.
-- Pendiente de ejecución/verificación: PostgreSQL, Qdrant, workflows n8n y OpenRouter. Los contratos de callback están preparados, pero no hay workflows importados ni conexión real comprobada.
+- Workflows JSON de indexación y consulta implementados y validados estáticamente; importación/activación pendiente. PostgreSQL, Qdrant, n8n y OpenRouter siguen sin ejecución real verificada.
 - Pendiente de ejecutar/verificar: Docker Compose, umbral RAG calibrado, datos institucionales y verificación visual de la interfaz en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
-- GitHub: `main`, `dev` y `trabajo` están publicadas desde el commit inicial `b1fdc2a`; el trabajo continúa en `trabajo`.
+- GitHub: `main`, `dev` y `trabajo` están publicadas; `main` y `dev` siguen en el commit inicial, el desarrollo continúa en `trabajo`.
 
 El detalle de requisitos, rúbrica, límites y bloqueos está en [diagnóstico inicial](docs/architecture/initial-diagnosis.md).
 
@@ -74,7 +74,7 @@ Abre `http://localhost:3000` para usar el frontend estático servido por Express
 - `GET/POST /api/v1/admin/courses`, `GET/PATCH /api/v1/admin/courses/:id`, `PATCH /api/v1/admin/courses/:id/status`
 - `POST /api/v1/queries`, `GET /api/v1/queries`, `GET /api/v1/queries/:id`, `GET /api/v1/students/:id/history`
 - `POST /api/v1/recommendations/:id/rating`, `GET /api/v1/admin/statistics`
-- Callbacks internos autenticados: `GET /api/v1/internal/courses/active`, `POST /api/v1/internal/n8n/results`
+- Callbacks/rutas internas autenticadas: `GET /api/v1/internal/courses/active`, `GET /api/v1/internal/rag/index-config`, `POST /api/v1/internal/n8n/results`
 
 Las operaciones que cambian datos requieren el token CSRF devuelto al registrar/iniciar sesión o recuperado en `/auth/csrf`, enviado como `X-CSRF-Token`. La cookie de sesión es HttpOnly.
 
@@ -91,6 +91,7 @@ Las pruebas existentes cubren validaciones de autenticación, cursos, perfil, co
 
 - [Diagrama de contexto](docs/architecture/system-context.md)
 - [Modelo entidad-relación](docs/architecture/data-model.md)
+- [Workflows y configuración de n8n](automation/n8n/README.md)
 - Migración: `database/migrations/001_initial_schema.sql`
 
 Las recomendaciones deben citar cursos existentes y activos. Express coordinará PostgreSQL/n8n; el navegador no llamará directamente a n8n, Qdrant ni OpenRouter.

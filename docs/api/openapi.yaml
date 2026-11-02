@@ -201,11 +201,40 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [queryId, status]
-              properties:
-                queryId: { type: string, format: uuid }
-                status: { type: string, enum: [Respondida, Sin resultados, Error] }
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required: [queryId, status, answer, summary, explanation, sources]
+                  properties:
+                    queryId: { type: string, format: uuid }
+                    status: { type: string, const: Respondida }
+                    answer: { type: string, minLength: 1, maxLength: 20000 }
+                    summary: { type: string, minLength: 1, maxLength: 1000 }
+                    explanation: { type: string, minLength: 1, maxLength: 6000 }
+                    sources:
+                      type: array
+                      minItems: 3
+                      maxItems: 5
+                      items:
+                        type: object
+                        additionalProperties: false
+                        required: [courseId, similarity]
+                        properties:
+                          courseId: { type: string, format: uuid }
+                          similarity: { type: number }
+                - type: object
+                  additionalProperties: false
+                  required: [queryId, status]
+                  properties:
+                    queryId: { type: string, format: uuid }
+                    status: { type: string, const: Sin resultados }
+                - type: object
+                  additionalProperties: false
+                  required: [queryId, status]
+                  properties:
+                    queryId: { type: string, format: uuid }
+                    status: { type: string, const: Error }
+                    errorCode: { type: string, pattern: '^[A-Z0-9_]{1,64}$' }
       responses:
         '202': { description: Resultado persistido }
         '200': { description: Callback duplicado; procesamiento idempotente }
@@ -222,6 +251,18 @@ paths:
         '200': { description: Cursos activos existentes en PostgreSQL }
         '401': { description: Sincronización no autenticada }
         '503': { description: Sincronización no configurada }
+  /api/v1/internal/rag/index-config:
+    get:
+      summary: Devuelve configuración no secreta para la indexación n8n
+      parameters:
+        - in: header
+          name: X-N8N-Sync-Secret
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Modelo de embeddings, colección y URL interna de Qdrant }
+        '401': { description: Sincronización no autenticada }
+        '503': { description: Configuración de indexación ausente }
   /api/v1/recommendations/{id}/rating:
     post:
       summary: Califica una recomendación propia

@@ -1,0 +1,144 @@
+{
+  "name": "RutaIA - Indexar cursos activos",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "17b8f6f4-2725-4a69-94e1-d36d8183d503",
+      "name": "Ejecución manual",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 280]
+    },
+    {
+      "parameters": {"rule": {"interval": [{"field": "hours", "hoursInterval": 6}]}},
+      "id": "90b50739-e421-4baa-a251-2613fdbe0e59",
+      "name": "Reconciliar cada 6 horas",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 460]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:3000/api/v1/internal/rag/index-config",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "f605a8fb-9b04-46f6-9657-41a32405275f",
+      "name": "Leer configuración de indexación",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 360],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://backend:3000/api/v1/internal/courses/active",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "eb7bb815-e5d1-495d-8d9c-a776ed70292b",
+      "name": "Leer catálogo PostgreSQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 360],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nif (courses.length === 0) return [];\nreturn [{ json: { ...config, courses, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel: ${c.level}\\nDuración: ${c.durationHours} horas`) } }];"
+      },
+      "id": "a84a0764-7316-4d2b-9a93-2d123416fe51",
+      "name": "Preparar textos de cursos",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs } }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "d79b216c-b4c8-4899-ad32-31786fd409fb",
+      "name": "Generar embeddings OpenRouter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1220, 360],
+      "credentials": {
+        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.data ?? result.body?.data;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('OpenRouter devolvió una cantidad de embeddings inválida');\nconst ordered = [...vectors].sort((a, b) => a.index - b.index);\nconst dimension = ordered[0]?.embedding?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nfor (const vector of ordered) if (vector.embedding.length !== dimension || vector.embedding.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: ordered[i].embedding, payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
+      },
+      "id": "5e9f4b52-ec46-4a5b-9be5-4227c50fc291",
+      "name": "Validar y preparar puntos Qdrant",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 360]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Validar y preparar puntos Qdrant').first().json.qdrantUrl + '/collections/' + $('Validar y preparar puntos Qdrant').first().json.collection }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { vectors: { size: $('Validar y preparar puntos Qdrant').first().json.dimension, distance: 'Cosine' } } }}",
+        "options": {"response": {"response": {"responseFormat": "json", "neverError": true}}}
+      },
+      "id": "17d90a94-afeb-4fb5-b024-659f86dc17b3",
+      "name": "Crear colección si falta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1700, 360]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Validar y preparar puntos Qdrant').first().json.qdrantUrl + '/collections/' + $('Validar y preparar puntos Qdrant').first().json.collection + '/points?wait=true' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { points: $('Validar y preparar puntos Qdrant').first().json.points } }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "c89975e6-6810-4c73-84a2-28224132d626",
+      "name": "Upsert idempotente en Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1940, 360],
+      "onError": "continueErrorOutput"
+    }
+  ],
+  "connections": {
+    "Ejecución manual": {"main": [[{"node": "Leer configuración de indexación", "type": "main", "index": 0}]]},
+    "Reconciliar cada 6 horas": {"main": [[{"node": "Leer configuración de indexación", "type": "main", "index": 0}]]},
+    "Leer configuración de indexación": {"main": [[{"node": "Leer catálogo PostgreSQL", "type": "main", "index": 0}]]},
+    "Leer catálogo PostgreSQL": {"main": [[{"node": "Preparar textos de cursos", "type": "main", "index": 0}]]},
+    "Preparar textos de cursos": {"main": [[{"node": "Generar embeddings OpenRouter", "type": "main", "index": 0}]]},
+    "Generar embeddings OpenRouter": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
+    "Validar y preparar puntos Qdrant": {"main": [[{"node": "Crear colección si falta", "type": "main", "index": 0}]]},
+    "Crear colección si falta": {"main": [[{"node": "Upsert idempotente en Qdrant", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "be7ffbf7-1f06-4c09-93a9-c3d709c85693",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

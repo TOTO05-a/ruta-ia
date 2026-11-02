@@ -13,5 +13,6 @@ router.get("/queries/:id", requireAuth, controller.get);
 router.get("/students/:id/history", requireAuth, controller.studentHistory);
 router.post("/internal/n8n/results", requireN8nCallback, controller.callback);
 router.get("/internal/courses/active", requireN8nSync, internalController.activeCourses);
+router.get("/internal/rag/index-config", requireN8nSync, internalController.indexingConfig);
 
 module.exports = router;

@@ -6,7 +6,7 @@ async function startQuery(payload) {
         error.code = "N8N_NOT_CONFIGURED";
         throw error;
     }
-    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.OPENROUTER_CHAT_MODEL || env.RAG_MIN_SIMILARITY === undefined) {
+    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.OPENROUTER_CHAT_MODEL || !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
         const error = new Error("RAG_CONFIGURATION_MISSING");
         error.code = "RAG_CONFIGURATION_MISSING";
         throw error;
@@ -26,7 +26,8 @@ async function startQuery(payload) {
                 embeddingModel: env.OPENROUTER_EMBEDDING_MODEL,
                 chatModel: env.OPENROUTER_CHAT_MODEL,
                 minSimilarity: env.RAG_MIN_SIMILARITY,
-                qdrantCollection: env.QDRANT_COLLECTION
+                qdrantCollection: env.QDRANT_COLLECTION,
+                qdrantUrl: env.QDRANT_URL
             }),
             signal: AbortSignal.timeout(env.N8N_TIMEOUT_MS)
         });

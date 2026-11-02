@@ -1,0 +1,256 @@
+{
+  "name": "RutaIA - Responder consultas RAG",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "rutaia-query",
+        "authentication": "headerAuth",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "id": "3b989a99-0dba-4115-90e0-786e46844039",
+      "name": "Webhook autenticado de consulta",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [240, 400],
+      "webhookId": "8907f061-b2fc-489a-a27a-f351b95de54a",
+      "credentials": {
+        "httpHeaderAuth": {"id": "dc994aac-c09c-4f7a-a121-0b2b7cc217ad", "name": "RutaIA - webhook bearer"}
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://backend:3000/api/v1/internal/courses/active",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "addfa2d2-a12e-4867-b3e4-80f47c611153",
+      "name": "Leer catálogo activo PostgreSQL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [500, 400],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingModel || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nreturn [{ json: { model: request.embeddingModel, input: request.question } }];"
+      },
+      "id": "1214c556-80f0-4f5c-870f-80c8f6c5f536",
+      "name": "Preparar embedding de pregunta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [760, 340],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/embeddings",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: $json.model, input: $json.input } }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "b2ff63f1-0fd4-4f48-b20e-b20d92f1e016",
+      "name": "Crear embedding de pregunta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1000, 340],
+      "credentials": {
+        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst result = $input.first().json;\nconst vector = (result.data ?? result.body?.data)?.[0]?.embedding;\nif (!Array.isArray(vector) || vector.length < 1 || vector.some(n => !Number.isFinite(n))) throw new Error('Embedding de consulta inválido');\nreturn [{ json: { vector, collection: request.qdrantCollection, qdrantUrl: request.qdrantUrl.replace(/\\/$/, '') } }];"
+      },
+      "id": "7574587e-5f95-42aa-bf79-376f94030d1a",
+      "name": "Validar vector y preparar búsqueda",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1240, 340],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.qdrantUrl + '/collections/' + $json.collection + '/points/query' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { query: $json.vector, limit: 5, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity } }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "481b45cf-dc02-45ec-8658-75c793c9c247",
+      "name": "Buscar cinco cursos en Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1480, 340],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst courses = $('Leer catálogo activo PostgreSQL').first().json.data?.items;\nconst response = $input.first().json;\nconst hits = response.result?.points ?? response.body?.result?.points;\nif (!Array.isArray(courses) || !Array.isArray(hits)) throw new Error('Respuesta de catálogo o Qdrant inválida');\nconst active = new Map(courses.map(c => [c.id, c]));\nconst seen = new Set();\nconst sources = hits.map(hit => { const courseId = hit.payload?.course_id; const course = active.get(courseId); if (!course || seen.has(courseId) || !Number.isFinite(hit.score) || hit.score < request.minSimilarity) return null; seen.add(courseId); return { courseId, similarity: hit.score, name: course.name, description: course.description, category: course.category, level: course.level, durationHours: course.durationHours }; }).filter(Boolean).sort((a,b) => b.similarity-a.similarity).slice(0,5);\nif (sources.length < 3) return [{ json: { queryId: request.queryId, status: 'Sin resultados' } }];\nreturn [{ json: { queryId: request.queryId, question: request.question, experienceLevel: request.experienceLevel, interestArea: request.interestArea, chatModel: request.chatModel, status: 'Respondida', sources, context: sources.map((s,i) => `${i+1}. ${s.name} | ${s.category} | ${s.level} | ${s.durationHours} horas | score ${s.similarity}\\n${s.description}`).join('\\n\\n') } }];"
+      },
+      "id": "e4d0d3b4-8e42-4bfb-b958-5d54a7d373d7",
+      "name": "Filtrar fuentes activas y umbral",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 340],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "0fd3d2e7-f40b-4970-a6ca-250b130060cc", "leftValue": "={{ $json.status }}", "rightValue": "Respondida", "operator": {"type": "string", "operation": "equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "14fd111c-f5a9-439a-8c0c-dce4d321a70d",
+      "name": "¿Hay al menos tres fuentes?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1960, 340]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { model: $json.chatModel, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta para responder, dilo. Devuelve únicamente JSON con answer, summary y explanation como cadenas en español.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "b5e4f091-38b5-49c0-afda-47edcaecb85e",
+      "name": "Generar respuesta grounded",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 240],
+      "credentials": {
+        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.choices?.[0]?.message?.content ?? response.body?.choices?.[0]?.message?.content;\nif (typeof content !== 'string') throw new Error('OpenRouter no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
+      },
+      "id": "6944ec2b-2a2f-4a83-a2bf-51c4881bc695",
+      "name": "Validar callback de recomendación",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 240],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook autenticado de consulta').first().json.body.callbackUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "c091c18f-7a7d-484c-93a6-b068080d99ca",
+      "name": "Guardar recomendación en Express",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2680, 240],
+      "credentials": {
+        "httpHeaderAuth": {"id": "6f9b03c0-f278-4da6-b07b-b71dcff83c27", "name": "RutaIA - callback Express"}
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook autenticado de consulta').first().json.body.callbackUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "49e7fd7c-b50d-4275-9c12-d8ce8073c13f",
+      "name": "Guardar estado sin resultados",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2200, 440],
+      "credentials": {
+        "httpHeaderAuth": {"id": "6f9b03c0-f278-4da6-b07b-b71dcff83c27", "name": "RutaIA - callback Express"}
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nreturn [{ json: { queryId: request.queryId, status: 'Error', errorCode: 'N8N_PROCESSING_ERROR' } }];"
+      },
+      "id": "0b522ad8-e230-460d-9022-6b15edb63b01",
+      "name": "Preparar callback de error seguro",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1720, 680]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Webhook autenticado de consulta').first().json.body.callbackUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {"response": {"response": {"responseFormat": "json"}}}
+      },
+      "id": "9dd6bf19-8e8d-47fd-9ad2-c55779cb670b",
+      "name": "Guardar estado de error",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1960, 680],
+      "credentials": {
+        "httpHeaderAuth": {"id": "6f9b03c0-f278-4da6-b07b-b71dcff83c27", "name": "RutaIA - callback Express"}
+      }
+    }
+  ],
+  "connections": {
+    "Webhook autenticado de consulta": {"main": [[{"node": "Leer catálogo activo PostgreSQL", "type": "main", "index": 0}]]},
+    "Leer catálogo activo PostgreSQL": {"main": [[{"node": "Preparar embedding de pregunta", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Preparar embedding de pregunta": {"main": [[{"node": "Crear embedding de pregunta", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Crear embedding de pregunta": {"main": [[{"node": "Validar vector y preparar búsqueda", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Validar vector y preparar búsqueda": {"main": [[{"node": "Buscar cinco cursos en Qdrant", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Buscar cinco cursos en Qdrant": {"main": [[{"node": "Filtrar fuentes activas y umbral", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Filtrar fuentes activas y umbral": {"main": [[{"node": "¿Hay al menos tres fuentes?", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "¿Hay al menos tres fuentes?": {"main": [[{"node": "Generar respuesta grounded", "type": "main", "index": 0}], [{"node": "Guardar estado sin resultados", "type": "main", "index": 0}]]},
+    "Generar respuesta grounded": {"main": [[{"node": "Validar callback de recomendación", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Validar callback de recomendación": {"main": [[{"node": "Guardar recomendación en Express", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Preparar callback de error seguro": {"main": [[{"node": "Guardar estado de error", "type": "main", "index": 0}]]}
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "8c3cc531-2395-4e83-8069-ac2a3b84cf57",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

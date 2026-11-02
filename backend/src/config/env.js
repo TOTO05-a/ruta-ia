@@ -13,7 +13,6 @@ const envSchema = z.object({
     N8N_CALLBACK_SECRET: z.string().min(24).optional(),
     N8N_COURSE_SYNC_SECRET: z.string().min(24).optional(),
     N8N_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
-    OPENROUTER_API_KEY: z.string().optional(),
     OPENROUTER_EMBEDDING_MODEL: z.string().optional(),
     OPENROUTER_CHAT_MODEL: z.string().optional(),
     RAG_MIN_SIMILARITY: z.preprocess(
@@ -21,8 +20,7 @@ const envSchema = z.object({
         z.coerce.number().min(-1).max(1).optional()
     ),
     QDRANT_URL: z.string().url().optional(),
-    QDRANT_COLLECTION: z.string().min(1).default("rutaia_courses"),
-    QDRANT_API_KEY: z.string().optional()
+    QDRANT_COLLECTION: z.string().min(1).default("rutaia_courses")
 }).superRefine((value, ctx) => {
     if (value.NODE_ENV === "production" && !value.SESSION_SECRET) {
         ctx.addIssue({ code: "custom", path: ["SESSION_SECRET"], message: "es obligatorio en producción" });

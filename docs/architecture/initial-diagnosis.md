@@ -55,7 +55,9 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 - API Express, frontend, validaciones, manejo de errores, autenticación, contratos de callback, OpenAPI, README y diagramas: **Implementado en código; las rutas que dependen de PostgreSQL están pendientes de integración ejecutada**.
 - Pruebas: **Probado localmente**, 12/12 pruebas `node --test`; sintaxis comprobada para 44 archivos JavaScript. No sustituye pruebas de integración.
 - Docker Compose y Dockerfile: **Implementado como configuración, sintaxis validada con `docker compose config`; pendiente de arranque** porque el daemon no está disponible.
-- Qdrant, embeddings, n8n/RAG e integración real: **Pendiente**; no se presentarán como probados.
+- Workflows `automation/n8n/index-courses.json` y `answer-query.json`: **Implementados como JSON; validación estática de JSON, conexiones y código JavaScript pasa; importación/credenciales/ejecución pendientes**.
+- Exportaciones n8n de indexación y consulta: **Implementadas como JSON y validadas estáticamente**; credenciales, importación y ejecución pendientes.
+- Qdrant, embeddings, n8n/RAG e integración real: **Pendiente de ejecución**; no se presentarán como probados.
 - Mínimo de 20 cursos: **Bloqueado por falta de fuente institucional autorizada**.
 - Umbral de similitud RAG: **Pendiente de calibración**; no hay valor arbitrario configurado.
 

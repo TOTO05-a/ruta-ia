@@ -27,12 +27,20 @@ services:
       - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
     volumes:
       - qdrant_data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   n8n:
     image: n8nio/n8n:2.46.4
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     environment:
       NODE_ENV: production
@@ -42,6 +50,12 @@ services:
       N8N_SECURE_COOKIE: "false"
       N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Define N8N_ENCRYPTION_KEY en .env}
       N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      EXECUTIONS_DATA_SAVE_ON_SUCCESS: none
+      EXECUTIONS_DATA_SAVE_ON_ERROR: none
+      EXECUTIONS_DATA_SAVE_ON_PROGRESS: "false"
+      EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: "false"
+      EXECUTIONS_DATA_PRUNE: "true"
+      EXECUTIONS_DATA_MAX_AGE: 168
       DB_TYPE: postgresdb
       DB_POSTGRESDB_HOST: postgres
       DB_POSTGRESDB_PORT: 5432
@@ -83,13 +97,11 @@ services:
       N8N_CALLBACK_SECRET: ${N8N_CALLBACK_SECRET:?Define N8N_CALLBACK_SECRET en .env}
       N8N_COURSE_SYNC_SECRET: ${N8N_COURSE_SYNC_SECRET:?Define N8N_COURSE_SYNC_SECRET en .env}
       N8N_TIMEOUT_MS: ${N8N_TIMEOUT_MS:-10000}
-      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
       OPENROUTER_CHAT_MODEL: ${OPENROUTER_CHAT_MODEL:-}
       RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-}
       QDRANT_URL: http://qdrant:6333
       QDRANT_COLLECTION: ${QDRANT_COLLECTION:-rutaia_courses}
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     healthcheck:
