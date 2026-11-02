@@ -19,6 +19,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
 - Prueba CRUD con cuenta admin y curso sintéticos: crear, editar, desactivar, confirmar ocultamiento público y lectura admin del inactivo; ambos registros de prueba se eliminaron.
 - Pruebas de seguridad con una cuenta estudiante temporal: sin CSRF, POST responde 403; estudiante en ruta admin responde 403; consulta vacía responde 400. La cuenta se eliminó.
+- Prueba de consultas con dos estudiantes: una pregunta quedó en `Error` seguro por configuración de proveedor ausente; propietario pudo leerla y el otro estudiante recibió 404 para consulta e historial ajenos. Se eliminaron primero consultas y luego ambas cuentas.
 - Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
 - Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.

@@ -14,6 +14,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
 | CRUD de cursos en PostgreSQL | Cuenta admin y curso sintéticos temporales; crear, editar, desactivar y comparar catálogo público/admin; limpieza final | **Probado parcialmente:** escritura, persistencia y ocultamiento de inactivos; reactivación/filtros completos pendientes |
 | CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |
+| Persistencia / aislamiento de consultas | Dos estudiantes temporales; crear una consulta sin proveedor, leerla como propietario y consultar query/historial ajenos | **Probado:** queda en `Error` seguro, propietario la lee y el otro recibe 404; registros de prueba eliminados |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
@@ -23,7 +24,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | ID | Criterio | Verificación de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
 | API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | **Probado parcialmente:** alta HTTP 201 y sesión `/auth/me` contra DB real; duplicado/login/logout/expiración pendientes |
-| API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | **Probado parcialmente con DB:** mutación sin token (403) y estudiante en ruta admin (403); aislamiento de historial pendiente |
+| API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | **Probado parcialmente con DB:** mutación sin token (403), estudiante en ruta admin (403), consulta e historial ajenos (404); demás recursos pendientes |
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | Implementado; esquemas unitarios probados; persistencia pendiente |
 | DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | **Probado:** aplicada al iniciar Compose limpio; ocho tablas públicas y versión consultadas; inspección completa de constraints pendiente |
 | DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
@@ -61,8 +62,8 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 - Pregunta vacía: rechazada antes de crear consulta (validador unitario probado).
 - Estudiante inexistente o sin sesión: se rechaza con 401/404 según el recurso; prueba con PostgreSQL pendiente.
-- Usuario intenta leer otro historial: 404; prueba de aislamiento pendiente.
-- Consulta válida: persistida primero como `Pendiente`, luego debe llegar a `Respondida`, `Sin resultados` o `Error`; ejecución integral pendiente.
+- Usuario intenta leer otra consulta y otro historial: ambos devuelven 404; probado con dos cuentas temporales.
+- Consulta válida: persistida primero como `Pendiente`; con proveedor sin configurar se probó transición a `Error` y persistencia. Estados exitosos y sin resultados con n8n/OpenRouter siguen pendientes.
 - Desactivar curso después de indexarlo: su coincidencia vectorial nunca debe pasar el filtro de cursos activos.
 
 ## Puertas para marcar RutaIA como terminada
