@@ -92,6 +92,7 @@ Las pruebas existentes cubren validaciones de autenticación, cursos, perfil, co
 - [Diagrama de contexto](docs/architecture/system-context.md)
 - [Modelo entidad-relación](docs/architecture/data-model.md)
 - [Workflows y configuración de n8n](automation/n8n/README.md)
+- [Matriz de aceptación y pruebas](docs/testing/acceptance-test-matrix.md)
 - Migración: `database/migrations/001_initial_schema.sql`
 
 Las recomendaciones deben citar cursos existentes y activos. Express coordinará PostgreSQL/n8n; el navegador no llamará directamente a n8n, Qdrant ni OpenRouter.

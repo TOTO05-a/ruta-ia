@@ -89,7 +89,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $json.vector, limit: 5, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity } }}",
+        "jsonBody": "={{ { query: $json.vector, limit: 50, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "481b45cf-dc02-45ec-8658-75c793c9c247",

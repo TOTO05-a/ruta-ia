@@ -22,13 +22,14 @@ No introduzcas la clave de OpenRouter en `backend`, el frontend, expresiones `$e
 - Obtiene exclusivamente cursos activos de PostgreSQL.
 - Embebe nombre, descripción, categoría, nivel y duración con OpenRouter.
 - Comprueba cantidad, dimensión y valores finitos del vector.
-- Crea la colección Cosine si aún no existe y hace upsert usando el UUID del curso como ID estable.
-- Al desactivar un curso, el vector puede permanecer hasta una futura limpieza; la búsqueda RAG vuelve a consultar PostgreSQL y descarta todo curso inactivo, así que no debe recomendarse.
+- Crea la colección Cosine si aún no existe, hace upsert usando el UUID del curso como ID estable y elimina puntos cuyo curso dejó de estar activo durante la reconciliación.
+- Antes de esa reconciliación, la búsqueda vuelve a consultar PostgreSQL y descarta cursos inactivos; recupera una ventana interna de candidatos de hasta 50 para que vectores obsoletos no impidan encontrar cinco cursos activos, y nunca envía más de cinco fuentes al modelo.
+- Si se cambia de modelo y la dimensión no coincide con la colección existente, usa un nombre nuevo en `QDRANT_COLLECTION` y reindexa; no borres una colección persistida para resolver el conflicto.
 
 ## `answer-query.json`
 
 - Expone el webhook POST `/webhook/rutaia-query`, autenticado con el header `Authorization` que envía Express. Responde al API al aceptar la ejecución; el procesamiento continúa en n8n.
-- Lee de PostgreSQL el conjunto de cursos activos, embebe la pregunta con el modelo compartido, busca como máximo cinco puntos en Qdrant y vuelve a validar existencia/actividad contra PostgreSQL.
+- Lee de PostgreSQL el conjunto de cursos activos, embebe la pregunta con el modelo compartido, busca hasta 50 candidatos en Qdrant y vuelve a validar existencia/actividad contra PostgreSQL; limita las fuentes finales a cinco.
 - Aplica el umbral enviado por Express. Si quedan menos de tres fuentes, envía el estado `Sin resultados` al callback.
 - Si quedan tres a cinco fuentes, llama al modelo generativo con solo esos cursos y persiste respuesta, explicación, resumen, UUIDs y scores mediante el callback autenticado de Express.
 - Los fallos HTTP y de validación de la ruta principal se convierten en un callback `Error` con código genérico; los detalles de proveedores no se envían al estudiante.
