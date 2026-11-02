@@ -16,6 +16,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |
 | Persistencia / aislamiento de consultas | Dos estudiantes temporales; crear una consulta sin proveedor, leerla como propietario y consultar query/historial ajenos | **Probado:** queda en `Error` seguro, propietario la lee y el otro recibe 404; registros de prueba eliminados |
 | Autenticación / perfil | Registro, correo duplicado, login correcto/incorrecto, PATCH permitido/extra, logout y reutilización de sesión | **Probado con PostgreSQL:** 201/409/200/401/200/400/204/401; cuenta temporal eliminada |
+| Cookie / expiración | Revisar `Set-Cookie`; vencer sesión en DB y consultar `/auth/me`; limpieza final | **Probado:** `HttpOnly`, `SameSite=Lax`, `Max-Age` y 401 `SESSION_EXPIRED` |
 | Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
 | Estadísticas administrativas | Dataset temporal conocido: una query respondida, tres fuentes y rating 5; resultado API comparado con valores esperados y limpieza completa | **Probado:** totales, promedio y curso recomendado coinciden; DB queda limpia |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
@@ -27,7 +28,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Criterio | Verificación de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | **Probado con PostgreSQL:** registro (201), duplicado (409), login correcto/incorrecto (200/401), logout (204), sesión revocada (401); flags de cookie/expiración aún pendientes |
+| API-01 | Registro y autenticación | Registro completo, correo duplicado, login válido/inválido, cierre, cookie HttpOnly, expiración | **Probado con PostgreSQL:** registro (201), duplicado (409), login correcto/incorrecto (200/401), logout (204), revocación/expiración (401); cookie con HttpOnly/SameSite/Max-Age |
 | API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ajeno; admin sí puede gestionar | **Probado parcialmente con DB:** mutación sin token (403), estudiante en ruta admin (403), consulta e historial ajenos (404); demás recursos pendientes |
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | **Probado con PostgreSQL:** interés actualizado; campo extra rechazado con 400; fixtures eliminados |
 | DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | **Probado:** aplicada al iniciar Compose limpio; ocho tablas públicas y versión consultadas; inspección completa de constraints pendiente |
