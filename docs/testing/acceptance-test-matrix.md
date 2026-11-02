@@ -6,11 +6,11 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | Verificación | Comando/procedimiento | Resultado actual |
 | --- | --- | --- |
-| Suite unitaria y HTTP local | `cd backend; npm test` | **Probado:** 12/12 pasan; la prueba de DB optativa se omite sin activar integración |
-| Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado:** 1/1 pasa; repetición con migración existente también pasa; cero fixtures al terminar |
+| Suite unitaria y HTTP local | `cd backend; npm test` | **Probado en esta sesión:** 12/12 pasan, 0 fallan; la prueba optativa de DB se omite en esta suite. El primer intento fue bloqueado por sockets loopback del sandbox y el segundo, autorizado localmente, pasó |
+| Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado en esta sesión:** 1/1 pasa con migración ya aplicada; el runner limpia sus fixtures al terminar |
 | Sintaxis JavaScript backend | `node --check` sobre todos los archivos `backend/**/*.js` | **Probado:** 48 archivos pasan |
 | Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente e importado:** 11 nodos de indexación y 14 de consulta; ambos workflows inactivos |
-| Configuración Docker Compose | `docker compose --env-file .env config --quiet`; inspección de `docker info` y `docker ps` | **Probado:** daemon Linux 29.8.2; PostgreSQL, Qdrant, n8n y API healthy en puertos loopback; Home Assistant activo y sin cambios |
+| Configuración Docker Compose | `docker compose --env-file .env.example config --quiet`; inspección de solo lectura con `docker ps` | **Probado en esta sesión:** configuración expandida válida; PostgreSQL, Qdrant, n8n y API healthy en puertos loopback; Home Assistant activo; MongoDB no figura en ejecución. No se modificaron contenedores |
 | PostgreSQL / migración | Compose de app y base de pruebas aislada; migrador y versión consultados | **Probado:** ocho tablas públicas en `rutaia`, migración también idempotente en `rutaia_test`; ambas bases sin fixtures funcionales |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
 | CRUD de cursos en PostgreSQL | Cuenta admin y cursos sintéticos temporales; crear, editar, filtrar categoría/nivel, paginar, desactivar/reactivar y comparar catálogo público/admin; limpieza final | **Probado:** operaciones y visibilidad del catálogo; fixtures eliminados |
@@ -21,6 +21,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
 | Estadísticas administrativas | Dataset temporal conocido: una query respondida, tres fuentes y rating 5; resultado API comparado con valores esperados y limpieza completa | **Probado:** totales, promedio y curso recomendado coinciden; DB queda limpia |
 | Qdrant, n8n | Healthcheck Docker, endpoint vectorial sintético y endpoints n8n | **Probado:** ambos healthy; búsqueda Cosine ordena correctamente tres vectores sintéticos y colección de prueba eliminada; Qdrant queda sin colecciones; dos workflows importados e inactivos |
+| OpenAPI | Contrato YAML parseado y rutas/esquemas contrastados con implementación | **Pendiente:** archivo presente, pero no se encontró parser OpenAPI/YAML disponible en el entorno para validarlo estructuralmente |
 | OpenRouter / RAG real | Baseline de modelos y políticas ZDR en JSON; credencial y catálogo faltan | **Implementado en fuente, no ejecutado:** `baai/bge-m3` y `meta-llama/llama-3.3-70b-instruct`; n8n conserva copias importadas anteriores al cambio, proveedor elegible, autorización de datos y RAG integral pendientes |
 | Navegador/visual | Browser local a 302 px; inspección de login/registro tras ajuste de anchura | **Probado parcialmente:** ambas pantallas sin desbordamiento horizontal; escritorio, vistas autenticadas y flujos completos pendientes |
 | Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |

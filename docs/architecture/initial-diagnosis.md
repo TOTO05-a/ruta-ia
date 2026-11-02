@@ -11,10 +11,10 @@ Fecha: 2026-11-02
 
 ## Diagnóstico y estado actualizado
 
-- Local: rama activa `trabajo`, limpia tras el último commit. `dev` integra el estado verificado hasta `c6101e4`; `main` permanece en `b1fdc2a` como línea estable. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y la prueba optativa de integración PostgreSQL pasa (1/1), incluidas dos ejecuciones consecutivas de su versión anterior.
+- Local: rama activa `trabajo`, limpia al inicio de este diagnóstico; `trabajo` y `dev` apuntan a `21a26ad`, y `main` permanece en `b1fdc2a` como línea estable. La suite unitaria/HTTP se repitió en esta sesión: 12 pasan, 0 fallan y 1 prueba optativa de integración se omite. En un intento inicial el sandbox bloqueó sockets loopback; la repetición autorizada localmente completó correctamente.
 - GitHub: `TOTO05-a/ruta-ia` accesible; las ramas `main`, `dev` y `trabajo` están publicadas. Desarrollo continúa en `trabajo`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
-- Docker: inspección del daemon Linux 29.8.2 confirmó PostgreSQL, Qdrant, n8n y backend RutaIA healthy (puertos locales 5432, 6333, 5678 y 3001). Home Assistant sigue activo y no se alteró; MongoDB preexistente permanece detenido y sin cambios. App accesible en `http://localhost:3001`.
+- Docker: inspección de solo lectura del daemon Linux confirmó PostgreSQL, Qdrant, n8n y backend RutaIA healthy (puertos locales 5432, 6333, 5678 y 3001); Home Assistant sigue activo. MongoDB no aparece entre los contenedores en ejecución; no se modificó ningún contenedor. App accesible en `http://localhost:3001`.
 - Catálogo institucional: no se encontró entre los archivos disponibles. No se fabricarán cursos institucionales para cumplir el mínimo de 20.
 
 ## Plan por ramas
