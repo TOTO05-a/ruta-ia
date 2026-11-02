@@ -1,6 +1,6 @@
 # Manual de continuidad de RutaIA
 
-**Actualizado:** 2 de noviembre de 2026  
+**Actualizado:** 2 de noviembre de 2026
 **Propósito:** permitir que otra sesión retome el proyecto sin inferir estado, inventar cursos ni exponer secretos.
 
 ## 1. Qué es y qué está funcionando
