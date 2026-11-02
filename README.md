@@ -17,7 +17,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Pruebas ejecutadas: 12/12 pruebas unitarias/HTTP pasan; sintaxis verificada para 44 archivos JavaScript.
 - Entorno integrado local: PostgreSQL, Qdrant, n8n y Express están `healthy`; la API informa PostgreSQL listo. Migración aplicada en PostgreSQL limpio y ocho tablas públicas verificadas.
 - Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
-- Prueba CRUD con cuenta admin y curso sintéticos: crear, editar, desactivar, confirmar ocultamiento público y lectura admin del inactivo; ambos registros de prueba se eliminaron.
+- Prueba CRUD con cuenta admin y cursos sintéticos: crear, editar, filtrar categoría/nivel, paginar, desactivar/reactivar, confirmar ocultamiento público y lectura admin del inactivo; todos los registros de prueba se eliminaron.
 - Pruebas de seguridad con una cuenta estudiante temporal: sin CSRF, POST responde 403; estudiante en ruta admin responde 403; consulta vacía responde 400. La cuenta se eliminó.
 - Prueba de consultas con dos estudiantes: una pregunta quedó en `Error` seguro por configuración de proveedor ausente; propietario pudo leerla y el otro estudiante recibió 404 para consulta e historial ajenos. Se eliminaron primero consultas y luego ambas cuentas.
 - Callback integrado probado con payloads sintéticos: `Sin resultados` idempotente (202 y repetición 200) y `Respondida` con tres cursos activos (fuentes persistidas); rating devuelve 201 y una segunda calificación devuelve 409. Todos los datos temporales se eliminaron. Esto valida API/DB, no la ejecución del workflow ni el RAG de OpenRouter.
