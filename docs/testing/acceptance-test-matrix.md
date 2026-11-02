@@ -15,6 +15,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | CRUD de cursos en PostgreSQL | Cuenta admin y curso sintéticos temporales; crear, editar, desactivar y comparar catálogo público/admin; limpieza final | **Probado parcialmente:** escritura, persistencia y ocultamiento de inactivos; reactivación/filtros completos pendientes |
 | CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |
 | Persistencia / aislamiento de consultas | Dos estudiantes temporales; crear una consulta sin proveedor, leerla como propietario y consultar query/historial ajenos | **Probado:** queda en `Error` seguro, propietario la lee y el otro recibe 404; registros de prueba eliminados |
+| Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
@@ -30,7 +31,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
 | API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | **Probado parcialmente con PostgreSQL:** crear, editar y desactivar; público oculta el inactivo y admin lo conserva. Reactivación/filtros/paginación pendientes |
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | Ruta 404 genérica probada; casos con DB pendientes |
-| API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | Esquema unitario probado; persistencia/duplicado pendientes |
+| API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | **Probado con PostgreSQL:** rating 5 devuelve 201; el duplicado devuelve 409; datos temporales eliminados |
 | API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | Implementado; prueba de integración pendiente |
 | API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado/404 y pregunta vacía (400) probados; fallos DB/proveedor/timeout pendientes |
 
@@ -52,10 +53,10 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow importado e inactivo; credenciales, modelos y ejecución pendiente |
-| N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Lógica importada e inactiva; ejecución pendiente |
+| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow importado e inactivo; contrato callback/persistencia probado con payload sintético; ejecución del workflow y modelo pendiente |
+| N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Callback y persistencia probados con query sintética; workflow importado e inactivo; selección RAG pendiente |
 | N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Rama importada e inactiva; ejecución pendiente |
-| N8N-04 | Callback repetido | No crea recomendaciones duplicadas; mantiene resultado terminal | Idempotencia implementada en transacción; prueba PostgreSQL pendiente |
+| N8N-04 | Callback repetido | No crea recomendaciones duplicadas; mantiene resultado terminal | **Probado con PostgreSQL:** callback repetido devuelve 200 sin cambiar estado terminal |
 | N8N-05 | Credenciales | Header Auth configurado en n8n; OpenRouter key cifrada por n8n; secretos no están en workflow/repo | JSON no contiene claves; alta/asignación de credenciales pendiente |
 
 ## Pruebas académicas de entrada
@@ -63,7 +64,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 - Pregunta vacía: rechazada antes de crear consulta (validador unitario probado).
 - Estudiante inexistente o sin sesión: se rechaza con 401/404 según el recurso; prueba con PostgreSQL pendiente.
 - Usuario intenta leer otra consulta y otro historial: ambos devuelven 404; probado con dos cuentas temporales.
-- Consulta válida: persistida primero como `Pendiente`; con proveedor sin configurar se probó transición a `Error` y persistencia. Estados exitosos y sin resultados con n8n/OpenRouter siguen pendientes.
+- Consulta válida: la ruta real persistió `Pendiente` y pasó a `Error` seguro por proveedor no configurado. Callbacks sintéticos persistieron `Respondida` con 3 fuentes y `Sin resultados`; ejecución n8n/OpenRouter pendiente.
 - Desactivar curso después de indexarlo: su coincidencia vectorial nunca debe pasar el filtro de cursos activos.
 
 ## Puertas para marcar RutaIA como terminada
