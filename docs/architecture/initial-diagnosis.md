@@ -43,7 +43,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 ## Decisiones técnicas pendientes de evidencia
 
 - Obtener autorización/fuente del catálogo institucional para cargar al menos 20 cursos detallados.
-- Confirmar modelos OpenRouter disponibles, dimensión de embedding y métrica Qdrant; calibrar score/umbral con casos del enunciado.
+- Baseline seleccionado desde el catálogo OpenRouter: `baai/bge-m3` (1024 dimensiones) y `meta-llama/llama-3.3-70b-instruct`. La fuente exige ZDR y `data_collection=deny`; falta verificar endpoints elegibles con credencial, autorizar transferencia de datos y calibrar score/umbral con el catálogo/casos del enunciado.
 - Configurar credenciales y probar workflows importados en n8n; verificar modo callback y autenticación entre servicios.
 - Aprovisionamiento seguro del primer administrador implementado mediante `npm run admin:promote` para cuentas ya registradas; mantener pendiente la revisión de parámetros de sesión para el despliegue final.
 - Evaluar disponibilidad y retención de datos del proveedor/modelos OpenRouter antes de enviar preguntas reales de estudiantes.

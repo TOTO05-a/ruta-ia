@@ -21,7 +21,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
 | Estadísticas administrativas | Dataset temporal conocido: una query respondida, tres fuentes y rating 5; resultado API comparado con valores esperados y limpieza completa | **Probado:** totales, promedio y curso recomendado coinciden; DB queda limpia |
 | Qdrant, n8n | Healthcheck Docker, endpoint vectorial sintético y endpoints n8n | **Probado:** ambos healthy; búsqueda Cosine ordena correctamente tres vectores sintéticos y colección de prueba eliminada; Qdrant queda sin colecciones; dos workflows importados e inactivos |
-| OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
+| OpenRouter / RAG real | Baseline de modelos y políticas ZDR en JSON; credencial y catálogo faltan | **Implementado en fuente, no ejecutado:** `baai/bge-m3` y `meta-llama/llama-3.3-70b-instruct`; n8n conserva copias importadas anteriores al cambio, proveedor elegible, autorización de datos y RAG integral pendientes |
 | Navegador/visual | Browser local a 302 px; inspección de login/registro tras ajuste de anchura | **Probado parcialmente:** ambas pantallas sin desbordamiento horizontal; escritorio, vistas autenticadas y flujos completos pendientes |
 | Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |
 
@@ -44,7 +44,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | Qdrant probó vector/score/payload con colección sintética; workflow de embeddings, dimensión real y upsert de cursos aún pendientes |
+| RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | Baseline `baai/bge-m3` (1024 dimensiones) y guardas estáticas; Qdrant probó vector/score/payload sintético; dimensiones del endpoint real, workflow y upsert de cursos pendientes |
 | RAG-02 | Sincronía catálogo | Crear/editar/reactivar se refleja en índice; reconciliación retira puntos obsoletos y consulta filtra relacionalmente | Indexación periódica cada seis horas; JSON estático validado; ejecución pendiente |
 | RAG-03 | Desarrollo web | Recomendar solo cursos pertinentes, activos y explicados con su fuente | Pendiente de catálogo y ejecución integral |
 | RAG-04 | Java/Spring Boot como aprendizaje | Puede recomendar cursos del catálogo relacionados; no cambia el backend Express | Pendiente de catálogo/casos etiquetados |
@@ -62,7 +62,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Callback y persistencia probados con query sintética; workflow importado e inactivo; selección RAG pendiente |
 | N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Rama importada e inactiva; ejecución pendiente |
 | N8N-04 | Callback repetido | No crea recomendaciones duplicadas; mantiene resultado terminal | **Probado con PostgreSQL:** callback repetido devuelve 200 sin cambiar estado terminal |
-| N8N-05 | Credenciales | Header Auth configurado en n8n; OpenRouter key cifrada por n8n; secretos no están en workflow/repo | JSON no contiene claves; alta/asignación de credenciales pendiente |
+| N8N-05 | Credenciales | Header Auth configurado en n8n; OpenRouter key cifrada por n8n; secretos no están en workflow/repo | Fuente JSON no contiene claves y exige ZDR/`data_collection=deny`; copias n8n requieren actualización; alta/asignación de credenciales pendiente |
 
 ## Pruebas académicas de entrada
 

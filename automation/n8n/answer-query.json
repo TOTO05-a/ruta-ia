@@ -57,7 +57,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.model, input: $json.input } }}",
+        "jsonBody": "={{ { model: $json.model, input: $json.input, provider: { zdr: true, data_collection: 'deny' } } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b2ff63f1-0fd4-4f48-b20e-b20d92f1e016",
@@ -135,7 +135,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.chatModel, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta para responder, dilo. Devuelve únicamente JSON con answer, summary y explanation como cadenas en español.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
+        "jsonBody": "={{ { model: $json.chatModel, provider: { zdr: true, data_collection: 'deny', require_parameters: true }, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta para responder, dilo. Devuelve únicamente JSON con answer, summary y explanation como cadenas en español.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b5e4f091-38b5-49c0-afda-47edcaecb85e",

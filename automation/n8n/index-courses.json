@@ -69,7 +69,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs } }}",
+        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs, provider: { zdr: true, data_collection: 'deny' } } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "d79b216c-b4c8-4899-ad32-31786fd409fb",
