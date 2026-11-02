@@ -267,6 +267,9 @@
 
   function historyCard(query) {
     const card = node("article", "history-card");
+    card.tabIndex = 0;
+    card.setAttribute("role", "button");
+    card.setAttribute("aria-label", `Abrir consulta del ${formatDate(query.createdAt)}: ${query.question}`);
     const copy = node("div");
     copy.append(node("span", "course-category", formatDate(query.createdAt)), node("h3", "", query.question));
     const summary = query.summary || (query.status === "Error" ? "No se pudo completar esta consulta." : query.status === "Sin resultados" ? "No se encontraron cursos relevantes." : "Los resultados aparecerán aquí al finalizar.");
@@ -275,6 +278,11 @@
     meta.append(statusPill(query.status), node("span", "", `${(query.sources || []).length} fuentes`));
     card.append(copy, meta);
     card.addEventListener("click", () => openSavedQuery(query.id));
+    card.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      event.preventDefault();
+      openSavedQuery(query.id);
+    });
     return card;
   }
 
