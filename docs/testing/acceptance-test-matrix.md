@@ -25,6 +25,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | OpenAPI | Contrato YAML parseado, referencias locales resueltas, operaciones documentadas coincidentes con routers/montajes de `app.js` y respuestas descritas | **Probado:** `npm run validate:openapi` pasa con 25 paths, 28 operaciones coincidentes y 10 referencias. Aún falta contrastar exhaustivamente cada esquema/campo de respuesta con los controladores |
 | OpenRouter / RAG real | Baseline de modelos y políticas ZDR en JSON; credencial y catálogo faltan | **Implementado en fuente, no ejecutado:** `baai/bge-m3` y `meta-llama/llama-3.3-70b-instruct`; n8n conserva copias importadas anteriores al cambio, proveedor elegible, autorización de datos y RAG integral pendientes |
 | Navegador/visual | Browser local a 302 px; inspección de login/registro tras ajuste de anchura | **Probado parcialmente:** ambas pantallas sin desbordamiento horizontal; escritorio, vistas autenticadas y flujos completos pendientes |
+| Categorías del catálogo | Opciones de categoría reunidas desde todas las páginas del catálogo activo; se invalidan tras CRUD/estado admin | **Implementado y sintaxis validada:** `node --check frontend/assets/js/app.js`; revisión interactiva en navegador pendiente |
 | Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |
 
 ## API, datos y seguridad

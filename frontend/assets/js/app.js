@@ -2,7 +2,7 @@
   "use strict";
 
   const API = "/api/v1";
-  const state = { student: null, csrf: "", page: "home", catalogPage: 1, catalogLayout: "grid", query: null, toastTimer: null };
+  const state = { student: null, csrf: "", page: "home", catalogPage: 1, catalogLayout: "grid", catalogCategories: null, query: null, toastTimer: null };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const node = (tag, className, text) => {
@@ -208,6 +208,7 @@
     const params = new URLSearchParams({ page: String(page), limit: "12" });
     const values = Object.fromEntries(new FormData(form).entries());
     Object.entries(values).forEach(([key, value]) => { if (value) params.set(key, value); });
+    try { await ensureCatalogCategories(); } catch { /* The filtered request below can still render its available courses. */ }
     const result = await loadCourses(`/courses?${params}`, $("#catalog-courses"));
     const grid = $("#catalog-courses");
     grid.classList.toggle("list-layout", state.catalogLayout === "list");
@@ -227,13 +228,26 @@
     next.setAttribute("aria-label", "Página siguiente");
     next.addEventListener("click", () => loadCatalog(page + 1));
     pagination.append(previous, current, next);
-    populateCategories(result.items);
+    populateCategories(state.catalogCategories || result.items);
   }
 
-  function populateCategories(items) {
+  async function ensureCatalogCategories() {
+    if (state.catalogCategories) return state.catalogCategories;
+    const firstPage = await api("/courses?limit=100&page=1");
+    const courses = [...(firstPage.items || [])];
+    const totalPages = Math.ceil((firstPage.total || 0) / (firstPage.limit || 100));
+    for (let page = 2; page <= totalPages; page += 1) {
+      const result = await api(`/courses?limit=100&page=${page}`);
+      courses.push(...(result.items || []));
+    }
+    state.catalogCategories = [...new Set(courses.map((course) => course.category))]
+      .sort((a, b) => a.localeCompare(b, "es"));
+    return state.catalogCategories;
+  }
+
+  function populateCategories(categories) {
     const select = $("#catalog-filters").elements.category;
     const selected = select.value;
-    const categories = [...new Set(items.map((course) => course.category))].sort((a, b) => a.localeCompare(b, "es"));
     select.replaceChildren(new Option("Todas las categorías", ""));
     categories.forEach((category) => select.add(new Option(category, category)));
     select.value = selected;
@@ -468,6 +482,7 @@
       await api(id ? `/admin/courses/${encodeURIComponent(id)}` : "/admin/courses", {
         method: id ? "PATCH" : "POST", body: JSON.stringify(body)
       });
+      state.catalogCategories = null;
       $("#course-dialog").close();
       await loadAdminCourses();
       toast("Curso guardado en el catálogo relacional.");
@@ -480,6 +495,7 @@
     if (!window.confirm(`¿Quieres ${action} “${course.name}”?`)) return;
     try {
       await api(`/admin/courses/${encodeURIComponent(course.id)}/status`, { method: "PATCH", body: JSON.stringify({ isActive: !course.isActive }) });
+      state.catalogCategories = null;
       await loadAdminCourses();
       toast(`Curso ${course.isActive ? "desactivado" : "activado"}.`);
     } catch (error) { toast(error.message, true); }
