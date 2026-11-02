@@ -17,6 +17,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Pruebas ejecutadas: 12/12 pruebas unitarias/HTTP pasan; sintaxis verificada para 44 archivos JavaScript.
 - Entorno integrado local: PostgreSQL, Qdrant, n8n y Express están `healthy`; la API informa PostgreSQL listo. Migración aplicada en PostgreSQL limpio y ocho tablas públicas verificadas.
 - Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
+- Prueba CRUD con cuenta admin y curso sintéticos: crear, editar, desactivar, confirmar ocultamiento público y lectura admin del inactivo; ambos registros de prueba se eliminaron.
 - Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
 - Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.

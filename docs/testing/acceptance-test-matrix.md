@@ -12,6 +12,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Configuración Docker Compose | `docker compose --env-file .env config --quiet` | **Probado**; stack local levantado |
 | PostgreSQL / migración | Compose limpio; esquema, versión de migración y tablas consultados en DB | **Probado:** PostgreSQL healthy, ocho tablas públicas y esquema `n8n` |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
+| CRUD de cursos en PostgreSQL | Cuenta admin y curso sintéticos temporales; crear, editar, desactivar y comparar catálogo público/admin; limpieza final | **Probado parcialmente:** escritura, persistencia y ocultamiento de inactivos; reactivación/filtros completos pendientes |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
@@ -25,7 +26,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | Implementado; esquemas unitarios probados; persistencia pendiente |
 | DB-01 | Migración limpia | Aplicar migration a PostgreSQL vacío y confirmar FKs, índices, checks y tabla de versiones | **Probado:** aplicada al iniciar Compose limpio; ocho tablas públicas y versión consultadas; inspección completa de constraints pendiente |
 | DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
-| API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | Implementado; pruebas de integración PostgreSQL pendientes |
+| API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | **Probado parcialmente con PostgreSQL:** crear, editar y desactivar; público oculta el inactivo y admin lo conserva. Reactivación/filtros/paginación pendientes |
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | Ruta 404 genérica probada; casos con DB pendientes |
 | API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | Esquema unitario probado; persistencia/duplicado pendientes |
 | API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | Implementado; prueba de integración pendiente |
