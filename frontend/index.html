@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#071428">
+  <meta name="description" content="Encuentra cursos institucionales que se ajusten a tus metas de aprendizaje.">
+  <title>RutaIA — orientación académica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./assets/css/styles.css">
+  <script src="./assets/js/app.js" defer></script>
+</head>
+<body>
+  <div id="auth-view" class="auth-shell">
+    <div class="auth-brand">
+      <a class="brand-mark" href="#inicio" aria-label="RutaIA"><span class="brand-icon">R</span><span>ruta<span class="brand-accent">ia</span></span></a>
+      <div class="auth-visual" aria-hidden="true">
+        <div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="orbit-core">R<span>IA</span></div>
+        <div class="orbit-caption"><span class="live-dot"></span> Orientación basada en cursos reales</div>
+      </div>
+      <p class="auth-foot">Aprende con dirección. Avanza con propósito.</p>
+    </div>
+    <main class="auth-card-wrap">
+      <section class="auth-card" aria-labelledby="auth-title">
+        <div class="eyebrow"><span class="eyebrow-line"></span> TU PRÓXIMO PASO EMPIEZA AQUÍ</div>
+        <h1 id="auth-title">Encuentra tu<br><span class="text-gradient">siguiente ruta.</span></h1>
+        <p class="muted auth-description">Recomendaciones académicas conectadas con lo que quieres aprender.</p>
+        <div class="auth-tabs" role="tablist" aria-label="Acceso">
+          <button type="button" class="auth-tab active" id="login-tab" role="tab" aria-selected="true">Iniciar sesión</button>
+          <button type="button" class="auth-tab" id="register-tab" role="tab" aria-selected="false">Crear cuenta</button>
+        </div>
+        <form id="login-form" class="form-stack">
+          <label>Correo electrónico<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="tu@correo.com"></label>
+          <label>Contraseña<input name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder="Tu contraseña"></label>
+          <button class="button button-primary button-wide" type="submit">Entrar <span aria-hidden="true">↗</span></button>
+        </form>
+        <form id="register-form" class="form-stack hidden">
+          <label>Nombre completo<input name="fullName" autocomplete="name" required minlength="2" maxlength="120" placeholder="Nombre y apellido"></label>
+          <label>Correo electrónico<input name="email" type="email" autocomplete="email" required maxlength="254" placeholder="tu@correo.com"></label>
+          <label>Contraseña <span class="field-note">12 caracteres como mínimo</span><input name="password" type="password" autocomplete="new-password" required minlength="12" maxlength="128" placeholder="Crea una contraseña segura"></label>
+          <div class="form-row">
+            <label>Nivel<select name="experienceLevel" required><option value="">Selecciona</option><option>Principiante</option><option>Intermedio</option><option>Avanzado</option></select></label>
+            <label>Área de interés<input name="interestArea" required minlength="2" maxlength="120" placeholder="Desarrollo web"></label>
+          </div>
+          <button class="button button-primary button-wide" type="submit">Crear mi cuenta <span aria-hidden="true">↗</span></button>
+        </form>
+        <p id="auth-message" class="form-message" role="status" aria-live="polite"></p>
+        <p class="auth-privacy">Tus datos se usan para personalizar la orientación.</p>
+      </section>
+    </main>
+  </div>
+
+  <div id="app-view" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand-mark sidebar-brand" href="#inicio"><span class="brand-icon">R</span><span>ruta<span class="brand-accent">ia</span></span></a>
+      <div class="workspace-label">ESPACIO PERSONAL</div>
+      <nav class="main-nav" aria-label="Navegación principal">
+        <button class="nav-item active" data-page="home"><span class="nav-icon">⌂</span> Inicio</button>
+        <button class="nav-item" data-page="catalog"><span class="nav-icon">◫</span> Explorar cursos</button>
+        <button class="nav-item" data-page="history"><span class="nav-icon">◷</span> Mi historial</button>
+        <button class="nav-item" data-page="profile"><span class="nav-icon">◎</span> Mi perfil</button>
+        <div id="admin-nav" class="hidden">
+          <div class="workspace-label nav-divider">ADMINISTRACIÓN</div>
+          <button class="nav-item" data-page="admin-courses"><span class="nav-icon">⌘</span> Cursos</button>
+          <button class="nav-item" data-page="admin-students"><span class="nav-icon">♙</span> Estudiantes</button>
+          <button class="nav-item" data-page="admin-stats"><span class="nav-icon">▥</span> Estadísticas</button>
+        </div>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="catalog-status"><span class="status-orb"></span><div><strong>Comprobando catálogo</strong><small>Estado de la API</small></div></div>
+        <button id="logout-button" class="nav-item logout-button"><span class="nav-icon">↪</span> Cerrar sesión</button>
+        <div class="sidebar-user"><div class="avatar" id="user-avatar">R</div><div class="sidebar-user-copy"><strong id="sidebar-user-name">Estudiante</strong><small id="sidebar-user-area">Mi perfil</small></div><button id="theme-toggle" class="icon-button" type="button" aria-label="Cambiar tema">◐</button></div>
+      </div>
+    </aside>
+    <div id="sidebar-scrim" class="sidebar-scrim"></div>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button id="menu-toggle" class="icon-button mobile-menu" type="button" aria-label="Abrir menú">☰</button>
+        <div class="breadcrumb"><span>RUTAIA</span><b>/</b><strong id="page-breadcrumb">INICIO</strong></div>
+        <div class="topbar-right"><span class="connection-label"><span class="live-dot"></span> Comprobando conexión</span><button id="top-theme-toggle" class="icon-button top-theme" type="button" aria-label="Cambiar tema">◐</button></div>
+      </header>
+
+      <section class="page-view active" id="inicio" data-view="home">
+        <div class="welcome-hero">
+          <div class="hero-copy">
+            <div class="eyebrow"><span class="live-dot"></span> TU CENTRO DE ORIENTACIÓN</div>
+            <h1>Hola, <span id="welcome-name" class="text-gradient">estudiante</span><span class="hero-comma">.</span><br>¿Qué quieres aprender?</h1>
+            <p class="muted">Cuéntanos tu meta. Buscaremos en el catálogo institucional y te mostraremos por qué cada curso puede ayudarte.</p>
+            <form id="query-form" class="query-box">
+              <label for="question-input" class="sr-only">Escribe tu pregunta</label>
+              <textarea id="question-input" name="question" rows="3" required maxlength="4000" placeholder="Ej. Quiero aprender a construir aplicaciones web con bases de datos…"></textarea>
+              <div class="query-box-footer"><span><kbd>↵</kbd> <span>Escribe tu consulta</span></span><button id="ask-button" class="button button-primary" type="submit">Encontrar mi ruta <span aria-hidden="true">↗</span></button></div>
+            </form>
+            <p id="query-message" class="form-message" role="status" aria-live="polite"></p>
+            <div class="suggestion-row"><span>PRUEBA CON</span><button class="suggestion" data-question="Quiero aprender a crear páginas web">Crear páginas web</button><button class="suggestion" data-question="Me interesa analizar datos y construir dashboards">Analizar datos</button><button class="suggestion" data-question="Quiero aprender sobre inteligencia artificial">Inteligencia artificial</button></div>
+          </div>
+          <div class="hero-art" aria-hidden="true"><div class="hero-grid"></div><div class="hero-ring ring-a"></div><div class="hero-ring ring-b"></div><div class="hero-disc"><span>R</span><i>IA</i></div><div class="hero-float float-top">RUTA <b>01</b></div><div class="hero-float float-bottom"><span class="live-dot"></span> APRENDIZAJE CONECTADO</div></div>
+        </div>
+        <section class="section-block">
+          <div class="section-heading"><div><div class="eyebrow">PUNTO DE PARTIDA</div><h2>Tu ruta, a tu ritmo</h2></div><button class="text-button" data-go="catalog">Ver catálogo <span>↗</span></button></div>
+          <div id="home-courses" class="course-grid compact-grid"><div class="loading-card">Cargando cursos institucionales…</div></div>
+        </section>
+        <section id="latest-result" class="result-panel hidden"></section>
+      </section>
+
+      <section class="page-view" data-view="catalog">
+        <div class="page-heading"><div><div class="eyebrow">FUENTES INSTITUCIONALES</div><h1>Explora el catálogo<span class="hero-comma">.</span></h1><p class="muted">Cursos activos disponibles para tu siguiente paso.</p></div><div class="view-switch" role="group" aria-label="Vista del catálogo"><button class="active" data-layout="grid" aria-label="Vista en cuadrícula">▦</button><button data-layout="list" aria-label="Vista de lista">☷</button></div></div>
+        <form id="catalog-filters" class="filter-bar"><label class="search-field"><span>⌕</span><input name="search" placeholder="Buscar por tema o curso…" maxlength="160"></label><label><span class="sr-only">Categoría</span><select name="category"><option value="">Todas las categorías</option></select></label><label><span class="sr-only">Nivel</span><select name="level"><option value="">Todos los niveles</option><option>Básico</option><option>Intermedio</option><option>Avanzado</option></select></label><button class="button button-secondary" type="submit">Aplicar filtros</button></form>
+        <div id="catalog-summary" class="list-summary"></div><div id="catalog-courses" class="course-grid"></div><div id="catalog-pagination" class="pagination"></div>
+      </section>
+
+      <section class="page-view" data-view="history">
+        <div class="page-heading"><div><div class="eyebrow">TUS CONSULTAS</div><h1>Un camino que queda contigo<span class="hero-comma">.</span></h1><p class="muted">Abre tus resultados guardados. No se vuelven a generar.</p></div></div>
+        <form id="history-filters" class="filter-bar"><label><span class="sr-only">Estado</span><select name="status"><option value="">Todos los estados</option><option>Pendiente</option><option>Respondida</option><option>Sin resultados</option><option>Error</option></select></label><button class="button button-secondary" type="submit">Filtrar</button></form>
+        <div id="history-list" class="history-list"><div class="loading-card">Cargando historial…</div></div>
+      </section>
+
+      <section class="page-view" data-view="profile">
+        <div class="page-heading"><div><div class="eyebrow">TU PERFIL DE APRENDIZAJE</div><h1>Tu punto de partida<span class="hero-comma">.</span></h1><p class="muted">Tus intereses y experiencia ayudan a contextualizar cada consulta.</p></div></div>
+        <form id="profile-form" class="surface-card profile-form">
+          <label>Nombre completo<input name="fullName" required minlength="2" maxlength="120"></label>
+          <label>Correo electrónico<input name="email" type="email" readonly aria-readonly="true"></label>
+          <div class="form-row"><label>Nivel de experiencia<select name="experienceLevel" required><option>Principiante</option><option>Intermedio</option><option>Avanzado</option></select></label><label>Área de interés<input name="interestArea" required minlength="2" maxlength="120"></label></div>
+          <div class="form-actions"><span id="profile-message" class="form-message" role="status"></span><button class="button button-primary" type="submit">Guardar cambios <span>↗</span></button></div>
+        </form>
+      </section>
+
+      <section class="page-view" data-view="admin-courses">
+        <div class="page-heading"><div><div class="eyebrow">GESTIÓN INSTITUCIONAL</div><h1>Administrar cursos<span class="hero-comma">.</span></h1><p class="muted">Controla qué cursos se muestran en el catálogo público.</p></div><button id="new-course-button" class="button button-primary">Añadir curso <span>＋</span></button></div>
+        <div class="admin-note"><span class="note-icon">i</span><span>Solo los cursos activos aparecen en el catálogo público. Los cambios semánticos dependerán de la sincronización con Qdrant.</span></div>
+        <div id="admin-courses" class="admin-course-list"><div class="loading-card">Cargando cursos…</div></div>
+      </section>
+
+      <section class="page-view" data-view="admin-students">
+        <div class="page-heading"><div><div class="eyebrow">GESTIÓN INSTITUCIONAL</div><h1>Estudiantes<span class="hero-comma">.</span></h1><p class="muted">Cuentas registradas y áreas de interés.</p></div></div>
+        <div id="admin-students-list" class="admin-course-list"><div class="loading-card">Cargando estudiantes…</div></div>
+      </section>
+
+      <section class="page-view" data-view="admin-stats">
+        <div class="page-heading"><div><div class="eyebrow">ACTIVIDAD REAL DEL SISTEMA</div><h1>Estadísticas<span class="hero-comma">.</span></h1><p class="muted">Indicadores calculados con consultas y calificaciones guardadas.</p></div></div>
+        <div id="stats-grid" class="stats-grid"><div class="loading-card">Cargando estadísticas…</div></div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="course-dialog" class="modal-card"><form id="course-form" method="dialog"><div class="modal-top"><div><div class="eyebrow">CATÁLOGO INSTITUCIONAL</div><h2 id="course-dialog-title">Nuevo curso</h2></div><button class="icon-button" value="cancel" aria-label="Cerrar">×</button></div><input type="hidden" name="id"><label>Nombre<input name="name" required minlength="2" maxlength="180"></label><label>Descripción<textarea name="description" required minlength="20" maxlength="10000" rows="5"></textarea></label><div class="form-row"><label>Categoría<input name="category" required minlength="2" maxlength="100"></label><label>Nivel<select name="level" required><option>Básico</option><option>Intermedio</option><option>Avanzado</option></select></label></div><label>Duración en horas<input name="durationHours" type="number" min="0.01" step="0.01" required></label><p id="course-form-message" class="form-message" role="status"></p><div class="form-actions"><button class="button button-secondary" value="cancel">Cancelar</button><button id="course-save-button" class="button button-primary" type="submit" value="save">Guardar curso <span>↗</span></button></div></form></dialog>
+  <dialog id="detail-dialog" class="modal-card detail-modal"><div id="detail-content"></div><form method="dialog" class="modal-close-form"><button class="icon-button" aria-label="Cerrar">×</button></form></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

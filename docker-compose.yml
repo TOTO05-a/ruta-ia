@@ -1,0 +1,105 @@
+name: rutaia
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: rutaia
+      POSTGRES_USER: ${POSTGRES_USER:-rutaia_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/docker-init/001-n8n-schema.sql:/docker-entrypoint-initdb.d/001-n8n-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  qdrant:
+    image: qdrant/qdrant:v1.20.0
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  n8n:
+    image: n8nio/n8n:2.46.4
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      N8N_HOST: ${N8N_HOST:-localhost}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: http
+      N8N_SECURE_COOKIE: "false"
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Define N8N_ENCRYPTION_KEY en .env}
+      N8N_BLOCK_ENV_ACCESS_IN_NODE: "true"
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: rutaia
+      DB_POSTGRESDB_USER: ${POSTGRES_USER:-rutaia_user}
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}
+      DB_POSTGRESDB_SCHEMA: n8n
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE:-America/Guatemala}
+      TZ: ${GENERIC_TIMEZONE:-America/Guatemala}
+    ports:
+      - "127.0.0.1:${N8N_PORT:-5678}:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5678/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 12
+      start_period: 30s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER:-rutaia_user}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}@postgres:5432/rutaia
+      SESSION_SECRET: ${SESSION_SECRET:?Define SESSION_SECRET en .env}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      N8N_QUERY_WEBHOOK_URL: http://n8n:5678/webhook/rutaia-query
+      N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:?Define N8N_WEBHOOK_SECRET en .env}
+      N8N_CALLBACK_URL: http://backend:3000/api/v1/internal/n8n/results
+      N8N_CALLBACK_SECRET: ${N8N_CALLBACK_SECRET:?Define N8N_CALLBACK_SECRET en .env}
+      N8N_COURSE_SYNC_SECRET: ${N8N_COURSE_SYNC_SECRET:?Define N8N_COURSE_SYNC_SECRET en .env}
+      N8N_TIMEOUT_MS: ${N8N_TIMEOUT_MS:-10000}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-}
+      OPENROUTER_CHAT_MODEL: ${OPENROUTER_CHAT_MODEL:-}
+      RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-}
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-rutaia_courses}
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-}
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 4s
+      retries: 6
+      start_period: 15s
+
+volumes:
+  postgres_data:
+  qdrant_data:
+  n8n_data:

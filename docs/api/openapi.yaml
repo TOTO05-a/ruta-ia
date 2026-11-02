@@ -1,0 +1,404 @@
+openapi: 3.1.0
+info:
+  title: RutaIA API
+  version: 1.0.0
+  description: Contratos actualmente implementados. Los endpoints aún pendientes no se anuncian como operativos.
+servers:
+  - url: http://localhost:3000
+paths:
+  /health:
+    get:
+      summary: Comprueba que el proceso API responde
+      responses:
+        '200':
+          description: Proceso activo (no comprueba dependencias)
+  /health/ready:
+    get:
+      summary: Comprueba la conectividad con PostgreSQL
+      responses:
+        '200':
+          description: PostgreSQL responde
+        '503':
+          description: PostgreSQL no está disponible
+  /api/v1/auth/register:
+    post:
+      summary: Registra un estudiante y crea sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Estudiante creado; cookie de sesión HttpOnly y token CSRF devueltos
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: El correo ya existe
+  /api/v1/auth/login:
+    post:
+      summary: Inicia sesión
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Sesión iniciada
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Credenciales incorrectas
+  /api/v1/auth/me:
+    get:
+      summary: Devuelve el estudiante de la sesión
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Perfil del estudiante autenticado
+        '401':
+          description: Sesión ausente o expirada
+  /api/v1/auth/csrf:
+    get:
+      summary: Recupera el token CSRF de la sesión actual
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Token CSRF
+  /api/v1/auth/logout:
+    post:
+      summary: Invalida la sesión actual
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Sesión cerrada
+        '403':
+          description: Token CSRF inválido
+  /api/v1/students/me:
+    patch:
+      summary: Actualiza el perfil del estudiante autenticado
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              minProperties: 1
+              properties:
+                fullName: { type: string, minLength: 2, maxLength: 120 }
+                experienceLevel: { type: string, enum: [Principiante, Intermedio, Avanzado] }
+                interestArea: { type: string, minLength: 2, maxLength: 120 }
+      responses:
+        '200': { description: Perfil actualizado }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { description: Sesión ausente o expirada }
+  /api/v1/students:
+    get:
+      summary: Lista estudiantes (solo administradores)
+      security:
+        - sessionCookie: []
+      responses:
+        '200': { description: Página de estudiantes }
+        '403': { description: Se requiere rol administrador }
+  /api/v1/students/{id}:
+    get:
+      summary: Busca un estudiante por ID (solo administradores)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Estudiante }
+        '404': { description: Estudiante no encontrado }
+  /api/v1/students/{id}/history:
+    get:
+      summary: Historial propio o de un estudiante (administración)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Página de consultas del estudiante }
+        '404': { description: Estudiante no encontrado }
+  /api/v1/queries:
+    post:
+      summary: Registra una pregunta antes de iniciar n8n
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [question]
+              properties:
+                question: { type: string, minLength: 1, maxLength: 4000 }
+      responses:
+        '202': { description: Consulta persistida; estado actual puede ser Pendiente o Error si n8n no inició }
+        '400': { $ref: '#/components/responses/ValidationError' }
+    get:
+      summary: Lista el historial del estudiante autenticado
+      security:
+        - sessionCookie: []
+      responses:
+        '200': { description: Historial paginado }
+  /api/v1/queries/{id}:
+    get:
+      summary: Obtiene el estado y resultado guardado de una consulta
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Estado, respuesta y fuentes guardados }
+        '404': { description: Consulta no encontrada }
+  /api/v1/internal/n8n/results:
+    post:
+      summary: Recibe resultado autenticado de n8n
+      parameters:
+        - in: header
+          name: X-N8N-Callback-Secret
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [queryId, status]
+              properties:
+                queryId: { type: string, format: uuid }
+                status: { type: string, enum: [Respondida, Sin resultados, Error] }
+      responses:
+        '202': { description: Resultado persistido }
+        '200': { description: Callback duplicado; procesamiento idempotente }
+        '401': { description: Callback no autenticado }
+  /api/v1/recommendations/{id}/rating:
+    post:
+      summary: Califica una recomendación propia
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 2000 }
+      responses:
+        '201': { description: Calificación creada }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: Recomendación no encontrada }
+        '409': { description: Ya existe una calificación }
+  /api/v1/admin/statistics:
+    get:
+      summary: Métricas globales requeridas (solo administradores)
+      security:
+        - sessionCookie: []
+      responses:
+        '200': { description: Total, respondidas, sin resultados, promedio y curso más recomendado }
+        '403': { description: Se requiere rol administrador }
+  /api/v1/courses:
+    get:
+      summary: Catálogo público de cursos activos
+      parameters:
+        - in: query
+          name: search
+          schema: { type: string }
+        - in: query
+          name: category
+          schema: { type: string }
+        - in: query
+          name: level
+          schema: { type: string, enum: [Básico, Intermedio, Avanzado] }
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+      responses:
+        '200': { description: Página de cursos activos }
+        '400': { $ref: '#/components/responses/ValidationError' }
+  /api/v1/courses/{id}:
+    get:
+      summary: Consulta un curso activo
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200': { description: Curso }
+        '404': { description: Curso no encontrado o inactivo }
+  /api/v1/admin/courses:
+    get:
+      summary: Lista cursos activos e inactivos (solo administradores)
+      security:
+        - sessionCookie: []
+      responses:
+        '200': { description: Página administrativa de cursos }
+        '403': { description: Se requiere rol administrador }
+    post:
+      summary: Crea curso (solo administradores)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [name, description, category, level, durationHours]
+              properties:
+                name: { type: string, minLength: 2, maxLength: 180 }
+                description: { type: string, minLength: 20, maxLength: 10000 }
+                category: { type: string, minLength: 2, maxLength: 100 }
+                level: { type: string, enum: [Básico, Intermedio, Avanzado] }
+                durationHours: { type: number, exclusiveMinimum: 0 }
+      responses:
+        '201': { description: Curso creado }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '403': { description: Sin permiso o CSRF inválido }
+  /api/v1/admin/courses/{id}:
+    patch:
+      summary: Actualiza un curso (solo administradores)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Curso actualizado }
+        '404': { description: Curso no encontrado }
+  /api/v1/admin/courses/{id}/status:
+    patch:
+      summary: Activa o desactiva un curso (solo administradores)
+      security:
+        - sessionCookie: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string, format: uuid }
+        - in: header
+          name: X-CSRF-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [isActive]
+              properties:
+                isActive: { type: boolean }
+      responses:
+        '200': { description: Estado actualizado }
+        '404': { description: Curso no encontrado }
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: rutaia_session
+  schemas:
+    RegisterRequest:
+      type: object
+      additionalProperties: false
+      required: [fullName, email, password, experienceLevel, interestArea]
+      properties:
+        fullName: { type: string, minLength: 2, maxLength: 120 }
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 12, maxLength: 128 }
+        experienceLevel: { type: string, enum: [Principiante, Intermedio, Avanzado] }
+        interestArea: { type: string, minLength: 2, maxLength: 120 }
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, maxLength: 254 }
+        password: { type: string, minLength: 1, maxLength: 128 }
+    ApiError:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message, requestId]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string, format: uuid }
+            details: { type: array, items: { type: object } }
+  responses:
+    ValidationError:
+      description: Solicitud inválida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
