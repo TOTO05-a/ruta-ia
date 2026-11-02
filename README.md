@@ -17,7 +17,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Pruebas ejecutadas: 12/12 pruebas unitarias/HTTP pasan; sintaxis verificada para 44 archivos JavaScript.
 - Entorno integrado local: PostgreSQL, Qdrant, n8n y Express están `healthy`; la API informa PostgreSQL listo. Migración aplicada en PostgreSQL limpio y ocho tablas públicas verificadas.
 - Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
-- Workflows JSON de indexación y consulta implementados y validados estáticamente; importación/configuración en la instancia n8n pendiente. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
+- Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
 - Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
 - GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo` (último commit `3269986`). `dev` y `main` esperan revisión e integración.
@@ -36,7 +36,7 @@ Antes de iniciar, sustituye todos los valores `CHANGE_ME` de `.env` por secretos
 docker compose up --build
 ```
 
-El Compose publica PostgreSQL, Qdrant, n8n y la aplicación solo en `127.0.0.1`, persiste datos en volúmenes y aplica la migración PostgreSQL antes de iniciar la API. En esta PC la aplicación está publicada en `http://localhost:3001` porque el puerto 3000 aparecía ocupado; una instalación limpia usa 3000 por defecto. Los nodos/credenciales de n8n aún deben importarse y configurarse; el servicio levantado por Compose no implica que el flujo RAG esté listo.
+El Compose publica PostgreSQL, Qdrant, n8n y la aplicación solo en `127.0.0.1`, persiste datos en volúmenes y aplica la migración PostgreSQL antes de iniciar la API. En esta PC la aplicación está publicada en `http://localhost:3001` porque el puerto 3000 aparecía ocupado; una instalación limpia usa 3000 por defecto. Los workflows importados siguen inactivos y requieren credenciales/modelos antes de su prueba; el servicio levantado por Compose no implica que el flujo RAG esté listo.
 
 ## Base de datos
 

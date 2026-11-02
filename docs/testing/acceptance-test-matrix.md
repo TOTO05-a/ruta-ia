@@ -8,11 +8,11 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | --- | --- | --- |
 | Suite unitaria y HTTP local | `cd backend; npm test` | **Probado:** 12/12 pasan; no necesita PostgreSQL |
 | Sintaxis JavaScript backend | `node --check` sobre `backend/src` y `backend/tests` | **Probado:** 44 archivos pasan |
-| Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente:** 11 nodos de indexación y 14 de consulta; importación real pendiente |
+| Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente e importado:** 11 nodos de indexación y 14 de consulta; ambos workflows inactivos |
 | Configuración Docker Compose | `docker compose --env-file .env config --quiet` | **Probado**; stack local levantado |
 | PostgreSQL / migración | Compose limpio; esquema, versión de migración y tablas consultados en DB | **Probado:** PostgreSQL healthy, ocho tablas públicas y esquema `n8n` |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
-| Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; workflows aún no importados |
+| Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
 
@@ -49,9 +49,9 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow exportado; importación/ejecución pendiente |
-| N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Lógica exportada; ejecución pendiente |
-| N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Ramas exportadas; ejecución pendiente |
+| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow importado e inactivo; credenciales, modelos y ejecución pendiente |
+| N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Lógica importada e inactiva; ejecución pendiente |
+| N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Rama importada e inactiva; ejecución pendiente |
 | N8N-04 | Callback repetido | No crea recomendaciones duplicadas; mantiene resultado terminal | Idempotencia implementada en transacción; prueba PostgreSQL pendiente |
 | N8N-05 | Credenciales | Header Auth configurado en n8n; OpenRouter key cifrada por n8n; secretos no están en workflow/repo | JSON no contiene claves; alta/asignación de credenciales pendiente |
 

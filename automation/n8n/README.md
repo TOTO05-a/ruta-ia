@@ -48,4 +48,4 @@ Compose limita PostgreSQL, Qdrant, n8n y la aplicación a `127.0.0.1`. Es una to
 
 ## Estado de verificación
 
-Los JSON están pendientes de importación y ejecución porque Docker Desktop no permite conectar al daemon en este entorno. La sintaxis JSON, referencias entre nodos y JavaScript incluido se verifican localmente; esa revisión estática no acredita que los nodos/credenciales funcionen en la versión ejecutada de n8n.
+Los dos workflows se importaron en la instancia local n8n 2.46.4 y se verificaron en su base de datos como inactivos. La sintaxis JSON, referencias entre nodos y JavaScript incluido también se verificaron localmente. Credenciales, modelos, ejecución y operación RAG siguen pendientes; la importación y validación estática no acreditan un flujo funcional de extremo a extremo.
