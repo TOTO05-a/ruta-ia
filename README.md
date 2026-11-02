@@ -76,6 +76,14 @@ Abre `http://localhost:3000` para usar el frontend estático servido por Express
 - PostgreSQL readiness: `GET http://localhost:3000/health/ready`
 - OpenAPI: [docs/api/openapi.yaml](docs/api/openapi.yaml)
 
+Valida el YAML, las operaciones documentadas y las referencias locales del contrato OpenAPI desde `backend/`:
+
+```powershell
+npm run validate:openapi
+```
+
+Esta comprobación estructural no sustituye la revisión funcional de cada contrato contra sus controladores.
+
 ### Endpoints implementados
 
 - `POST /api/v1/auth/register`, `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me`, `GET /api/v1/auth/csrf`
