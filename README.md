@@ -24,11 +24,11 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Prueba de consultas con dos estudiantes: una pregunta quedó en `Error` seguro por configuración de proveedor ausente; propietario pudo leerla y el otro estudiante recibió 404 para consulta e historial ajenos. Se eliminaron primero consultas y luego ambas cuentas.
 - Callback integrado probado con payloads sintéticos: `Sin resultados` idempotente (202 y repetición 200) y `Respondida` con tres cursos activos (fuentes persistidas); rating devuelve 201 y una segunda calificación devuelve 409. Todos los datos temporales se eliminaron. Esto valida API/DB, no la ejecución del workflow ni el RAG de OpenRouter.
 - Estadísticas contrastadas con los valores esperados de una query respondida, tres fuentes y una calificación sintéticas: total/contestadas/sin resultados/promedio de rating/curso recomendado coincidieron; todos los registros temporales se eliminaron.
-- Tarjetas de cursos e historial operables por teclado (Enter/Espacio), con foco visible definido en CSS; revisión visual completa en navegador pendiente.
-- Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
+- Tarjetas de cursos e historial operables por teclado (Enter/Espacio), con foco visible definido en CSS. Login y registro revisados visualmente en navegador a 302 px; vistas autenticadas y revisión visual completa pendientes.
+- Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant pasó una prueba aislada con tres vectores sintéticos y búsqueda Cosine; se eliminó la colección de prueba. No hay colección ni vectores de cursos en producción porque faltan modelos y catálogo autorizados.
 - Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
-- GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo`. `dev` y `main` esperan revisión e integración.
+- GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo`. `dev` integra el estado probado más reciente; `main` conserva el commit estable inicial.
 
 El detalle de requisitos, rúbrica, límites y bloqueos está en [diagnóstico inicial](docs/architecture/initial-diagnosis.md).
 

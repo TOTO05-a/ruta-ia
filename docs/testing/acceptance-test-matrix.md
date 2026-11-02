@@ -20,7 +20,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Cookie / expiración | Revisar `Set-Cookie`; vencer sesión en DB y consultar `/auth/me`; limpieza final | **Probado:** `HttpOnly`, `SameSite=Lax`, `Max-Age` y 401 `SESSION_EXPIRED` |
 | Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
 | Estadísticas administrativas | Dataset temporal conocido: una query respondida, tres fuentes y rating 5; resultado API comparado con valores esperados y limpieza completa | **Probado:** totales, promedio y curso recomendado coinciden; DB queda limpia |
-| Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
+| Qdrant, n8n | Healthcheck Docker, endpoint vectorial sintético y endpoints n8n | **Probado:** ambos healthy; búsqueda Cosine ordena correctamente tres vectores sintéticos y colección de prueba eliminada; Qdrant queda sin colecciones; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Browser local a 302 px; inspección de login/registro tras ajuste de anchura | **Probado parcialmente:** ambas pantallas sin desbordamiento horizontal; escritorio, vistas autenticadas y flujos completos pendientes |
 | Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |
@@ -44,7 +44,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | Workflow JSON y reglas estáticas; ejecución Qdrant pendiente |
+| RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | Qdrant probó vector/score/payload con colección sintética; workflow de embeddings, dimensión real y upsert de cursos aún pendientes |
 | RAG-02 | Sincronía catálogo | Crear/editar/reactivar se refleja en índice; reconciliación retira puntos obsoletos y consulta filtra relacionalmente | Indexación periódica cada seis horas; JSON estático validado; ejecución pendiente |
 | RAG-03 | Desarrollo web | Recomendar solo cursos pertinentes, activos y explicados con su fuente | Pendiente de catálogo y ejecución integral |
 | RAG-04 | Java/Spring Boot como aprendizaje | Puede recomendar cursos del catálogo relacionados; no cambia el backend Express | Pendiente de catálogo/casos etiquetados |
