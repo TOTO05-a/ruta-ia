@@ -26,6 +26,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | OpenRouter / RAG real | Baseline de modelos y políticas ZDR en JSON; credencial y catálogo faltan | **Implementado en fuente, no ejecutado:** `baai/bge-m3` y `meta-llama/llama-3.3-70b-instruct`; n8n conserva copias importadas anteriores al cambio, proveedor elegible, autorización de datos y RAG integral pendientes |
 | Navegador/visual | Browser local a 302 px; inspección de login/registro tras ajuste de anchura | **Probado parcialmente:** ambas pantallas sin desbordamiento horizontal; escritorio, vistas autenticadas y flujos completos pendientes |
 | Categorías del catálogo | Opciones de categoría reunidas desde todas las páginas del catálogo activo; se invalidan tras CRUD/estado admin | **Implementado y sintaxis validada:** `node --check frontend/assets/js/app.js`; revisión interactiva en navegador pendiente |
+| Cierre de sesión en frontend | Cambia a la vista pública solo después de confirmar logout API; ante error retiene el estado autenticado y muestra el fallo | **Implementado y sintaxis validada:** `node --check frontend/assets/js/app.js`; interacción de navegador pendiente |
 | Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |
 
 ## API, datos y seguridad

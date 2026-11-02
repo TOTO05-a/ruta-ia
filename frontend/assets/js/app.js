@@ -567,7 +567,12 @@
       $("#catalog-courses").classList.toggle("list-layout", state.catalogLayout === "list");
     }));
     $("#logout-button").addEventListener("click", async () => {
-      try { await api("/auth/logout", { method: "POST" }); } catch (error) { toast(error.message, true); }
+      try {
+        await api("/auth/logout", { method: "POST" });
+      } catch (error) {
+        toast(`No se pudo cerrar la sesión. ${error.message}`, true);
+        return;
+      }
       state.csrf = ""; state.student = null;
       $("#app-view").classList.add("hidden"); $("#auth-view").classList.remove("hidden"); setAuthMode("login");
     });
