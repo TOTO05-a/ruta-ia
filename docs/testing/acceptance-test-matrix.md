@@ -19,6 +19,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
+| Accesibilidad teclado | Handler Enter/Espacio y estilos `:focus-visible` de tarjetas de catálogo/historial | **Revisado estáticamente**; verificación visual/interactiva en navegador pendiente |
 
 ## API, datos y seguridad
 
