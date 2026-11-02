@@ -11,7 +11,7 @@ Fecha: 2026-11-02
 
 ## Diagnóstico y estado actualizado
 
-- Local: rama activa `trabajo`; último commit publicado `5181d18`. `main` y `dev` permanecen en el commit estable inicial a la espera de revisión/integración. La sintaxis de 44 archivos JavaScript se verificó y 12/12 pruebas pasan.
+- Local: rama activa `trabajo`. `main` y `dev` permanecen en el commit estable inicial a la espera de revisión/integración. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y existe una prueba de integración optativa para PostgreSQL.
 - GitHub: `TOTO05-a/ruta-ia` accesible; las ramas `main`, `dev` y `trabajo` están publicadas. Desarrollo continúa en `trabajo`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
 - Docker: PostgreSQL, Qdrant, n8n y backend RutaIA están levantados con recursos propios y healthchecks healthy. Home Assistant no se alteró; MongoDB preexistente permanece detenido y sin cambios. App accesible en `http://localhost:3001`.

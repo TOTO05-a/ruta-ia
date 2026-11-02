@@ -6,11 +6,12 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | Verificación | Comando/procedimiento | Resultado actual |
 | --- | --- | --- |
-| Suite unitaria y HTTP local | `cd backend; npm test` | **Probado:** 12/12 pasan; no necesita PostgreSQL |
-| Sintaxis JavaScript backend | `node --check` sobre `backend/src` y `backend/tests` | **Probado:** 44 archivos pasan |
+| Suite unitaria y HTTP local | `cd backend; npm test` | **Probado:** 12/12 pasan; la prueba de DB optativa se omite sin activar integración |
+| Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado:** 1/1 pasa; repetición con migración existente también pasa; cero fixtures al terminar |
+| Sintaxis JavaScript backend | `node --check` sobre todos los archivos `backend/**/*.js` | **Probado:** 48 archivos pasan |
 | Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente e importado:** 11 nodos de indexación y 14 de consulta; ambos workflows inactivos |
 | Configuración Docker Compose | `docker compose --env-file .env config --quiet` | **Probado**; stack local levantado |
-| PostgreSQL / migración | Compose limpio; esquema, versión de migración y tablas consultados en DB | **Probado:** PostgreSQL healthy, ocho tablas públicas y esquema `n8n` |
+| PostgreSQL / migración | Compose de app y base de pruebas aislada; migrador y versión consultados | **Probado:** ocho tablas públicas en `rutaia`, migración también idempotente en `rutaia_test`; ambas bases sin fixtures funcionales |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
 | CRUD de cursos en PostgreSQL | Cuenta admin y cursos sintéticos temporales; crear, editar, filtrar categoría/nivel, paginar, desactivar/reactivar y comparar catálogo público/admin; limpieza final | **Probado:** operaciones y visibilidad del catálogo; fixtures eliminados |
 | CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |

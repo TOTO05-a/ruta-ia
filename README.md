@@ -14,7 +14,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 ## Estado real
 
 - Implementados en código: base modular Express, salud/readiness, CORS/Helmet, manejo de errores, migración inicial, registro/inicio/cierre de sesión, sesión HttpOnly, validación CSRF, perfil, listados de estudiantes para administración, CRUD/catálogo de cursos, consultas, historial, calificaciones, estadísticas y frontend conectado.
-- Pruebas ejecutadas: 12/12 pruebas unitarias/HTTP pasan; sintaxis verificada para 44 archivos JavaScript.
+- Pruebas ejecutadas: `npm test` da 12/12 unitarias/HTTP aprobadas (la integración optativa figura omitida); `npm run test:integration` pasa 1/1 contra `rutaia_test`, incluso al repetirse con migración aplicada. Sintaxis verificada para los 48 archivos JavaScript del backend.
 - Entorno integrado local: PostgreSQL, Qdrant, n8n y Express están `healthy`; la API informa PostgreSQL listo. Migración aplicada en PostgreSQL limpio y ocho tablas públicas verificadas.
 - Prueba PostgreSQL/API ejecutada: registro devuelve HTTP 201 y `/auth/me` valida sesión con cookie; se eliminó la cuenta sintética al terminar.
 - Prueba CRUD con cuenta admin y cursos sintéticos: crear, editar, filtrar categoría/nivel, paginar, desactivar/reactivar, confirmar ocultamiento público y lectura admin del inactivo; todos los registros de prueba se eliminaron.
@@ -28,7 +28,7 @@ El profesor autorizó Express como excepción a Java/Spring Boot. Los demás req
 - Workflows JSON de indexación y consulta implementados, validados estáticamente e importados a n8n 2.46.4; ambos están inactivos. Qdrant responde, pero no tiene colección porque faltan modelos y catálogo autorizados.
 - Pendiente: OpenRouter/modelos/credencial y revisión de retención, ejecución RAG completa, umbral calibrado, catálogo institucional, revisión visual en navegador.
 - Pendiente: cargar al menos 20 cursos una vez recibida la fuente institucional autorizada. No se agregan cursos ficticios.
-- GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo` (último commit `3269986`). `dev` y `main` esperan revisión e integración.
+- GitHub: `main`, `dev` y `trabajo` están publicadas; el desarrollo continúa en `trabajo`. `dev` y `main` esperan revisión e integración.
 
 El detalle de requisitos, rúbrica, límites y bloqueos está en [diagnóstico inicial](docs/architecture/initial-diagnosis.md).
 
@@ -94,7 +94,21 @@ cd backend
 npm test
 ```
 
-Las pruebas existentes cubren validaciones de autenticación, cursos, perfil, consultas, callback y calificaciones; hash de contraseña; health HTTP; frontend estático; JSON malformado y 404. Todavía no prueban flujos con PostgreSQL ni integraciones externas.
+Las pruebas unitarias/HTTP cubren validaciones de autenticación, cursos, perfil, consultas, callback y calificaciones; hash de contraseña; health, frontend estático, JSON malformado y 404. Las rutas con PostgreSQL tienen una suite de integración aislada descrita a continuación; ninguna de estas suites ejecuta OpenRouter ni el grafo RAG real.
+
+La prueba de integración usa solo la base local dedicada `rutaia_test`, exige que no tenga datos al comenzar y elimina sus fixtures al terminar. Una vez levantado PostgreSQL:
+
+```powershell
+docker exec rutaia-postgres-1 createdb -U rutaia_user rutaia_test
+```
+
+En `.env`, configura `RUTAIA_TEST_DATABASE_URL` con el mismo usuario/contraseña de PostgreSQL y la base `/rutaia_test`, por ejemplo `postgresql://rutaia_user:CAMBIA_ESTA_CLAVE@localhost:5432/rutaia_test`. Después ejecuta desde `backend/`:
+
+```powershell
+npm run test:integration
+```
+
+El comando aplica la migración en esa base y prueba registro, catálogo, aislamiento, callbacks, rating y estadísticas mediante HTTP real. Rechaza cualquier URL que no use `localhost`/`127.0.0.1` y el nombre de base `rutaia_test`. `npm test` mantiene la suite unitaria/HTTP sin conexión a PostgreSQL.
 
 ## Arquitectura y datos
 
