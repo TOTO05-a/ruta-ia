@@ -11,7 +11,7 @@ Fecha: 2026-11-02
 
 ## Diagnóstico y estado actualizado
 
-- Local: rama activa `trabajo`, limpia tras el último commit. `main` y `dev` permanecen en el commit estable inicial a la espera de revisión/integración. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y la prueba optativa de integración PostgreSQL pasa (1/1), incluidas dos ejecuciones consecutivas.
+- Local: rama activa `trabajo`, limpia tras el último commit. `dev` integra el estado verificado hasta `c6101e4`; `main` permanece en `b1fdc2a` como línea estable. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y la prueba optativa de integración PostgreSQL pasa (1/1), incluidas dos ejecuciones consecutivas de su versión anterior.
 - GitHub: `TOTO05-a/ruta-ia` accesible; las ramas `main`, `dev` y `trabajo` están publicadas. Desarrollo continúa en `trabajo`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
 - Docker: inspección del daemon Linux 29.8.2 confirmó PostgreSQL, Qdrant, n8n y backend RutaIA healthy (puertos locales 5432, 6333, 5678 y 3001). Home Assistant sigue activo y no se alteró; MongoDB preexistente permanece detenido y sin cambios. App accesible en `http://localhost:3001`.
@@ -45,7 +45,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 - Obtener autorización/fuente del catálogo institucional para cargar al menos 20 cursos detallados.
 - Confirmar modelos OpenRouter disponibles, dimensión de embedding y métrica Qdrant; calibrar score/umbral con casos del enunciado.
 - Configurar credenciales y probar workflows importados en n8n; verificar modo callback y autenticación entre servicios.
-- Definir configuración de sesión y aprovisionamiento seguro del primer administrador según el entorno disponible.
+- Aprovisionamiento seguro del primer administrador implementado mediante `npm run admin:promote` para cuentas ya registradas; mantener pendiente la revisión de parámetros de sesión para el despliegue final.
 - Evaluar disponibilidad y retención de datos del proveedor/modelos OpenRouter antes de enviar preguntas reales de estudiantes.
 
 ## Estado de entregables
