@@ -16,6 +16,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | CSRF / rol estudiante | Sin token en mutación admin, GET admin con cuenta estudiante y consulta vacía con CSRF | **Probado:** 403 `CSRF_INVALID`, 403 `FORBIDDEN`, 400 `VALIDATION_ERROR`; cuenta temporal eliminada |
 | Persistencia / aislamiento de consultas | Dos estudiantes temporales; crear una consulta sin proveedor, leerla como propietario y consultar query/historial ajenos | **Probado:** queda en `Error` seguro, propietario la lee y el otro recibe 404; registros de prueba eliminados |
 | Callbacks y recomendación relacional | Payload sintético `Sin resultados` repetido; payload `Respondida` con tres cursos activos; rating y duplicado; limpieza de dependencias | **Probado en API/DB:** 401 secreto incorrecto, 202 inicial, 200 callback repetido, tres fuentes persistidas, rating 201/duplicado 409. No ejecuta n8n/LLM |
+| Estadísticas administrativas | Dataset temporal conocido: una query respondida, tres fuentes y rating 5; resultado API comparado con valores esperados y limpieza completa | **Probado:** totales, promedio y curso recomendado coinciden; DB queda limpia |
 | Qdrant, n8n | Healthcheck Docker y endpoints locales | **Probado:** ambos healthy; Qdrant sin colección; dos workflows importados e inactivos |
 | OpenRouter / RAG real | Falta modelo y credencial de proveedor; falta catálogo de cursos | **Pendiente** |
 | Navegador/visual | Revisión automatizada en navegador no completada | **Pendiente** |
@@ -33,7 +34,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | **Probado parcialmente con PostgreSQL:** crear, editar y desactivar; público oculta el inactivo y admin lo conserva. Reactivación/filtros/paginación pendientes |
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | Ruta 404 genérica probada; casos con DB pendientes |
 | API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | **Probado con PostgreSQL:** rating 5 devuelve 201; el duplicado devuelve 409; datos temporales eliminados |
-| API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | Implementado; prueba de integración pendiente |
+| API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | **Probado con PostgreSQL:** dataset sintético conocido coincide en total, respondidas, sin resultados, promedio y recomendaciones por curso; datos eliminados |
 | API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado/404 y pregunta vacía (400) probados; fallos DB/proveedor/timeout pendientes |
 
 ## Qdrant, embeddings y RAG
