@@ -18,4 +18,4 @@ flowchart LR
 - n8n y OpenRouter solo reciben el contexto mínimo necesario. Las credenciales permanecen en servicios backend.
 - El flujo debe guardar primero una consulta `Pendiente` y terminarla como `Respondida`, `Sin resultados` o `Error`.
 
-Este es el diseño objetivo, no evidencia de que las integraciones ya se ejecuten. Docker está pendiente de acceso al daemon y las integraciones se verificarán por separado.
+Este es el diseño objetivo, no evidencia de que las integraciones ya se ejecuten. En la inspección más reciente, PostgreSQL, Qdrant, n8n y Express estaban saludables en Docker; los workflows siguen inactivos y la operación RAG real se verificará por separado.

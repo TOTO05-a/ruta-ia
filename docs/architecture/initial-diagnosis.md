@@ -11,10 +11,10 @@ Fecha: 2026-11-02
 
 ## Diagnóstico y estado actualizado
 
-- Local: rama activa `trabajo`. `main` y `dev` permanecen en el commit estable inicial a la espera de revisión/integración. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y existe una prueba de integración optativa para PostgreSQL.
+- Local: rama activa `trabajo`, limpia tras el último commit. `main` y `dev` permanecen en el commit estable inicial a la espera de revisión/integración. La sintaxis de los 48 archivos JavaScript se verificó; 12 pruebas unitarias/HTTP pasan y la prueba optativa de integración PostgreSQL pasa (1/1), incluidas dos ejecuciones consecutivas.
 - GitHub: `TOTO05-a/ruta-ia` accesible; las ramas `main`, `dev` y `trabajo` están publicadas. Desarrollo continúa en `trabajo`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
-- Docker: PostgreSQL, Qdrant, n8n y backend RutaIA están levantados con recursos propios y healthchecks healthy. Home Assistant no se alteró; MongoDB preexistente permanece detenido y sin cambios. App accesible en `http://localhost:3001`.
+- Docker: inspección del daemon Linux 29.8.2 confirmó PostgreSQL, Qdrant, n8n y backend RutaIA healthy (puertos locales 5432, 6333, 5678 y 3001). Home Assistant sigue activo y no se alteró; MongoDB preexistente permanece detenido y sin cambios. App accesible en `http://localhost:3001`.
 - Catálogo institucional: no se encontró entre los archivos disponibles. No se fabricarán cursos institucionales para cumplir el mínimo de 20.
 
 ## Plan por ramas
@@ -52,7 +52,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 
 - `database/migrations/001_initial_schema.sql` y `docs/architecture/data-model.md`: **Aplicado en PostgreSQL limpio**; versión de migración y ocho tablas públicas verificadas.
 - API Express, frontend, validaciones, manejo de errores, autenticación, contratos de callback, OpenAPI, README y diagramas: **Implementado**; registro HTTP 201 y `/auth/me` probados con PostgreSQL real. Flujos adicionales de DB siguen pendientes.
-- Pruebas: **Probado localmente**, 12/12 pruebas `node --test`; sintaxis comprobada para 44 archivos JavaScript. No sustituye pruebas de integración.
+- Pruebas: **Probado localmente**, 12/12 pruebas unitarias/HTTP, integración PostgreSQL aislada 1/1 y sintaxis comprobada para 48 archivos JavaScript.
 - Docker Compose y Dockerfile: **Arrancados y verificados**; PostgreSQL/Qdrant/n8n/API healthy.
 - Workflows `automation/n8n/index-courses.json` y `answer-query.json`: **Validados estáticamente e importados** en n8n 2.46.4, ambos inactivos; credenciales/modelos/ejecución pendientes.
 - Qdrant responde pero no tiene colección; embeddings/OpenRouter y RAG de extremo a extremo: **Pendientes de ejecución**; no se presentarán como probados.

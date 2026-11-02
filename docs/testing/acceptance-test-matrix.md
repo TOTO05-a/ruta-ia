@@ -10,7 +10,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado:** 1/1 pasa; repetición con migración existente también pasa; cero fixtures al terminar |
 | Sintaxis JavaScript backend | `node --check` sobre todos los archivos `backend/**/*.js` | **Probado:** 48 archivos pasan |
 | Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente e importado:** 11 nodos de indexación y 14 de consulta; ambos workflows inactivos |
-| Configuración Docker Compose | `docker compose --env-file .env config --quiet` | **Probado**; stack local levantado |
+| Configuración Docker Compose | `docker compose --env-file .env config --quiet`; inspección de `docker info` y `docker ps` | **Probado:** daemon Linux 29.8.2; PostgreSQL, Qdrant, n8n y API healthy en puertos loopback; Home Assistant activo y sin cambios |
 | PostgreSQL / migración | Compose de app y base de pruebas aislada; migrador y versión consultados | **Probado:** ocho tablas públicas en `rutaia`, migración también idempotente en `rutaia_test`; ambas bases sin fixtures funcionales |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
 | CRUD de cursos en PostgreSQL | Cuenta admin y cursos sintéticos temporales; crear, editar, filtrar categoría/nivel, paginar, desactivar/reactivar y comparar catálogo público/admin; limpieza final | **Probado:** operaciones y visibilidad del catálogo; fixtures eliminados |
