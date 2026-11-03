@@ -26,7 +26,7 @@ const cases = [
     { expected: null, query: "Necesito encontrar trabajo en la ciudad." },
     { expected: null, query: "Explícame cómo invertir en criptomonedas." },
     { expected: null, query: "Quiero comprar una computadora portátil económica." },
-    { expected: null, query: "¿Cómo se hace una instalación de paneles solares en casa?" }
+    { expected: "Energía renovable", query: "¿Cómo se hace una instalación de paneles solares en casa?" }
 ];
 
 async function getJson(url, options) {

@@ -183,7 +183,7 @@ El runner valida host/nombre de DB antes de conectarse. La suite migra la base d
 
 `npm run validate:openapi` valida YAML, referencias locales y operaciones en comparación con declaraciones de routers/montajes que lee de `backend/src/app.js`; no sustituye una revisión semántica completa de cada esquema de request y response.
 
-`npm run calibrate:rag` requiere que la API en `http://localhost:3001` (o `CATALOG_URL`) y Ollama local estén disponibles. Embebe los 20 cursos y 20 preguntas sintéticas usando BGE-M3, calcula similitudes localmente e imprime el rango candidato; no modifica Qdrant. En la corrida del 3 de noviembre: dimensión 1024, score tercero máximo OOD `0.4475`, score tercero mínimo relevante `0.5785`, rango `0.4475–0.5785`. Se eligió `0.50` como umbral provisional. Ocho preguntas eran de catálogo y doce fuera de dominio; solo tres categorías del catálogo alcanzaron tres ofertas directamente relacionadas. No es prueba E2E ni evalúa preguntas reales.
+`npm run calibrate:rag` requiere que la API en `http://localhost:3001` (o `CATALOG_URL`) y Ollama local estén disponibles. Embebe los 20 cursos y 20 preguntas sintéticas usando BGE-M3, calcula similitudes localmente e imprime el rango candidato; no modifica Qdrant. En la corrida del 3 de noviembre: dimensión 1024, score tercero máximo OOD `0.4475`, score tercero mínimo relevante `0.5785`, rango `0.4475–0.5785`. Se eligió `0.50` como umbral provisional. Nueve preguntas eran de catálogo y once fuera de dominio; solo tres categorías del catálogo alcanzaron tres ofertas directamente relacionadas. No es prueba E2E ni evalúa preguntas reales.
 
 ## 7. Flujo principal y qué falta probar
 

@@ -31,7 +31,7 @@ Edita `.env` localmente. No lo subas a Git ni compartas sus valores. Configura:
 - `FRONTEND_URL`: origen del navegador; por ejemplo `http://localhost:3001` si cambias `APP_PORT` a 3001.
 - `OLLAMA_BASE_URL`: desde Docker Compose usa `http://host.docker.internal:11434` para alcanzar Ollama en Windows.
 - `OLLAMA_EMBEDDING_MODEL` y `OLLAMA_CHAT_MODEL`: por defecto `bge-m3` y `qwen2.5:3b`. Descárgalos en Ollama con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
-- `RAG_MIN_SIMILARITY`: el valor local actual es `0.50`, umbral candidato evaluado con 20 preguntas sintéticas (8 del catálogo y 12 fuera de dominio). Repite la calibración al cambiar catálogo/modelo y confirma el flujo n8n antes de considerarlo definitivo.
+- `RAG_MIN_SIMILARITY`: el valor local actual es `0.50`, umbral candidato evaluado con 20 preguntas sintéticas (9 del catálogo y 11 fuera de dominio). Repite la calibración al cambiar catálogo/modelo y confirma el flujo n8n antes de considerarlo definitivo.
 
 El flujo RAG usa Ollama local y no requiere una clave ni credenciales externas de modelos. El endpoint Ollama debe ser accesible desde los contenedores de Compose; revisa [automation/n8n/README.md](automation/n8n/README.md) para configurar y comprobarlo.
 
