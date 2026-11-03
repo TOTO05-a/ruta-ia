@@ -15,9 +15,9 @@ El profesor autorizó sustituir Java/Spring Boot por Node.js/Express. Es una exc
 
 Estado comprobado en este entorno:
 
-- Docker Compose cargó y levantó sus cuatro servicios. Backend, PostgreSQL, Qdrant y n8n informaron `healthy`.
+- 3 nov: `docker compose ps` mostró sus cuatro servicios `healthy`; `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200. `docker compose --env-file .env config --quiet` pasó.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
-- `npm test`: 12 aprobadas, 0 fallidas y 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
+- 3 nov: `npm test`: 12 aprobadas, 0 fallidas y 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
 - **La recomendación RAG integral no está habilitada:** catálogo activo = 0, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión.
