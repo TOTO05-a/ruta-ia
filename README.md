@@ -4,6 +4,8 @@ RutaIA es una aplicación web de orientación académica que busca cursos en un 
 
 El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se conservan los demás requisitos académicos y de la rúbrica.
 
+**Modalidad:** desarrollo individual realizado por el estudiante autor del proyecto. La redacción grupal del enunciado no implica integrantes adicionales. Las operaciones académicas de catálogo, consultas, recomendaciones, fuentes e historial deben leer y escribir datos reales en PostgreSQL/Qdrant; fixtures sintéticos se limitan a pruebas aisladas y no se presentan como catálogo institucional.
+
 ## Requisitos
 
 - Windows 10/11, PowerShell y Docker Desktop con motor Linux.

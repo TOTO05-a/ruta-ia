@@ -9,6 +9,10 @@ RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegado
 
 El profesor autorizó sustituir Java/Spring Boot por Node.js/Express. Es una excepción tecnológica aprobada; se conservan los otros requisitos académicos y de la rúbrica.
 
+**Autoría:** desarrollo individual del estudiante propietario del proyecto. No atribuir tareas, decisiones ni contribuciones a integrantes inexistentes. El enunciado conserva sus requisitos, aunque describa equipos.
+
+**Datos reales:** las operaciones del producto deben leer y persistir datos en PostgreSQL y, en RAG, recuperar cursos/scores reales de Qdrant. Los datos sintéticos mencionados en la matriz son fixtures temporales de pruebas de integración con la base dedicada; no deben incorporarse al catálogo institucional ni citarse como recomendación real. Las respuestas generativas se permiten únicamente bajo el flujo RAG fundamentado en fuentes existentes.
+
 Estado comprobado en este entorno:
 
 - Docker Compose cargó y levantó sus cuatro servicios. Backend, PostgreSQL, Qdrant y n8n informaron `healthy`.
