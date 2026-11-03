@@ -127,7 +127,7 @@ Secretos distintos para sesión, cifrado n8n, webhook, callback y sincronizació
 1. Instala/abre Docker Desktop con motor Linux y clona/abre este repositorio.
 2. Si `.env` no existe, copia `.env.example` a `.env`; sustituye **todos** los `CHANGE_ME` por secretos aleatorios. No reemplaces un `.env` existente con secretos válidos.
 3. Comprueba que `APP_PORT` esté libre. En esta PC se utiliza 3001 y el `FRONTEND_URL` debe coincidir.
-4. No configures el umbral hasta tener catálogo y set de consultas etiquetadas.
+4. El entorno local usa `RAG_MIN_SIMILARITY=0.50`, candidato obtenido con consultas sintéticas etiquetadas. Debe confirmarse con el workflow n8n al habilitarlo.
 
 ### Levantar y comprobar
 

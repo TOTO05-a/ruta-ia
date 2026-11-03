@@ -51,12 +51,12 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | --- | --- | --- | --- |
 | RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | BGE‑M3 devolvió 20 embeddings finitos de 1024 dimensiones para los cursos y se insertaron en una colección Qdrant temporal. El nodo valida recuento/dimensión y usa UUID estable; falta ejecutar el workflow y probar reindexación sin duplicados |
 | RAG-02 | Sincronía catálogo | Crear/editar/reactivar se refleja en índice; reconciliación retira puntos obsoletos y consulta filtra relacionalmente | JSON mantiene reconciliación cada seis horas y rama de catálogo vacío; borrado por filtro se probó en colección temporal. No se ha ejecutado la sincronización real ni la revalidación de curso desactivado dentro de n8n |
-| RAG-03 | Desarrollo web | Recomendar solo cursos pertinentes, activos y explicados con su fuente | El smoke test recuperó primero el curso de Excel/Power BI para una consulta sintética del tema, pero también recuperó resultados menos pertinentes. Sin umbral calibrado ni evaluación etiquetada, no se considera aceptado |
+| RAG-03 | Desarrollo web | Recomendar solo cursos pertinentes, activos y explicados con su fuente | El calibrador recupera los tres cursos de mecánica automotriz y tres de motocicletas para sus consultas etiquetadas; no ejecuta el workflow ni mide la pertinencia de una respuesta generada. Aceptación integral pendiente |
 | RAG-04 | Java/Spring Boot como aprendizaje | Puede recomendar cursos del catálogo relacionados; no cambia el backend Express | Caso etiquetado e integral pendiente; la ruta sigue usando Express por excepción docente aprobada |
 | RAG-05 | Datos/dashboard | Recomendar cursos pertinentes del catálogo | Una consulta sintética de análisis de datos recuperó primero el curso de Excel y Power BI; no se ha validado la respuesta completa ni fuentes contra casos etiquetados |
 | RAG-06 | Automatización, IA, seguridad web y contenedores | Recuperar únicamente fuentes relacionadas y explicar límites del catálogo | Casos etiquetados y evaluación de fuentes todavía pendientes |
-| RAG-07 | Cocina italiana / fuera de dominio | Terminar en `Sin resultados` si el catálogo no ofrece fuentes pertinentes | Lógica del workflow implementada; falta fijar/calibrar el umbral y ejecutar el caso por n8n |
-| RAG-08 | Umbral | Elegir valor usando preguntas relevantes e irrelevantes etiquetadas; medir falsos positivos/negativos con la escala del modelo | **Pendiente**; no se configuró número arbitrario |
+| RAG-07 | Cocina italiana / fuera de dominio | Terminar en `Sin resultados` si el catálogo no ofrece fuentes pertinentes | El calibrador sintético no encontró consultas OOD con tres resultados por encima de 0.50 en sus 11 preguntas. Falta ejecutar esa rama en n8n y comprobar persistencia de estado |
+| RAG-08 | Umbral | Elegir valor usando preguntas relevantes e irrelevantes etiquetadas; medir falsos positivos/negativos con la escala del modelo | **Calibración preliminar reproducible:** script `backend/scripts/calibrate-rag-threshold.js`, 9 preguntas del catálogo y 11 OOD con BGE‑M3 local (1024 dimensiones). Score tercero máximo OOD `0.4475`; score tercero mínimo relevante `0.5785`; intervalo observado `0.4475–0.5785`; `.env` local tiene candidato `0.50`. Tres categorías admiten al menos tres cursos directamente relacionados. Repetir y evaluar en el flujo real antes de aceptación final |
 | RAG-09 | Grounding | Respuesta usa solo cursos y propiedades de las fuentes recuperadas; reconocer insuficiencia | Qwen devolvió el esquema JSON requerido usando contexto recuperado; una muestra no demuestra grounding factual. Evaluación de afirmaciones y caso insuficiente siguen pendientes |
 
 ## Estados y n8n
@@ -83,6 +83,6 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 2. Compose arrancado sin alterar contenedores ajenos; migraciones versionadas aplicadas.
 3. Los workflows ya están sincronizados e inactivos; falta que el propietario configure las tres credenciales internas en n8n. Ollama local no requiere clave externa.
 4. Indexar los 20 cursos en Qdrant; comprobar dimensión, cantidad, payload, upsert/reconciliación y filtro de activos.
-5. Calibrar umbral con set etiquetado; probar Respondida/Sin resultados/Error y comparar fuentes/scores con PostgreSQL/Qdrant.
+5. Confirmar en n8n el candidato `0.50` con casos etiquetados; probar Respondida/Sin resultados/Error y comparar fuentes/scores con PostgreSQL/Qdrant.
 6. Frontend revisado en navegador y probado contra backend integrado.
 7. Rúbrica revisada criterio por criterio; evidencia de demostración, README y presentación preparados.
