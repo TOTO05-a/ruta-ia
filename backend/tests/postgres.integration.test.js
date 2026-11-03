@@ -275,6 +275,18 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const savedAnswer = await (await request(`/api/v1/queries/${answeredQueryId}`, { cookie: owner.cookie })).json();
         assert.equal(savedAnswer.data.status, "Respondida");
         assert.equal(savedAnswer.data.sources.length, 3);
+        const repeatedAnsweredCallback = await request("/api/v1/internal/n8n/results", {
+            method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: answeredBody
+        });
+        assert.equal(repeatedAnsweredCallback.status, 200);
+        const persistedAnswerCounts = await pool.query(
+            `SELECT count(DISTINCT r.id)::int AS recommendations, count(rs.course_id)::int AS sources
+             FROM recommendations r
+             LEFT JOIN recommendation_sources rs ON rs.recommendation_id = r.id
+             WHERE r.query_id = $1`,
+            [answeredQueryId]
+        );
+        assert.deepEqual(persistedAnswerCounts.rows[0], { recommendations: 1, sources: 3 });
 
         const extraCourse = await pool.query(
             `INSERT INTO courses (name, description, category, level, duration_hours)
