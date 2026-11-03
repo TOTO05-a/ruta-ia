@@ -31,7 +31,7 @@ Edita `.env` localmente. No lo subas a Git ni compartas sus valores. Configura:
 - `FRONTEND_URL`: origen del navegador; por ejemplo `http://localhost:3001` si cambias `APP_PORT` a 3001.
 - `OLLAMA_BASE_URL`: desde Docker Compose usa `http://host.docker.internal:11434` para alcanzar Ollama en Windows.
 - `OLLAMA_EMBEDDING_MODEL` y `OLLAMA_CHAT_MODEL`: por defecto `bge-m3` y `qwen2.5:3b`. Descárgalos en Ollama con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
-- `RAG_MIN_SIMILARITY`: déjalo vacío hasta calibrarlo con el catálogo y casos etiquetados.
+- `RAG_MIN_SIMILARITY`: el valor local actual es `0.50`, umbral candidato evaluado con 20 preguntas sintéticas (8 del catálogo y 12 fuera de dominio). Repite la calibración al cambiar catálogo/modelo y confirma el flujo n8n antes de considerarlo definitivo.
 
 El flujo RAG usa Ollama local y no requiere una clave ni credenciales externas de modelos. El endpoint Ollama debe ser accesible desde los contenedores de Compose; revisa [automation/n8n/README.md](automation/n8n/README.md) para configurar y comprobarlo.
 
@@ -102,9 +102,12 @@ npm test
 npm run test:integration
 npm run validate:openapi
 npm run validate:workflows
+npm run calibrate:rag
 ```
 
 La suite `npm test` incluye HTTP local y pruebas aisladas de lógica de Code nodes y cliente n8n, sin depender de PostgreSQL; la integración de DB aparece omitida en esa suite. La validación OpenAPI parsea YAML, coteja operaciones con routers/montajes de `src/app.js`, resuelve referencias locales y exige esquemas para cada respuesta exitosa 200/201/202. `npm run validate:workflows` revisa JSON, nombres/IDs, conexiones y sintaxis de Code nodes en ambos workflows. Las pruebas RAG usan fixtures/contexto simulado y no sustituyen ejecutar los workflows en n8n con Qdrant y proveedor reales.
+
+`npm run calibrate:rag` consulta el catálogo público local y embeddings Ollama (sin escribir en Qdrant ni enviar datos a proveedores externos). Con BGE-M3 de 1024 dimensiones, la corrida del 3 de noviembre de 2026 encontró un rango candidato de `0.4475–0.5785` entre el máximo score del tercer resultado OOD y el mínimo del tercer curso relevante en las categorías con tres o más ofertas. Se fijó `0.50` como umbral inicial local; cinco categorías no tienen tres ofertas del mismo tema y por eso no pueden satisfacer el mínimo de fuentes. Esto es evidencia sintética reproducible, no sustituye la aceptación funcional del flujo n8n.
 
 La integración contra PostgreSQL real utiliza exclusivamente una base local llamada `rutaia_test`. Levanta Compose y configura en `.env` `RUTAIA_TEST_DATABASE_URL`, usando el usuario/contraseña local y la ruta `/rutaia_test`. Crea la base una sola vez si aún no existe:
 
@@ -143,8 +146,8 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 - 3 nov: se actualizaron por sus IDs existentes los dos workflows n8n (14 nodos cada uno); se confirmó que siguen inactivos y no hay duplicados. Una prueba temporal leyó 20 cursos, creó embeddings BGE‑M3 de 1024 dimensiones, indexó/buscó en Qdrant, recibió cinco fuentes y obtuvo respuesta JSON válida de Qwen; borró la colección temporal. No se activaron workflows.
 - `npm test`: 24 aprobadas, 0 fallidas y 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`; valida auth, los 20 cursos por búsqueda/detalle e idempotencia, historial/aislamiento, 401 sin sesión y 404 para historial inexistente, callbacks y ratings. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes y 95 refs locales; exige schema en cada respuesta 200/201/202 y cada respuesta de error declarada. `npm run validate:workflows`: 28 nodos, 33 conexiones y 9 Code nodes compilables.
 - Catálogo actual: **20 cursos INTECAP** cargados desde cuatro seeds idempotentes; las 16 ofertas añadidas incluyen sistemas informáticos (300 h), administración SQL Server (720 h), electrónica automotriz (555 h), soporte eléctrico/refrigeración, formación gastronómica y confección. Las fichas, duraciones y fuentes están en [manual](docs/MANUAL_PROYECTO.md) y `database/seeds/`. `level` es taxonomía pedagógica RutaIA y `intecap_career_type` conserva aparte CTO/CTM/CTMS cuando una ficha lo indique. Qdrant: **0 colecciones**.
-- Ollama está instalado con ambos modelos y el contenedor n8n alcanza su API. Qdrant conserva cero colecciones después de la prueba temporal. Los workflows están actualizados e inactivos; aún faltan tres credenciales internas n8n y el umbral RAG.
-- Por ello, registro/login, catálogo con 20 cursos oficiales, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la inferencia, embeddings y recuperación local se comprobaron en una prueba aislada. La cadena workflow→callback real, persistencia de fuentes/historial/calificación sobre una recomendación generada siguen sin verificarse: falta configurar tres credenciales internas en la cuenta propietaria de n8n, calibrar `RAG_MIN_SIMILARITY` y ejecutar consulta integral.
+- Ollama está instalado con ambos modelos y el contenedor n8n alcanza su API (HTTP 200). Qdrant conserva cero colecciones; los workflows están actualizados e inactivos. El valor inicial de `RAG_MIN_SIMILARITY` es 0.50 según calibración sintética local. Aún faltan tres credenciales internas n8n.
+- Registro/login, catálogo con 20 cursos oficiales, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la inferencia, embeddings y recuperación local se comprobaron en prueba aislada. La cadena workflow→callback real, persistencia de fuentes/historial/calificación sobre una recomendación generada siguen sin verificarse: falta configurar tres credenciales internas en la cuenta propietaria de n8n, ejecutar indexación y consulta integral.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.
 
 ## Continuidad

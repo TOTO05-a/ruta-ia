@@ -23,7 +23,7 @@ Estado comprobado en este entorno:
 - 3 nov: `npm test`: 24 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye seis pruebas aisladas de Code nodes (catálogo vacío, selección de fuentes y estructura JSON de Ollama) y pruebas del cliente n8n. `npm run test:integration`: 1 aprobada contra `rutaia_test`, comprobó autenticación, catálogo, historial/aislamiento, callbacks, calificaciones e idempotencia.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 95 referencias locales resueltas y schemas obligatorios para éxitos 200/201/202 y errores HTTP declarados.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
-- **RAG integral aún no está habilitado:** catálogo activo = 20, Qdrant queda sin colecciones tras el smoke test temporal, ambos workflows están actualizados pero inactivos. Falta configurar las tres credenciales internas n8n y calibrar `RAG_MIN_SIMILARITY`; después hay que ejecutar indexación y recorrido workflow→callback→historial/calificación.
+- **RAG integral aún no está habilitado:** catálogo activo = 20, Qdrant queda sin colecciones tras el smoke test temporal, ambos workflows están actualizados pero inactivos. La calibración local sintética produjo rango candidato `0.4475–0.5785`; `.env` usa provisionalmente `RAG_MIN_SIMILARITY=0.50`. Falta configurar las tres credenciales internas n8n y ejecutar indexación y recorrido workflow→callback→historial/calificación.
 
 `healthy` demuestra disponibilidad de proceso/healthcheck, no significa que el RAG esté listo.
 
@@ -113,7 +113,7 @@ Copia `.env.example` a `.env` en la raíz. `.env` es local/ignorado y nunca se d
 | `N8N_PORT`, `N8N_HOST`, `N8N_ENCRYPTION_KEY`, `GENERIC_TIMEZONE` | Interfaz y cifrado de credenciales n8n; fija una clave aleatoria de al menos 32 caracteres y no la cambies después de guardar credenciales. |
 | `OLLAMA_BASE_URL` | Base URL para inferencia local; en Compose, `http://host.docker.internal:11434`. |
 | `OLLAMA_EMBEDDING_MODEL`, `OLLAMA_CHAT_MODEL` | IDs de modelos locales. Por defecto, `bge-m3` y `qwen2.5:3b`; descarga con `ollama pull`. Mantén el modelo de embeddings constante para indexación y consulta. |
-| `RAG_MIN_SIMILARITY` | Umbral Qdrant. Vacío hasta calibración; no inventes un valor. |
+| `RAG_MIN_SIMILARITY` | Umbral Qdrant. En el entorno local: `0.50`, valor candidato a partir de 20 preguntas sintéticas locales. Repite `npm run calibrate:rag` tras cambiar modelo o catálogo. |
 | `RUTAIA_TEST_DATABASE_URL` | Solo runner de integración; loopback y base `/rutaia_test`. Nunca una base con información de uso real. |
 
 Ollama se ejecuta localmente y no requiere clave ni cuenta. Las tres credenciales n8n restantes son solo para autorizar webhooks internos entre backend y n8n. Las descargas de modelos requieren disco local y el hardware de la PC, no una API de pago.
@@ -168,9 +168,11 @@ Desde `backend/`:
 npm ci
 npm test
 npm run validate:openapi
+npm run validate:workflows
+npm run calibrate:rag
 ```
 
-En la verificación del 3 de noviembre de 2026, `npm test` pasó 23 pruebas y omitió la integración optativa. La última ejecución de `npm run test:integration` pasó 1/1 contra la base local dedicada `rutaia_test`; incluye el rechazo de callback con una fuente inactiva. Para Postgres/API real:
+En la verificación del 3 de noviembre de 2026, `npm test` pasó 24 pruebas y omitió la integración optativa. `npm run test:integration` pasó 1/1 contra la base local dedicada `rutaia_test`; incluye el rechazo de callback con una fuente inactiva. Para Postgres/API real:
 
 1. Inicia Compose.
 2. Configura `RUTAIA_TEST_DATABASE_URL` en `.env` con `localhost`/`127.0.0.1`, usuario local y nombre final `/rutaia_test`, por ejemplo `postgresql://rutaia_user:<contraseña-url-safe>@localhost:5432/rutaia_test`.
@@ -180,6 +182,8 @@ En la verificación del 3 de noviembre de 2026, `npm test` pasó 23 pruebas y om
 El runner valida host/nombre de DB antes de conectarse. La suite migra la base dedicada y elimina sus fixtures. En la verificación actual pasó 1/1. No la apuntes a `rutaia` ni a datos reales.
 
 `npm run validate:openapi` valida YAML, referencias locales y operaciones en comparación con declaraciones de routers/montajes que lee de `backend/src/app.js`; no sustituye una revisión semántica completa de cada esquema de request y response.
+
+`npm run calibrate:rag` requiere que la API en `http://localhost:3001` (o `CATALOG_URL`) y Ollama local estén disponibles. Embebe los 20 cursos y 20 preguntas sintéticas usando BGE-M3, calcula similitudes localmente e imprime el rango candidato; no modifica Qdrant. En la corrida del 3 de noviembre: dimensión 1024, score tercero máximo OOD `0.4475`, score tercero mínimo relevante `0.5785`, rango `0.4475–0.5785`. Se eligió `0.50` como umbral provisional. Ocho preguntas eran de catálogo y doce fuera de dominio; solo tres categorías del catálogo alcanzaron tres ofertas directamente relacionadas. No es prueba E2E ni evalúa preguntas reales.
 
 ## 7. Flujo principal y qué falta probar
 
@@ -203,9 +207,9 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 ## 9. Cómo continuar en la próxima sesión
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
-2. Con el propietario autenticado, importa las versiones actuales de `automation/n8n/index-courses.json` y `answer-query.json`, asigna las tres credenciales internas Header Auth descritas en `automation/n8n/README.md` y prueba el acceso local a Ollama desde n8n.
+2. Los dos workflows ya están sincronizados por sus IDs existentes e inactivos. No los reimportes después de asignar credenciales, porque una importación puede sustituir la configuración de los nodos. Termina de asignar las tres credenciales internas Header Auth descritas en `automation/n8n/README.md` y prueba el acceso local a Ollama desde n8n.
 4. El catálogo autorizado de 20 cursos ya está cargado en los seeds y verificado por API. Corre la indexación y verifica dimensión, cantidad, payload y búsqueda real. Prueba desactivación y reconciliación.
-5. Construye set etiquetado de consultas dentro/fuera de dominio; calibra `RAG_MIN_SIMILARITY`. No actives generación de preguntas estudiantiles reales sin autorización.
+5. El calibrador sintético local sugirió `0.50`; confirma ese candidato con consultas del flujo n8n etiquetadas dentro/fuera de dominio, sin guardar datos personales. Ajusta `RAG_MIN_SIMILARITY` si la precisión observada lo requiere.
 6. Verifica con una cuenta de prueba los estados Respondida/Sin resultados/Error, fuentes existentes/activas, historial/aislamiento y rating. Elimina fixtures de prueba al terminar.
 7. Completa revisión del frontend en navegador a escritorio y móvil, incluyendo registro, login, catálogo/filtros, consulta, fuentes, historial, perfil, calificación y logout/error.
 8. Actualiza esta guía/README y la matriz de aceptación con evidencia. Ejecuta suites, compose y OpenAPI; revisa diff/secretos; conserva commits localmente. No hacer push sin instrucción explícita.
