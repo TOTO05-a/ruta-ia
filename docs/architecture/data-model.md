@@ -1,6 +1,6 @@
 # Modelo entidad-relación
 
-El esquema propuesto está implementado en `database/migrations/001_initial_schema.sql`. PostgreSQL es la fuente de verdad. Qdrant almacena índices vectoriales vinculados por `course_id` y nunca sustituye la comprobación relacional.
+El esquema relacional está implementado en `database/migrations/001_initial_schema.sql`; `002_finite_similarity_score.sql` refuerza la validación de scores persistidos. PostgreSQL es la fuente de verdad. Qdrant almacena índices vectoriales vinculados por `course_id` y nunca sustituye la comprobación relacional.
 
 ```mermaid
 erDiagram

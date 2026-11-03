@@ -262,6 +262,23 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(savedAnswer.data.status, "Respondida");
         assert.equal(savedAnswer.data.sources.length, 3);
 
+        const extraCourse = await pool.query(
+            `INSERT INTO courses (name, description, category, level, duration_hours)
+             VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+            [`RutaIA Integration ${suffix} constraint`, "Fixture de prueba de constraint SQL.", `Integration-${suffix}`, "Básico", 1]
+        );
+        courseIds.push(extraCourse.rows[0].id);
+        for (const score of ["NaN", "Infinity", "-Infinity"]) {
+            await assert.rejects(
+                pool.query(
+                    `INSERT INTO recommendation_sources (recommendation_id, course_id, similarity_score, position)
+                     VALUES ($1, $2, $3::numeric, 4)`,
+                    [savedAnswer.data.recommendationId, extraCourse.rows[0].id, score]
+                ),
+                (error) => error.code === "23514" && error.constraint === "recommendation_sources_similarity_score_finite_check"
+            );
+        }
+
         const ratingUrl = `/api/v1/recommendations/${savedAnswer.data.recommendationId}/rating`;
         const rating = await request(ratingUrl, {
             method: "POST", cookie: owner.cookie, csrf: owner.csrfToken, body: { score: 5, comment: "Integración" }

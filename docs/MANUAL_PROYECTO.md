@@ -18,6 +18,7 @@ Estado comprobado en este entorno:
 - 3 nov: `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron; los cuatro servicios RutaIA quedaron `healthy`. `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
 - 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Catálogo activo: 0 cursos; Qdrant: 0 colecciones.
+- La migración `002_finite_similarity_score.sql` quedó aplicada en `rutaia` y `rutaia_test`; reemplaza el constraint de score para rechazar `NaN` y ambas infinitudes. La integración probó los tres rechazos y la migración repetida fue idempotente.
 - La inspección visual autenticada sigue pendiente. En esta sesión Work settings deshabilitó el navegador local; no se crearon cuentas ni se enviaron formularios.
 - 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
@@ -51,7 +52,7 @@ El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar.
 - `backend/src/controllers/`, `services/`, `repositories/`, `validators/`: HTTP, dominio, SQL y esquemas Zod.
 - `backend/src/integrations/n8n/`: invocación de webhook desde Express.
 - `backend/scripts/`: migración, promoción admin, runner de integración y validador OpenAPI.
-- `database/migrations/001_initial_schema.sql`: esquema relacional versionado.
+- `database/migrations/001_initial_schema.sql` y `002_finite_similarity_score.sql`: esquema y restricción finita para scores, aplicados por el migrador versionado.
 - `database/docker-init/001-n8n-schema.sql`: preparación del esquema PostgreSQL de n8n.
 - `automation/n8n/index-courses.json`: indexación/reconciliación de cursos activos.
 - `automation/n8n/answer-query.json`: consulta, recuperación, selección de fuentes, generación y callback.
@@ -81,7 +82,7 @@ Lee las capas en este orden y muestra siempre la implementación real:
 
 ### Persistencia, flujos y pruebas existentes
 
-- Tablas: `students`, `sessions`, `courses`, `queries`, `recommendations`, `recommendation_sources`, `ratings`; `schema_migrations` la crea `backend/scripts/migrate.js`.
+- Tablas: `students`, `sessions`, `courses`, `queries`, `recommendations`, `recommendation_sources`, `ratings`; `schema_migrations` la crea `backend/scripts/migrate.js`, que aplica en orden los archivos SQL versionados aún pendientes.
 - `automation/n8n/index-courses.json`: 11 nodos desde lectura de catálogo/configuración, embeddings y upsert hasta reconciliación de inactivos.
 - `automation/n8n/answer-query.json`: 14 nodos desde webhook autenticado y búsqueda Qdrant hasta respuesta fundamentada/callback o ramas Sin resultados/Error. Los archivos están validados estáticamente; el E2E sigue pendiente.
 - `backend/tests/api.test.js`: “health responde sin declarar PostgreSQL listo”, “frontend estático se sirve desde el mismo origen”, “JSON malformado…” y “rutas inexistentes…”.

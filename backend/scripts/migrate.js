@@ -14,19 +14,29 @@ async function migrate() {
             applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
         )`);
 
-        const version = "001_initial_schema";
-        const found = await client.query("SELECT 1 FROM schema_migrations WHERE version = $1", [version]);
-        if (found.rowCount) {
-            await client.query("COMMIT");
-            console.log(`Migración ${version} ya aplicada`);
-            return;
+        const migrationDirectory = path.resolve(__dirname, "../../database/migrations");
+        const files = (await fs.readdir(migrationDirectory))
+            .filter((file) => /^\d{3}_[a-z0-9_]+\.sql$/.test(file))
+            .sort();
+        if (files.length === 0) throw new Error("No se encontraron migraciones SQL versionadas");
+
+        const messages = [];
+        for (const file of files) {
+            const version = file.slice(0, -".sql".length);
+            const found = await client.query("SELECT 1 FROM schema_migrations WHERE version = $1", [version]);
+            if (found.rowCount) {
+                messages.push(`Migración ${version} ya aplicada`);
+                continue;
+            }
+
+            const sql = await fs.readFile(path.join(migrationDirectory, file), "utf8");
+            await client.query(sql);
+            await client.query("INSERT INTO schema_migrations (version) VALUES ($1)", [version]);
+            messages.push(`Migración ${version} aplicada`);
         }
 
-        const sql = await fs.readFile(path.resolve(__dirname, "../../database/migrations/001_initial_schema.sql"), "utf8");
-        await client.query(sql);
-        await client.query("INSERT INTO schema_migrations (version) VALUES ($1)", [version]);
         await client.query("COMMIT");
-        console.log(`Migración ${version} aplicada`);
+        for (const message of messages) console.log(message);
     } catch (error) {
         await client.query("ROLLBACK").catch(() => {});
         throw error;
