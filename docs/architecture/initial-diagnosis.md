@@ -25,6 +25,7 @@ Fecha: 2026-11-02
 - PostgreSQL conserva las tres migraciones aplicadas. La prueba integrada limpió los registros de `rutaia_test` al terminar.
 - n8n contiene los dos workflows como inactivos. El indexador importado tiene 11 nodos, mientras que `automation/n8n/index-courses.json` tiene 14; la instancia debe actualizarse desde el JSON revisado antes de ejecutar la rama de catálogo vacío.
 - Qdrant está saludable, pero no contiene colecciones. No hay credenciales de n8n configuradas y las variables `OPENROUTER_EMBEDDING_MODEL`, `OPENROUTER_CHAT_MODEL` y `RAG_MIN_SIMILARITY` están vacías en el backend activo. No se han enviado cursos ni consultas a OpenRouter.
+- Ollama local tiene `qwen2.5:3b`. Una inferencia sintética devolvió JSON; n8n llega al servicio del host, pero el modelo responde 501 al endpoint de embeddings. Para una ruta completamente local haría falta un modelo de embeddings y autorización docente para sustituir OpenRouter; no se descargaron modelos.
 - La interfaz respondió desde `http://localhost:3001`, pero no se completó una inspección visual en navegador en esta sesión. La herramienta de control se detuvo porque no pudo determinar con confianza la URL actual.
 - Esta sesión no dispone de herramientas conectadas de Notion; no se actualizaron las páginas del espacio.
 
