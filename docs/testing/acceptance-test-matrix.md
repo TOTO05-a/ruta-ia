@@ -64,7 +64,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
-| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow de 14 nodos correctamente configurado e inactivo. Indexación real probada; falta activarlo para ejecutar workflow→Ollama→Qdrant→callback |
+| N8N-01 | `Respondida` | Consultar → embedding → ventana de candidatos → filtrar activos/umbral → seleccionar hasta cinco → respuesta → persistir 3–5 sources y scores | Workflow de 14 nodos configurado y activo para pruebas. La primera consulta real terminó en callback `Error / N8N_PROCESSING_ERROR`; faltan identificar el nodo que disparó el manejo de error y volver a probar la cadena completa |
 | N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Callback/persistencia probados con consulta sintética; rama del workflow y umbral todavía sin prueba integral |
 | N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Contrato API/DB probado con callback Error sintético e idempotencia; rama de error n8n no ejecutada |
 | N8N-04 | Callback repetido y fuente activa | No crea recomendaciones duplicadas; rechaza referencias a cursos inactivos y mantiene resultado terminal | **Probado con PostgreSQL:** repetir `Respondida` devuelve 200 y conserva una recomendación/tres fuentes; repetir `Sin resultados`, `Error` y callback inválido por curso inactivo también es idempotente |
@@ -82,7 +82,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 1. Catálogo INTECAP de 20 cursos ya cargado y verificado por seeds/API; preservar fuentes y campos al resembrar en instalaciones limpias.
 2. Compose arrancado sin alterar contenedores ajenos; migraciones versionadas aplicadas.
-3. Los workflows están sincronizados e inactivos; las credenciales y la autenticación None de Ollama ya están corregidas. Falta activar el workflow de consulta y ejecutar el recorrido real.
+3. Los workflows están sincronizados; las credenciales y la autenticación None de Ollama ya están corregidas. El workflow de consulta está activo; su primera prueba real falló en una fase aún por identificar y debe repetirse tras corregirla.
 4. Indexación de los 20 cursos en Qdrant comprobada dos veces; pendiente prueba de desactivar/reactivar un curso y confirmar reconciliación/filtro de activos.
 5. Confirmar en n8n el candidato `0.50` con casos etiquetados; probar Respondida/Sin resultados/Error y comparar fuentes/scores con PostgreSQL/Qdrant.
 6. Frontend revisado en navegador y probado contra backend integrado.
