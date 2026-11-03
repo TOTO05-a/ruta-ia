@@ -46,6 +46,18 @@ for (const file of files) {
         }
     }
 
+    if (file === "index-courses.json") {
+        const routes = workflow.connections ?? {};
+        assert.equal(routes["Preparar textos de cursos"]?.main?.[0]?.[0]?.node, "¿Hay cursos activos para indexar?",
+            "el catálogo debe decidir la ruta de indexación o limpieza");
+        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[0]?.[0]?.node, "Generar embeddings OpenRouter",
+            "los cursos disponibles deben continuar por embeddings");
+        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[1]?.[0]?.node, "Eliminar vectores de catálogo vacío",
+            "un catálogo vacío debe limpiar Qdrant sin llamar al proveedor de embeddings");
+        assert.equal(routes["Eliminar vectores de catálogo vacío"]?.main?.[0]?.[0]?.node, "Validar limpieza del catálogo vacío",
+            "la limpieza debe distinguir colección inexistente de fallos reales de Qdrant");
+    }
+
     totalNodes += workflow.nodes.length;
     console.log(`${file}: ${workflow.nodes.length} nodos, inactivo, JSON y conexiones válidos`);
 }

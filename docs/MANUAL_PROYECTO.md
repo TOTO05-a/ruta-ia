@@ -20,7 +20,7 @@ Estado comprobado en este entorno:
 - 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Tras la curación oficial, la base contiene 20 ofertas INTECAP; Qdrant sigue sin colecciones.
 - La migración `002_finite_similarity_score.sql` quedó aplicada en `rutaia` y `rutaia_test`; reemplaza el constraint de score para rechazar `NaN` y ambas infinitudes. La integración probó los tres rechazos y la migración repetida fue idempotente.
 - La inspección visual autenticada sigue pendiente. En esta sesión Work settings deshabilitó el navegador local; no se crearon cuentas ni se enviaron formularios.
-- 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`, comprueba los 20 cursos por lectura/detalle API, duración/nivel, campo oficial separado e idempotencia.
+- 3 nov: `npm test`: 23 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cinco pruebas aisladas de Code nodes (una cubre el catálogo vacío) y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`, comprueba los 20 cursos por lectura/detalle API, duración/nivel, campo oficial separado e idempotencia.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 95 referencias locales resueltas y schemas obligatorios para éxitos 200/201/202 y errores HTTP declarados.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
 - **La recomendación RAG integral no está habilitada:** catálogo activo = 20, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión. El workflow exige tres fuentes distintas para responder.
@@ -90,7 +90,7 @@ Lee las capas en este orden y muestra siempre la implementación real:
 - `backend/tests/n8n-code-nodes.test.js`: ejecuta con contexto simulado la selección RAG (actividad, score, duplicados y máximo cinco fuentes) y validación de embeddings. No ejecuta n8n ni usa cursos reales.
 - `backend/tests/n8n-client.test.js`: verifica configuración requerida, códigos seguros para timeout/red/HTTP no exitoso y el payload autenticado con `fetch` simulado; no contacta n8n.
 - `backend/tests/postgres.integration.test.js`: API, PostgreSQL, auth, historial propio/admin y aislamiento, 401 sin sesión, 404 para estudiante/historial inexistente, fuentes persistidas y filtro por estado, callbacks idempotentes `Respondida`/`Sin resultados`/`Error`, rechazo de fuentes inactivas (`N8N_INVALID_SOURCES`), rating y estadísticas sobre `rutaia_test`.
-- `backend/scripts/validate-workflows.js`: verifica JSON, IDs/nombres, aristas y compilación de los ocho Code nodes; ejecutar `npm run validate:workflows` desde `backend/`.
+- `backend/scripts/validate-workflows.js`: verifica JSON, IDs/nombres, aristas, bifurcación de reconciliación con catálogo vacío y compilación de los nueve Code nodes; ejecutar `npm run validate:workflows` desde `backend/`.
 
 Las pruebas con fixtures sintéticos demuestran contratos y persistencia de prueba, no cursos ni fuentes institucionales reales. Para material audiovisual, presenta únicamente lo que la pantalla, DB y workflow demuestren en vivo; identifica los pendientes de RAG como pendientes.
 
@@ -169,7 +169,7 @@ npm test
 npm run validate:openapi
 ```
 
-En la verificación del 3 de noviembre de 2026, `npm test` pasó 22 pruebas y omitió la integración optativa. La última ejecución de `npm run test:integration` pasó 1/1 contra la base local dedicada `rutaia_test`; incluye el rechazo de callback con una fuente inactiva. Para Postgres/API real:
+En la verificación del 3 de noviembre de 2026, `npm test` pasó 23 pruebas y omitió la integración optativa. La última ejecución de `npm run test:integration` pasó 1/1 contra la base local dedicada `rutaia_test`; incluye el rechazo de callback con una fuente inactiva. Para Postgres/API real:
 
 1. Inicia Compose.
 2. Configura `RUTAIA_TEST_DATABASE_URL` en `.env` con `localhost`/`127.0.0.1`, usuario local y nombre final `/rutaia_test`, por ejemplo `postgresql://rutaia_user:<contraseña-url-safe>@localhost:5432/rutaia_test`.

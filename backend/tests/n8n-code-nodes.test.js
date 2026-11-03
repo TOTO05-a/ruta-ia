@@ -129,3 +129,25 @@ test("indexación conserva asociación por índice y valida dimensión y valores
         { index: 1, embedding: [0, 1, 0] }
     ] }), /dimensión o valores válidos/);
 });
+
+test("indexación vacía conserva el contexto y limpia vectores obsoletos sin ocultar fallos", () => {
+    const prepare = codeNode(indexWorkflow, "Preparar textos de cursos");
+    const context = {
+        "Leer configuración de indexación": { data: { qdrantUrl: "http://qdrant:6333", collection: "rutaia_courses" } },
+        "Leer catálogo PostgreSQL": { data: { items: [] } }
+    };
+    const prepared = executeCode(prepare, context, {});
+    assert.equal(prepared.length, 1);
+    assert.equal(prepared[0].emptyCatalog, true);
+    assert.deepEqual(prepared[0].courses, []);
+    assert.deepEqual(prepared[0].inputs, []);
+
+    const cleanup = codeNode(indexWorkflow, "Validar limpieza del catálogo vacío");
+    assert.deepEqual(executeCode(cleanup, {}, { statusCode: 200, body: { result: { status: "completed" } } }), [
+        { cleared: true }
+    ]);
+    assert.deepEqual(executeCode(cleanup, {}, { statusCode: 404, body: { status: { error: "Not found" } } }), [
+        { cleared: false, reason: "collection_not_created" }
+    ]);
+    assert.throws(() => executeCode(cleanup, {}, { statusCode: 503 }), /Qdrant no pudo limpiar/);
+});

@@ -52,13 +52,55 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nif (courses.length === 0) return [];\nreturn [{ json: { ...config, courses, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
+        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nreturn [{ json: { ...config, courses, emptyCatalog: courses.length === 0, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
       },
       "id": "a84a0764-7316-4d2b-9a93-2d123416fe51",
       "name": "Preparar textos de cursos",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [980, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict", "version": 2},
+          "conditions": [{"id": "d37e3b1f-9cb7-4ea9-b9ce-96f81fba9972", "leftValue": "={{ $json.courses.length > 0 }}", "rightValue": true, "operator": {"type": "boolean", "operation": "true"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "bf1d786d-59ce-4bd7-9e8c-5ac803e5e7cd",
+      "name": "¿Hay cursos activos para indexar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1190, 360]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Preparar textos de cursos').first().json.qdrantUrl.replace(/\\/$/, '') + '/collections/' + $('Preparar textos de cursos').first().json.collection + '/points/delete?wait=true' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { filter: {} } }}",
+        "options": {"response": {"response": {"responseFormat": "json", "fullResponse": true, "neverError": true}}}
+      },
+      "id": "7b56d264-4e19-4b29-899d-7938fc45429b",
+      "name": "Eliminar vectores de catálogo vacío",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1430, 560]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nif (response.statusCode === 404) return [{ json: { cleared: false, reason: 'collection_not_created' } }];\nif (!Number.isInteger(response.statusCode) || response.statusCode < 200 || response.statusCode >= 300) throw new Error('Qdrant no pudo limpiar los vectores de catálogo vacío');\nreturn [{ json: { cleared: true } }];"
+      },
+      "id": "6b4c9a55-976a-4bea-8e84-0da448b622e5",
+      "name": "Validar limpieza del catálogo vacío",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1670, 560]
     },
     {
       "parameters": {
@@ -157,7 +199,9 @@
     "Reconciliar cada 6 horas": {"main": [[{"node": "Leer configuración de indexación", "type": "main", "index": 0}]]},
     "Leer configuración de indexación": {"main": [[{"node": "Leer catálogo PostgreSQL", "type": "main", "index": 0}]]},
     "Leer catálogo PostgreSQL": {"main": [[{"node": "Preparar textos de cursos", "type": "main", "index": 0}]]},
-    "Preparar textos de cursos": {"main": [[{"node": "Generar embeddings OpenRouter", "type": "main", "index": 0}]]},
+    "Preparar textos de cursos": {"main": [[{"node": "¿Hay cursos activos para indexar?", "type": "main", "index": 0}]]},
+    "¿Hay cursos activos para indexar?": {"main": [[{"node": "Generar embeddings OpenRouter", "type": "main", "index": 0}], [{"node": "Eliminar vectores de catálogo vacío", "type": "main", "index": 0}]]},
+    "Eliminar vectores de catálogo vacío": {"main": [[{"node": "Validar limpieza del catálogo vacío", "type": "main", "index": 0}]]},
     "Generar embeddings OpenRouter": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
     "Validar y preparar puntos Qdrant": {"main": [[{"node": "Crear colección si falta", "type": "main", "index": 0}]]},
     "Crear colección si falta": {"main": [[{"node": "Upsert idempotente en Qdrant", "type": "main", "index": 0}]]},
