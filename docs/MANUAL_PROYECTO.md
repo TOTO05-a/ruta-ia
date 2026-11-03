@@ -21,7 +21,7 @@ Estado comprobado en este entorno:
 - La migración `002_finite_similarity_score.sql` quedó aplicada en `rutaia` y `rutaia_test`; reemplaza el constraint de score para rechazar `NaN` y ambas infinitudes. La integración probó los tres rechazos y la migración repetida fue idempotente.
 - La inspección visual autenticada sigue pendiente. En esta sesión Work settings deshabilitó el navegador local; no se crearon cuentas ni se enviaron formularios.
 - 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`, comprueba los 20 cursos por lectura/detalle API, duración/nivel, campo oficial separado e idempotencia.
-- `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
+- `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 23 referencias locales resueltas.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
 - **La recomendación RAG integral no está habilitada:** catálogo activo = 20, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión. El workflow exige tres fuentes distintas para responder.
 
@@ -197,7 +197,7 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 2. **OpenRouter:** el backend Compose reporta modelos vacíos; no hay credencial configurada en n8n disponible para probar. Confirmar endpoint elegible para ZDR y `data_collection=deny`; pedir aprobación institucional para procesamiento externo. No añadir claves al repo.
 3. **Qdrant/RAG:** el catálogo de 20 cursos ya está cargado, pero Qdrant tiene cero colecciones/vectores porque el workflow de indexación no se ejecutó. Falta acceso propietario n8n, credenciales/modelos OpenRouter aprobados, colección/dimensión concordante y calibración del threshold con preguntas etiquetadas relevantes y fuera de dominio.
 4. **Frontend:** sintaxis y entrega HTTP están comprobadas parcialmente; una revisión visual integral de vistas autenticadas/escritorio/viewport móvil y pruebas interactivas sigue pendiente.
-5. **Contrato/API:** ruta y YAML se comparan, pero queda cotejar a fondo esquemas request/response con controladores.
+5. **Contrato/API:** los constraints de requests principales en OpenAPI se cotejaron con Zod y controladores; faltan esquemas completos de respuesta y una verificación automatizada de paridad semántica.
 
 ## 9. Cómo continuar en la próxima sesión
 

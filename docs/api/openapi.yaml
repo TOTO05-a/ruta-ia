@@ -131,6 +131,9 @@ paths:
       summary: Lista estudiantes (solo administradores)
       security:
         - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
       responses:
         '200': { description: Página de estudiantes }
         '403': { description: Se requiere rol administrador }
@@ -157,8 +160,12 @@ paths:
           name: id
           required: true
           schema: { type: string, format: uuid }
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/QueryStatus'
       responses:
         '200': { description: Página de consultas del estudiante }
+        '401': { description: Sesión ausente o expirada }
         '404': { description: Estudiante no encontrado }
   /api/v1/queries:
     post:
@@ -187,6 +194,10 @@ paths:
       summary: Lista el historial del estudiante autenticado
       security:
         - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/QueryStatus'
       responses:
         '200': { description: Historial paginado }
   /api/v1/queries/{id}:
@@ -321,16 +332,16 @@ paths:
       parameters:
         - in: query
           name: search
-          schema: { type: string }
+          schema: { type: string, maxLength: 160 }
         - in: query
           name: category
-          schema: { type: string }
+          schema: { type: string, maxLength: 100 }
         - in: query
           name: level
           schema: { type: string, enum: [Básico, Intermedio, Avanzado] }
         - in: query
           name: page
-          schema: { type: integer, minimum: 1, default: 1 }
+          schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 }
         - in: query
           name: limit
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
@@ -353,6 +364,12 @@ paths:
       summary: Lista cursos activos e inactivos (solo administradores)
       security:
         - sessionCookie: []
+      parameters:
+        - $ref: '#/components/parameters/Search'
+        - $ref: '#/components/parameters/Category'
+        - $ref: '#/components/parameters/CourseLevel'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
       responses:
         '200': { description: Página administrativa de cursos }
         '403': { description: Se requiere rol administrador }
@@ -379,7 +396,7 @@ paths:
                 category: { type: string, minLength: 2, maxLength: 100 }
                 level: { type: string, enum: [Básico, Intermedio, Avanzado] }
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
-                durationHours: { type: number, exclusiveMinimum: 0 }
+                durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
         '201': { description: Curso creado }
         '400': { $ref: '#/components/responses/ValidationError' }
@@ -425,7 +442,7 @@ paths:
                 category: { type: string, minLength: 2, maxLength: 100 }
                 level: { type: string, enum: [Básico, Intermedio, Avanzado] }
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
-                durationHours: { type: number, exclusiveMinimum: 0 }
+                durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
         '200': { description: Curso actualizado }
         '404': { description: Curso no encontrado }
@@ -457,6 +474,31 @@ paths:
         '200': { description: Estado actualizado }
         '404': { description: Curso no encontrado }
 components:
+  parameters:
+    Search:
+      in: query
+      name: search
+      schema: { type: string, maxLength: 160 }
+    Category:
+      in: query
+      name: category
+      schema: { type: string, maxLength: 100 }
+    CourseLevel:
+      in: query
+      name: level
+      schema: { type: string, enum: [Básico, Intermedio, Avanzado] }
+    Page:
+      in: query
+      name: page
+      schema: { type: integer, minimum: 1, maximum: 1000000, default: 1 }
+    Limit:
+      in: query
+      name: limit
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+    QueryStatus:
+      in: query
+      name: status
+      schema: { type: string, enum: [Pendiente, Respondida, 'Sin resultados', Error] }
   securitySchemes:
     sessionCookie:
       type: apiKey
