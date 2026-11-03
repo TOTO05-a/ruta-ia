@@ -41,6 +41,13 @@ function walk(value, location = '#') {
   for (const [key, child] of Object.entries(value)) walk(child, `${location}/${key}`);
 }
 
+function resolveLocalRef(ref) {
+  if (typeof ref !== 'string' || !ref.startsWith('#/')) return undefined;
+  const target = ref.slice(2).split('/').map((part) =>
+    decodeURIComponent(part).replace(/~1/g, '/').replace(/~0/g, '~'));
+  return target.reduce((current, key) => current?.[key], spec);
+}
+
 if (!spec || spec.openapi !== '3.1.0') errors.push('openapi must be 3.1.0');
 if (!spec?.info?.title || !spec?.info?.version) errors.push('info.title and info.version are required');
 if (!Array.isArray(spec?.servers) || spec.servers.length === 0) errors.push('at least one server is required');
@@ -63,6 +70,13 @@ for (const [route, pathItem] of Object.entries(spec?.paths || {})) {
     for (const [status, response] of Object.entries(operation.responses || {})) {
       if (!response?.$ref && typeof response?.description !== 'string') {
         errors.push(`${method.toUpperCase()} ${route} response ${status}: description is required`);
+      }
+      if (['200', '201', '202'].includes(status)) {
+        const responseDefinition = response?.$ref ? resolveLocalRef(response.$ref) : response;
+        const mediaTypes = Object.values(responseDefinition?.content || {});
+        if (mediaTypes.length === 0 || mediaTypes.some((mediaType) => !mediaType?.schema)) {
+          errors.push(`${method.toUpperCase()} ${route} response ${status}: a success response schema is required`);
+        }
       }
     }
     for (const parameter of operation.parameters || []) {

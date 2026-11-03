@@ -12,28 +12,46 @@ paths:
       responses:
         '200':
           description: Proceso activo (no comprueba dependencias)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
   /health/ready:
     get:
       summary: Comprueba la conectividad con PostgreSQL
       responses:
         '200':
           description: PostgreSQL responde
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessResponse' }
         '503':
           description: PostgreSQL no está disponible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessFailureResponse' }
   /api/v1/health:
     get:
       summary: Alias versionado del estado del proceso API
       responses:
         '200':
           description: Proceso activo (no comprueba dependencias)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/HealthResponse' }
   /api/v1/health/ready:
     get:
       summary: Alias versionado de disponibilidad de PostgreSQL
       responses:
         '200':
           description: PostgreSQL responde
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessResponse' }
         '503':
           description: PostgreSQL no está disponible
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ReadinessFailureResponse' }
   /api/v1/auth/register:
     post:
       summary: Registra un estudiante y crea sesión
@@ -46,6 +64,9 @@ paths:
       responses:
         '201':
           description: Estudiante creado; cookie de sesión HttpOnly y token CSRF devueltos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
         '400':
           $ref: '#/components/responses/ValidationError'
         '409':
@@ -62,6 +83,9 @@ paths:
       responses:
         '200':
           description: Sesión iniciada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SessionResponse' }
         '400':
           $ref: '#/components/responses/ValidationError'
         '401':
@@ -74,6 +98,9 @@ paths:
       responses:
         '200':
           description: Perfil del estudiante autenticado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CurrentStudentResponse' }
         '401':
           description: Sesión ausente o expirada
   /api/v1/auth/csrf:
@@ -84,6 +111,9 @@ paths:
       responses:
         '200':
           description: Token CSRF
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CsrfResponse' }
   /api/v1/auth/logout:
     post:
       summary: Invalida la sesión actual
@@ -123,7 +153,11 @@ paths:
                 experienceLevel: { type: string, enum: [Principiante, Intermedio, Avanzado] }
                 interestArea: { type: string, minLength: 2, maxLength: 120 }
       responses:
-        '200': { description: Perfil actualizado }
+        '200':
+          description: Perfil actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '401': { description: Sesión ausente o expirada }
   /api/v1/students:
@@ -135,7 +169,11 @@ paths:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
-        '200': { description: Página de estudiantes }
+        '200':
+          description: Página de estudiantes
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentPageResponse' }
         '403': { description: Se requiere rol administrador }
   /api/v1/students/{id}:
     get:
@@ -148,7 +186,11 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        '200': { description: Estudiante }
+        '200':
+          description: Estudiante
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StudentResponse' }
         '404': { description: Estudiante no encontrado }
   /api/v1/students/{id}/history:
     get:
@@ -164,7 +206,11 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/QueryStatus'
       responses:
-        '200': { description: Página de consultas del estudiante }
+        '200':
+          description: Página de consultas del estudiante
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryPageResponse' }
         '401': { description: Sesión ausente o expirada }
         '404': { description: Estudiante no encontrado }
   /api/v1/queries:
@@ -188,7 +234,11 @@ paths:
               properties:
                 question: { type: string, minLength: 1, maxLength: 4000 }
       responses:
-        '202': { description: Consulta persistida; estado actual puede ser Pendiente o Error si n8n no inició }
+        '202':
+          description: Consulta persistida; estado actual puede ser Pendiente o Error si n8n no inició
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CreatedQueryResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
     get:
       summary: Lista el historial del estudiante autenticado
@@ -199,7 +249,11 @@ paths:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/QueryStatus'
       responses:
-        '200': { description: Historial paginado }
+        '200':
+          description: Historial paginado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryPageResponse' }
   /api/v1/queries/{id}:
     get:
       summary: Obtiene el estado y resultado guardado de una consulta
@@ -211,7 +265,11 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        '200': { description: Estado, respuesta y fuentes guardados }
+        '200':
+          description: Estado, respuesta y fuentes guardados
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QueryDetailResponse' }
         '404': { description: Consulta no encontrada }
   /api/v1/internal/n8n/results:
     post:
@@ -261,8 +319,16 @@ paths:
                     status: { type: string, const: Error }
                     errorCode: { type: string, pattern: '^[A-Z0-9_]{1,64}$' }
       responses:
-        '202': { description: Resultado persistido }
-        '200': { description: Callback duplicado; procesamiento idempotente }
+        '202':
+          description: Resultado persistido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CallbackResponse' }
+        '200':
+          description: Callback duplicado; procesamiento idempotente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CallbackResponse' }
         '401': { description: Callback no autenticado }
   /api/v1/internal/courses/active:
     get:
@@ -273,7 +339,11 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: Cursos activos existentes en PostgreSQL }
+        '200':
+          description: Cursos activos existentes en PostgreSQL
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ActiveCoursePageResponse' }
         '401': { description: Sincronización no autenticada }
         '503': { description: Sincronización no configurada }
   /api/v1/internal/rag/index-config:
@@ -285,9 +355,17 @@ paths:
           required: true
           schema: { type: string }
       responses:
-        '200': { description: Modelo de embeddings, colección y URL interna de Qdrant }
+        '200':
+          description: Modelo de embeddings, colección y URL interna de Qdrant
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/IndexingConfigResponse' }
         '401': { description: Sincronización no autenticada }
-        '503': { description: Configuración de indexación ausente }
+        '503':
+          description: Configuración de indexación ausente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/recommendations/{id}/rating:
     post:
       summary: Califica una recomendación propia
@@ -314,7 +392,11 @@ paths:
                 score: { type: integer, minimum: 1, maximum: 5 }
                 comment: { type: string, maxLength: 2000 }
       responses:
-        '201': { description: Calificación creada }
+        '201':
+          description: Calificación creada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RatingResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '404': { description: Recomendación no encontrada }
         '409': { description: Ya existe una calificación }
@@ -324,7 +406,11 @@ paths:
       security:
         - sessionCookie: []
       responses:
-        '200': { description: Total, respondidas, sin resultados, promedio y curso más recomendado }
+        '200':
+          description: Total, respondidas, sin resultados, promedio y curso más recomendado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StatisticsResponse' }
         '403': { description: Se requiere rol administrador }
   /api/v1/courses:
     get:
@@ -346,7 +432,11 @@ paths:
           name: limit
           schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
       responses:
-        '200': { description: Página de cursos activos }
+        '200':
+          description: Página de cursos activos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CoursePageResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
   /api/v1/courses/{id}:
     get:
@@ -357,7 +447,11 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        '200': { description: Curso }
+        '200':
+          description: Curso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
         '404': { description: Curso no encontrado o inactivo }
   /api/v1/admin/courses:
     get:
@@ -371,7 +465,11 @@ paths:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/Limit'
       responses:
-        '200': { description: Página administrativa de cursos }
+        '200':
+          description: Página administrativa de cursos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CoursePageResponse' }
         '403': { description: Se requiere rol administrador }
     post:
       summary: Crea curso (solo administradores)
@@ -398,7 +496,11 @@ paths:
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
                 durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
-        '201': { description: Curso creado }
+        '201':
+          description: Curso creado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
         '403': { description: Sin permiso o CSRF inválido }
   /api/v1/admin/courses/{id}:
@@ -412,7 +514,11 @@ paths:
           required: true
           schema: { type: string, format: uuid }
       responses:
-        '200': { description: Curso }
+        '200':
+          description: Curso
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
         '403': { description: Se requiere rol administrador }
         '404': { description: Curso no encontrado }
     patch:
@@ -444,7 +550,11 @@ paths:
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
                 durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
-        '200': { description: Curso actualizado }
+        '200':
+          description: Curso actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
         '404': { description: Curso no encontrado }
   /api/v1/admin/courses/{id}/status:
     patch:
@@ -471,7 +581,11 @@ paths:
               properties:
                 isActive: { type: boolean }
       responses:
-        '200': { description: Estado actualizado }
+        '200':
+          description: Estado actualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CourseResponse' }
         '404': { description: Curso no encontrado }
 components:
   parameters:
@@ -505,6 +619,304 @@ components:
       in: cookie
       name: rutaia_session
   schemas:
+    HealthResponse:
+      type: object
+      required: [status, service, timestamp]
+      properties:
+        status: { type: string, const: ok }
+        service: { type: string, const: rutaia-api }
+        timestamp: { type: string, format: date-time }
+    ReadinessResponse:
+      type: object
+      required: [status, dependencies]
+      properties:
+        status: { type: string, const: ready }
+        dependencies:
+          type: object
+          required: [postgres]
+          properties:
+            postgres: { type: string, const: ok }
+    ReadinessFailureResponse:
+      type: object
+      required: [status, dependencies, requestId]
+      properties:
+        status: { type: string, const: not_ready }
+        dependencies:
+          type: object
+          required: [postgres]
+          properties:
+            postgres: { type: string, const: unavailable }
+        requestId: { type: string, format: uuid }
+    PublicStudent:
+      type: object
+      required: [id, fullName, email, experienceLevel, interestArea, role]
+      properties:
+        id: { type: string, format: uuid }
+        fullName: { type: string }
+        email: { type: string, format: email }
+        experienceLevel: { type: string, enum: [Principiante, Intermedio, Avanzado] }
+        interestArea: { type: string }
+        role: { type: string, enum: [student, admin] }
+    Student:
+      allOf:
+        - $ref: '#/components/schemas/PublicStudent'
+        - type: object
+          required: [createdAt]
+          properties:
+            createdAt: { type: string, format: date-time }
+    SessionResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [student, csrfToken]
+          properties:
+            student: { $ref: '#/components/schemas/PublicStudent' }
+            csrfToken: { type: string }
+    CurrentStudentResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [student]
+          properties:
+            student: { $ref: '#/components/schemas/PublicStudent' }
+    CsrfResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [csrfToken]
+          properties:
+            csrfToken: { type: string }
+    StudentResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Student' }
+    StudentPageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Page'
+            - type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Student' }
+    Course:
+      type: object
+      required: [id, name, description, category, level, intecapCareerType, durationHours, isActive, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        level: { type: string, enum: [Básico, Intermedio, Avanzado] }
+        intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+        durationHours:
+          description: PostgreSQL NUMERIC puede serializarse como string en filas SQL; en objetos JSON agregados se emite como número.
+          anyOf:
+            - { type: number }
+            - { type: string }
+        isActive: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CourseResponse:
+      type: object
+      required: [data]
+      properties:
+        data: { $ref: '#/components/schemas/Course' }
+    Page:
+      type: object
+      required: [items, total, page, limit]
+      properties:
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+    CoursePageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Page'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/Course' }
+    QueryStatus:
+      type: string
+      enum: [Pendiente, Respondida, 'Sin resultados', Error]
+    QuerySource:
+      type: object
+      required: [courseId, name]
+      properties:
+        courseId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        category: { type: string }
+        level: { type: string, enum: [Básico, Intermedio, Avanzado] }
+        intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+        durationHours: { type: number }
+        similarity: { type: number }
+        position: { type: integer, minimum: 1, maximum: 5 }
+    QueryHistoryItem:
+      type: object
+      required: [id, studentId, question, status, createdAt, completedAt, summary, sources]
+      properties:
+        id: { type: string, format: uuid }
+        studentId: { type: string, format: uuid }
+        question: { type: string }
+        status: { $ref: '#/components/schemas/QueryStatus' }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: [string, 'null'], format: date-time }
+        summary: { type: [string, 'null'] }
+        sources:
+          type: array
+          items:
+            type: object
+            required: [courseId, name]
+            properties:
+              courseId: { type: string, format: uuid }
+              name: { type: string }
+    QueryPageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          allOf:
+            - $ref: '#/components/schemas/Page'
+            - type: object
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/QueryHistoryItem' }
+    CreatedQueryResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, question, status, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            question: { type: string }
+            status: { $ref: '#/components/schemas/QueryStatus' }
+            createdAt: { type: string, format: date-time }
+    QueryDetailResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, question, status, errorCode, createdAt, completedAt, recommendationId, answer, summary, explanation, sources]
+          properties:
+            id: { type: string, format: uuid }
+            question: { type: string }
+            status: { $ref: '#/components/schemas/QueryStatus' }
+            errorCode: { type: [string, 'null'] }
+            createdAt: { type: string, format: date-time }
+            completedAt: { type: [string, 'null'], format: date-time }
+            recommendationId: { type: [string, 'null'], format: uuid }
+            answer: { type: [string, 'null'] }
+            summary: { type: [string, 'null'] }
+            explanation: { type: [string, 'null'] }
+            sources:
+              type: array
+              items: { $ref: '#/components/schemas/QuerySource' }
+    CallbackResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          oneOf:
+            - type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/QueryStatus' }
+            - type: object
+              required: [duplicate, status]
+              properties:
+                duplicate: { type: boolean, const: true }
+                status: { $ref: '#/components/schemas/QueryStatus' }
+    ActiveCoursePageResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [items, total]
+          properties:
+            total: { type: integer, minimum: 0 }
+            items:
+              type: array
+              items:
+                type: object
+                required: [id, name, description, category, level, intecapCareerType, durationHours]
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  description: { type: string }
+                  category: { type: string }
+                  level: { type: string, enum: [Básico, Intermedio, Avanzado] }
+                  intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+                  durationHours:
+                    anyOf:
+                      - { type: number }
+                      - { type: string }
+    IndexingConfigResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [embeddingModel, collection, qdrantUrl]
+          properties:
+            embeddingModel: { type: string }
+            collection: { type: string }
+            qdrantUrl: { type: string, format: uri }
+    RatingResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [id, recommendationId, score, comment, createdAt]
+          properties:
+            id: { type: string, format: uuid }
+            recommendationId: { type: string, format: uuid }
+            score: { type: integer, minimum: 1, maximum: 5 }
+            comment: { type: [string, 'null'] }
+            createdAt: { type: string, format: date-time }
+    StatisticsResponse:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [totalQueries, answeredQueries, noResultQueries, averageRating, mostRecommendedCourse]
+          properties:
+            totalQueries: { type: integer, minimum: 0 }
+            answeredQueries: { type: integer, minimum: 0 }
+            noResultQueries: { type: integer, minimum: 0 }
+            averageRating: { type: [number, 'null'], minimum: 1, maximum: 5 }
+            mostRecommendedCourse:
+              oneOf:
+                - type: 'null'
+                - type: object
+                  required: [id, name, recommendation_count]
+                  properties:
+                    id: { type: string, format: uuid }
+                    name: { type: string }
+                    recommendation_count: { type: integer, minimum: 1 }
     RegisterRequest:
       type: object
       additionalProperties: false
