@@ -9,13 +9,24 @@ Fecha: 2026-11-02
 - El Registro de Decisiones define los acuerdos funcionales y visuales. La Especificación Técnica Maestra los convierte en contratos técnicos.
 - Ninguna fuente afirma que las funcionalidades o integraciones ya estén implementadas.
 
-## Diagnóstico y estado actualizado
+## Diagnóstico inicial (2026-11-02)
 
 - Local: rama activa `trabajo`, limpia al inicio de este diagnóstico; `trabajo` y `dev` apuntan a `21a26ad`, y `main` permanece en `b1fdc2a` como línea estable. La suite unitaria/HTTP se repitió en esta sesión: 12 pasan, 0 fallan y 1 prueba optativa de integración se omite. En un intento inicial el sandbox bloqueó sockets loopback; la repetición autorizada localmente completó correctamente.
 - GitHub: `TOTO05-a/ruta-ia` accesible; las ramas `main`, `dev` y `trabajo` están publicadas. Desarrollo continúa en `trabajo`.
 - Notion: espacio de RutaIA, Registro de Decisiones y Especificación Técnica accesibles.
-- Docker: inspección de solo lectura del daemon Linux confirmó PostgreSQL, Qdrant, n8n y backend RutaIA healthy (puertos locales 5432, 6333, 5678 y 3001); Home Assistant sigue activo. MongoDB no aparece entre los contenedores en ejecución; no se modificó ningún contenedor. App accesible en `http://localhost:3001`.
+- Docker: la inspección inicial confirmó PostgreSQL, Qdrant, n8n y backend RutaIA activos. Home Assistant no se modificó.
 - Catálogo institucional: no se encontró entre los archivos disponibles. No se fabricarán cursos institucionales para cumplir el mínimo de 20.
+
+## Estado comprobado (2026-11-03)
+
+- Git: `trabajo` está activa y `dev` apunta al mismo commit; `main` conserva la versión estable previa. El trabajo se mantiene local y no se hizo push.
+- Pruebas: `npm test` pasó 23/23 con una integración opcional omitida; `npm run test:integration` pasó 1/1 usando `rutaia_test`.
+- Compose: backend, PostgreSQL, Qdrant y n8n aparecen saludables. `/health/ready`, `/healthz` y `/readyz` respondieron correctamente; desde el contenedor backend se llegó a n8n y Qdrant. La API pública devolvió 20 cursos activos.
+- PostgreSQL conserva las tres migraciones aplicadas. La prueba integrada limpió los registros de `rutaia_test` al terminar.
+- n8n contiene los dos workflows como inactivos. El indexador importado tiene 11 nodos, mientras que `automation/n8n/index-courses.json` tiene 14; la instancia debe actualizarse desde el JSON revisado antes de ejecutar la rama de catálogo vacío.
+- Qdrant está saludable, pero no contiene colecciones. No hay credenciales de n8n configuradas y las variables `OPENROUTER_EMBEDDING_MODEL`, `OPENROUTER_CHAT_MODEL` y `RAG_MIN_SIMILARITY` están vacías en el backend activo. No se han enviado cursos ni consultas a OpenRouter.
+- La interfaz respondió desde `http://localhost:3001`, pero no se completó una inspección visual en navegador en esta sesión. La herramienta de control se detuvo porque no pudo determinar con confianza la URL actual.
+- Esta sesión no dispone de herramientas conectadas de Notion; no se actualizaron las páginas del espacio.
 
 ## Plan por ramas
 
@@ -42,23 +53,23 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 
 ## Decisiones técnicas pendientes de evidencia
 
-- Obtener autorización/fuente del catálogo institucional para cargar al menos 20 cursos detallados.
-- Baseline seleccionado desde el catálogo OpenRouter: `baai/bge-m3` (1024 dimensiones) y `meta-llama/llama-3.3-70b-instruct`. La fuente exige ZDR y `data_collection=deny`; falta verificar endpoints elegibles con credencial, autorizar transferencia de datos y calibrar score/umbral con el catálogo/casos del enunciado.
-- Configurar credenciales y probar workflows importados en n8n; verificar modo callback y autenticación entre servicios.
-- Aprovisionamiento seguro del primer administrador implementado mediante `npm run admin:promote` para cuentas ya registradas; mantener pendiente la revisión de parámetros de sesión para el despliegue final.
-- Evaluar disponibilidad y retención de datos del proveedor/modelos OpenRouter antes de enviar preguntas reales de estudiantes.
+- Actualizar los workflows en n8n desde los JSON actuales y mantenerlos inactivos hasta que se configuren y autoricen sus credenciales.
+- Seleccionar modelos y umbral compatibles con los datos y el costo permitido. El baseline documentado es `baai/bge-m3` (1024 dimensiones) y `meta-llama/llama-3.3-70b-instruct`, pero no está configurado ni verificado con una credencial.
+- Aprobar el destino y costo antes de enviar catálogo o preguntas a cualquier proveedor externo; después indexar y verificar búsqueda, fuentes y callback de extremo a extremo.
+- Revisar la interfaz en navegador con sesión real y terminar la evidencia visual.
+- Actualizar las tres páginas de Notion cuando la conexión esté disponible.
+- Aprovisionamiento del primer administrador disponible mediante `npm run admin:promote` para cuentas ya registradas; revisar los parámetros de sesión antes de cualquier despliegue público.
 
 ## Estado de entregables
 
-- `database/migrations/001_initial_schema.sql` y `docs/architecture/data-model.md`: **Aplicado en PostgreSQL limpio**; versión de migración y ocho tablas públicas verificadas.
-- API Express, frontend, validaciones, manejo de errores, autenticación, contratos de callback, OpenAPI, README y diagramas: **Implementado**; OpenAPI valida 25 paths, las 28 operaciones coinciden con declaraciones de routers y montajes de `app.js`, y resuelve 10 referencias locales; registro HTTP 201 y `/auth/me` probados con PostgreSQL real. La comparación exhaustiva de esquemas de request/response y flujos adicionales de DB sigue pendiente.
-- Pruebas: **Probado localmente**, 12/12 pruebas unitarias/HTTP, integración PostgreSQL aislada 1/1 y sintaxis comprobada para 48 archivos JavaScript.
-- Docker Compose y Dockerfile: **Arrancados y verificados**; PostgreSQL/Qdrant/n8n/API healthy.
-- Workflows `automation/n8n/index-courses.json` y `answer-query.json`: **Validados estáticamente e importados** en n8n 2.46.4, ambos inactivos; credenciales/modelos/ejecución pendientes.
-- Qdrant responde pero no tiene colección; embeddings/OpenRouter y RAG de extremo a extremo: **Pendientes de ejecución**; no se presentarán como probados.
-- Mínimo de 20 cursos: **Pendiente de curación y de completar atributos respaldados**; la institución y fuente oficial ya están identificadas (actualización abajo).
-- Actualización del 2026-11-03: el estudiante definió INTECAP y se localizó el portal oficial de programación/listado; el bloqueo por institución desconocida quedó superado. Se cargó un curso PLC con 100 h y nivel básico explícitos; `database/seeds/001_intecap_programacion_plc.sql` es idempotente y la API lo devuelve. Las fichas 2027 varían: Python no declara horas totales. CTO/CTM/CTMS no documentan equivalencia con el `level` Básico/Intermedio/Avanzado de RutaIA. Hay 1 curso activo; faltan 19 o más para el mínimo.
 - Umbral de similitud RAG: **Pendiente de calibración**; no hay valor arbitrario configurado.
+- PostgreSQL, migraciones y catálogo: **Verificados localmente**. Las tres migraciones están aplicadas; la API devuelve los 20 cursos de los seeds INTECAP. La integración compara sus campos principales y confirma búsqueda, detalle e idempotencia.
+- API, autenticación, perfil, catálogo, consultas, callback, historial, calificaciones y estadísticas: **Probados contra la base dedicada** por `npm run test:integration`; no equivale a una ejecución del workflow n8n.
+- Pruebas: `npm test` pasó 23 pruebas y omitió una integración opcional; `npm run test:integration` pasó 1/1.
+- Docker Compose: los cuatro servicios RutaIA están saludables; health checks locales y comunicación backend→n8n/Qdrant verificados.
+- Workflows: JSON local validado. Los workflows en n8n están inactivos; el indexador importado está desactualizado (11 nodos frente a 14 en el archivo local).
+- Qdrant responde y está vacío; OpenRouter y RAG integral **no probados**. Faltan credencial, autorización de costo/privacidad, activar/ejecutar workflows y calibrar umbral.
+- Navegador y Notion: pendientes por falta de inspección visual verificable y de conexión Notion en esta sesión.
 
 ## Excepción académica aprobada
 
