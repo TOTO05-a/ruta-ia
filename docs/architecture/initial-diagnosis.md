@@ -57,6 +57,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 - Workflows `automation/n8n/index-courses.json` y `answer-query.json`: **Validados estáticamente e importados** en n8n 2.46.4, ambos inactivos; credenciales/modelos/ejecución pendientes.
 - Qdrant responde pero no tiene colección; embeddings/OpenRouter y RAG de extremo a extremo: **Pendientes de ejecución**; no se presentarán como probados.
 - Mínimo de 20 cursos: **Bloqueado por falta de fuente institucional autorizada**.
+- Actualización del 2026-11-03: el estudiante definió INTECAP y se localizó el portal oficial de programación/listado; el bloqueo original por no conocer la institución quedó superado. El catálogo de RutaIA aún tiene cero cursos; curar y validar 20 registros completos es trabajo pendiente, especialmente nivel y duración total en horas, que no se publican de forma uniforme.
 - Umbral de similitud RAG: **Pendiente de calibración**; no hay valor arbitrario configurado.
 
 ## Excepción académica aprobada

@@ -11,7 +11,7 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 - Windows 10/11, PowerShell y Docker Desktop con motor Linux.
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
-- Una fuente institucional autorizada con al menos 20 cursos para habilitar la indexación y las recomendaciones reales.
+- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). La curación y carga de al menos 20 registros al modelo RutaIA siguen pendientes; no completar por inferencia los atributos oficiales que falten.
 - Una cuenta propietaria local de n8n y una clave de OpenRouter, con endpoints elegibles para la política ZDR, cuando se vaya a habilitar RAG.
 
 ## Instalación y configuración inicial
@@ -123,9 +123,9 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
 - `npm test`: 22 aprobadas, 0 fallidas, 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes, 10 refs locales. `npm run validate:workflows`: 25 nodos, 30 conexiones y 8 Code nodes compilables.
-- Catálogo actual: **0 cursos**. Qdrant: **0 colecciones**. El mínimo requerido es 20 cursos con fuente institucional autorizada; no se fabrican cursos.
+- Catálogo actual: **0 cursos**. Qdrant: **0 colecciones**. INTECAP y su portal oficial ya están identificados; falta seleccionar y cargar al menos 20 registros con los campos requeridos respaldados por fuente. No se inventan descripciones, niveles ni duraciones.
 - Backend en Compose: modelos y umbral RAG están sin configurar. La API de gestión de workflows n8n responde `401 Unauthorized` sin sesión; sus copias importadas no se actualizaron ni probaron con credenciales.
-- Por ello, registro/login, catálogo vacío, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere fuente autorizada, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
+- Por ello, registro/login, catálogo vacío, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere curación de cursos INTECAP, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.
 
 ## Continuidad

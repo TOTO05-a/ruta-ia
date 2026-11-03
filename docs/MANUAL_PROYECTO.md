@@ -193,7 +193,7 @@ Las pruebas sintéticas del callback validan contrato/persistencia, pero no sust
 
 ## 8. Problemas pendientes confirmados
 
-1. **Catálogo institucional:** no se recibió fuente autorizada. Se requieren al menos 20 cursos verdaderos con nombre, descripción, categoría, nivel y duración. No fabricar contenido.
+1. **Catálogo institucional INTECAP:** el portal oficial de [programación de cursos](https://intecap.edu.gt/informacion-de-cursos/) y el [listado de oferta](https://cursos.intecap.edu.gt/) ya están identificados. El listado supera 20 ofertas y las fichas pueden incluir objetivos, requisitos, sede, horario y fechas (por ejemplo, [Desarrollo de Aplicaciones con Python](https://cursos.intecap.edu.gt/detalle/832/2027)). PostgreSQL aún tiene cero cursos. Seleccionar al menos 20 registros válidos y mapearlos a nombre, descripción, categoría, nivel y `durationHours`; el portal no muestra nivel y horas totales de forma uniforme, así que esos valores deben venir de información oficial adicional, no de inferencias ni texto generado.
 2. **Cuenta propietaria n8n:** `GET /rest/workflows` devolvió `401 Unauthorized` sin sesión. El acceso de gestión requiere login normal en `http://localhost:5678`; no se pueden sincronizar los JSON sin esa sesión.
 3. **OpenRouter:** el backend Compose reporta modelos vacíos; no hay credencial configurada en n8n disponible para probar. Confirmar endpoint elegible para ZDR y `data_collection=deny`; pedir aprobación institucional para procesamiento externo. No añadir claves al repo.
 4. **Qdrant/RAG:** cero colecciones/vectores por falta de catálogo; la indexación y consulta no se ejecutaron. Elegir colección/dimensión concordante y calibrar threshold con preguntas etiquetadas relevantes y fuera de dominio.
@@ -203,7 +203,7 @@ Las pruebas sintéticas del callback validan contrato/persistencia, pero no sust
 ## 9. Cómo continuar en la próxima sesión
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
-2. Solicita al usuario solo los dos insumos humanos que faltan: archivo/enlace institucional de cursos y completar/login de propietario n8n. Explica que son necesarios para probar los flujos reales.
+2. Completa la curación de al menos 20 cursos INTECAP desde las fichas oficiales y obtiene de fuente oficial los niveles y horas totales que falten; además, se requiere el login del propietario n8n para sincronizar y ejecutar los flujos reales.
 3. Con el propietario autenticado, importa las versiones actuales de `automation/n8n/index-courses.json` y `answer-query.json`, asigna las cuatro credenciales Header Auth descritas en `automation/n8n/README.md`; OpenRouter requiere revisión ZDR/privacidad previa.
 4. Carga únicamente el catálogo autorizado (20+), corre indexación y verifica dimensión, cantidad, payload y búsqueda real. Prueba desactivación y reconciliación.
 5. Construye set etiquetado de consultas dentro/fuera de dominio; calibra `RAG_MIN_SIMILARITY`. No actives generación de preguntas estudiantiles reales sin autorización.

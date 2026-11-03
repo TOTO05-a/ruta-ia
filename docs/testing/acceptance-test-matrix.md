@@ -37,7 +37,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API-02 | CSRF y autorización | Mutación sin token rechazada; estudiante no accede al perfil/historial ni calificación ajenos; admin sí puede gestionar | **Probado con PostgreSQL:** mutación sin token (403 `CSRF_INVALID`), estudiante en recurso admin (403 `FORBIDDEN`), consulta/historial ajenos (404), rating ajeno (404 `RECOMMENDATION_NOT_FOUND`) y CRUD admin; fixtures eliminados |
 | API-03 | Perfil | Actualizar solo campos permitidos; rechazar campos adicionales/valores fuera de enum | **Probado con PostgreSQL:** interés actualizado; campo extra rechazado con 400; fixtures eliminados |
 | DB-01 | Migración limpia/versionada | Aplicar migrations pendientes y confirmar FKs, índices, checks y tabla de versiones | **Probado:** `001` se aplica desde limpio; `002_finite_similarity_score` se aplicó en las dos bases; rerun en `rutaia_test` la omite correctamente. PostgreSQL confirma ocho tablas, 8 PK, 7 FK, 17 CHECK, 4 UNIQUE y 21 índices. La prueba SQL rechaza `NaN`, `Infinity` y `-Infinity` |
-| DB-02 | Cursos institucionales | Contar al menos 20 cursos aprobados; revisar detalle, filtros, estado activo y catálogo público | **Bloqueado:** falta fuente institucional autorizada |
+| DB-02 | Cursos institucionales | Contar al menos 20 cursos auténticos con todos los campos del modelo; revisar detalle, filtros, estado activo y catálogo público | **En preparación:** INTECAP y el portal oficial de programación/listado están identificados y contienen más de 20 ofertas. PostgreSQL aún tiene 0 cursos; falta curar 20 registros y documentar desde fuente oficial nivel y horas totales (atributos que no aparecen uniformemente en las fichas). No usar valores inferidos como hechos |
 | API-04 | CRUD y catálogo | Crear/consultar/editar/activar/desactivar; filtros y paginación; no listar inactivos públicamente | **Probado con PostgreSQL:** crear, editar, filtrar, paginar, desactivar/reactivar; público oculta inactivos y admin los conserva. Fixtures eliminados |
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | **Probado con PostgreSQL:** estudiante/curso/consulta inexistentes devuelven 404 con códigos de dominio; UUID inválido devuelve 400 `VALIDATION_ERROR` |
 | API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | **Probado con PostgreSQL:** rating 5 devuelve 201; el duplicado devuelve 409; datos temporales eliminados |
@@ -78,7 +78,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 ## Puertas para marcar RutaIA como terminada
 
-1. Fuente institucional autorizada cargada y mínimo de 20 cursos confirmados.
+1. Cargar mínimo 20 cursos INTECAP con registros completos respaldados por el portal/fichas oficiales; confirmar nivel y duración total en horas antes de activar catálogo e indexación.
 2. Compose arrancado sin alterar contenedores ajenos; migración limpia aplicada.
 3. Workflows importados con credenciales reales en n8n y modelos revisados por disponibilidad/retención.
 4. Umbral calibrado con set etiquetado y casos de dominio/fuera de dominio.
