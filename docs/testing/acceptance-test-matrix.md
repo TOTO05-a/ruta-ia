@@ -67,7 +67,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Callback/persistencia probados con consulta sintética; rama del workflow y umbral todavía sin prueba integral |
 | N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Contrato API/DB probado con callback Error sintético e idempotencia; rama de error n8n no ejecutada |
 | N8N-04 | Callback repetido y fuente activa | No crea recomendaciones duplicadas; rechaza referencias a cursos inactivos y mantiene resultado terminal | **Probado con PostgreSQL:** repetir `Respondida` devuelve 200 y conserva una recomendación/tres fuentes; repetir `Sin resultados`, `Error` y callback inválido por curso inactivo también es idempotente |
-| N8N-05 | Credenciales | Tres credenciales Header Auth para webhook, sync y callback; no hay clave de modelo | Sync y callback existen; sync ya está asignada a los dos nodos del workflow de indexación. Falta asignar sync al nodo de catálogo del workflow de consulta, callback a tres nodos, crear/asignar bearer al webhook y quitar auth OpenRouter obsoleta de dos nodos Ollama. No se requiere clave externa de modelo |
+| N8N-05 | Credenciales | Tres credenciales Header Auth para webhook, sync y callback; no hay clave de modelo | Las tres credenciales existen; sync ya está asignada a los dos nodos del workflow de indexación. Falta asignar sync al nodo de catálogo de consulta, callback a tres nodos, bearer al webhook y quitar auth OpenRouter obsoleta de dos nodos Ollama. No se requiere clave externa de modelo |
 
 ## Pruebas académicas de entrada
 
