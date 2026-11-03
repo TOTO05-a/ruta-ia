@@ -205,6 +205,53 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             assert.equal(catalogResult.data.items[0].id, course.id);
         }
 
+        const officialCatalogSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/004_intecap_catalogo_2027.sql"),
+            "utf8"
+        );
+        const officialCatalogSeedResults = await pool.query(officialCatalogSeed);
+        assert.equal(officialCatalogSeedResults.reduce((total, result) => total + result.rowCount, 0), 16);
+        const expectedOfficialCourses = [
+            ["Manejo y soporte de sistemas informáticos", "Básico", 300],
+            ["Administrador de bases de datos Microsoft SQL Server", "Avanzado", 720],
+            ["Técnico en mantenimiento de los sistemas electrónicos del automóvil", "Avanzado", 555],
+            ["Mantenimiento del sistema de inyección electrónica de combustible de motocicletas", "Intermedio", 80],
+            ["Electromecánico", "Intermedio", 500],
+            ["Electricista instalador domiciliar", "Básico", 635],
+            ["Mecánico de refrigeración y aire acondicionado", "Intermedio", 1175],
+            ["Mecánico de motocicletas", "Básico", 1060],
+            ["Aplicación de soldadura oxiacetilénica en equipos de refrigeración y aire acondicionado", "Avanzado", 90],
+            ["Cocina saludable", "Básico", 80],
+            ["Repostero", "Básico", 780],
+            ["Sastre", "Básico", 620],
+            ["Aplicación de pintura de poliuretano", "Intermedio", 200],
+            ["Maridaje gastronómico de alimentos y bebidas", "Avanzado", 100],
+            ["Cocinero de pequeños negocios", "Básico", 260],
+            ["Cocinero", "Básico", 1020]
+        ];
+        const officialCatalog = await pool.query(
+            `SELECT id, name, level, intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours"
+             FROM courses WHERE lower(name) = ANY($1::text[]) ORDER BY name`,
+            [expectedOfficialCourses.map(([name]) => name.toLocaleLowerCase("es"))]
+        );
+        assert.equal(officialCatalog.rowCount, expectedOfficialCourses.length);
+        for (const [name, level, durationHours] of expectedOfficialCourses) {
+            const course = officialCatalog.rows.find((row) => row.name === name);
+            assert.ok(course, `Debe existir el curso INTECAP: ${name}`);
+            assert.equal(course.level, level, `${name}: nivel pedagógico de RutaIA`);
+            assert.equal(course.intecapCareerType, null, `${name}: la ficha no publica CTO/CTM/CTMS`);
+            assert.equal(Number(course.durationHours), durationHours, `${name}: horas publicadas`);
+            const publicCourse = await request(`/api/v1/courses?search=${encodeURIComponent(name)}`);
+            assert.equal(publicCourse.status, 200, `${name}: catálogo público HTTP 200`);
+            const publicCatalog = await publicCourse.json();
+            assert.ok(publicCatalog.data.items.some((item) => item.id === course.id), `${name}: aparece en búsqueda pública`);
+            const courseDetail = await request(`/api/v1/courses/${course.id}`);
+            assert.equal(courseDetail.status, 200, `${name}: detalle HTTP 200`);
+            assert.equal((await courseDetail.json()).data.id, course.id);
+        }
+        const repeatedOfficialCatalogResults = await pool.query(officialCatalogSeed);
+        assert.equal(repeatedOfficialCatalogResults.reduce((total, result) => total + result.rowCount, 0), 0, "El catálogo INTECAP completo debe ser idempotente");
+
         const admin = await register("admin");
         const owner = await register("owner");
         const other = await register("other");
