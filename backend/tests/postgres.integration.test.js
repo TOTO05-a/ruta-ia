@@ -179,6 +179,19 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const expiredSession = await request("/api/v1/auth/me", { cookie: loginCookie });
         assert.equal(expiredSession.status, 401);
 
+        const profileUpdate = await request("/api/v1/students/me", {
+            method: "PATCH", cookie: owner.cookie, csrf: owner.csrfToken,
+            body: { fullName: "RutaIA Integration Owner Updated", experienceLevel: "Intermedio" }
+        });
+        assert.equal(profileUpdate.status, 200);
+        assert.equal((await profileUpdate.json()).data.fullName, "RutaIA Integration Owner Updated");
+        const profileExtraField = await request("/api/v1/students/me", {
+            method: "PATCH", cookie: owner.cookie, csrf: owner.csrfToken,
+            body: { email: "changed@example.invalid" }
+        });
+        assert.equal(profileExtraField.status, 400);
+        assert.equal((await profileExtraField.json()).error.code, "VALIDATION_ERROR");
+
         const csrfDenied = await request("/api/v1/admin/courses", {
             method: "POST", cookie: admin.cookie,
             body: {
