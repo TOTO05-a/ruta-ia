@@ -263,6 +263,10 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
         assert.deepEqual(sourceCoverage.rows[0], { total: 20, sourced: 20 });
+        const officialRecommendationCourses = await pool.query(
+            "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
+        );
+        assert.equal(officialRecommendationCourses.rowCount, 3);
         const plcCourseWithSource = await request(
             "/api/v1/courses?search=" + encodeURIComponent("Programación básica de control lógico programable PLC")
         );
@@ -466,7 +470,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             answer: "Respuesta basada en los cursos sintéticos activos.",
             summary: "Tres cursos de integración.",
             explanation: "La prueba utiliza solo fuentes activas enviadas en el callback.",
-            sources: courses.map((course, index) => ({ courseId: course.id, similarity: 0.9 - index / 20 }))
+            sources: officialRecommendationCourses.rows.map((course, index) => ({ courseId: course.id, similarity: 0.9 - index / 20 }))
         };
         const answeredCallback = await request("/api/v1/internal/n8n/results", {
             method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: answeredBody
@@ -475,6 +479,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const savedAnswer = await (await request(`/api/v1/queries/${answeredQueryId}`, { cookie: owner.cookie })).json();
         assert.equal(savedAnswer.data.status, "Respondida");
         assert.equal(savedAnswer.data.sources.length, 3);
+        assert.ok(savedAnswer.data.sources.every((source) => source.sourceUrl?.startsWith("https://cursos.intecap.edu.gt/")));
         const repeatedAnsweredCallback = await request("/api/v1/internal/n8n/results", {
             method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: answeredBody
         });
@@ -505,7 +510,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         }
 
         const inactiveSourceQueryId = await insertPendingQuery(owner.id, "Query con una fuente desactivada");
-        await pool.query("UPDATE courses SET is_active = FALSE WHERE id = $1", [courses[2].id]);
+        await pool.query("UPDATE courses SET is_active = FALSE WHERE id = $1", [officialRecommendationCourses.rows[2].id]);
         const inactiveSourceBody = {
             ...answeredBody,
             queryId: inactiveSourceQueryId
@@ -518,7 +523,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(rejectedInactiveSources.data.status, "Error");
         assert.equal(rejectedInactiveSources.data.errorCode, "N8N_INVALID_SOURCES");
         assert.equal(rejectedInactiveSources.data.recommendationId, null);
-        await pool.query("UPDATE courses SET is_active = TRUE WHERE id = $1", [courses[2].id]);
+        await pool.query("UPDATE courses SET is_active = TRUE WHERE id = $1", [officialRecommendationCourses.rows[2].id]);
         const repeatedInactiveSourceCallback = await request("/api/v1/internal/n8n/results", {
             method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: inactiveSourceBody
         });
@@ -530,7 +535,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.ok(answeredHistoryItem);
         assert.equal(answeredHistoryItem.status, "Respondida");
         assert.equal(answeredHistoryItem.summary, "Tres cursos de integración.");
-        assert.deepEqual(answeredHistoryItem.sources.map((source) => source.courseId), courses.map((course) => course.id));
+        assert.deepEqual(answeredHistoryItem.sources.map((source) => source.courseId), officialRecommendationCourses.rows.map((course) => course.id));
         const filteredHistory = await (await request("/api/v1/queries?status=Respondida&page=1&limit=10", { cookie: owner.cookie })).json();
         assert.equal(filteredHistory.data.total, 1);
         assert.equal(filteredHistory.data.items[0].id, answeredQueryId);
