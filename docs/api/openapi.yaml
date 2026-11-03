@@ -71,6 +71,9 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '409':
           description: El correo ya existe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/auth/login:
     post:
       summary: Inicia sesión
@@ -90,6 +93,9 @@ paths:
           $ref: '#/components/responses/ValidationError'
         '401':
           description: Credenciales incorrectas
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/auth/me:
     get:
       summary: Devuelve el estudiante de la sesión
@@ -103,6 +109,9 @@ paths:
               schema: { $ref: '#/components/schemas/CurrentStudentResponse' }
         '401':
           description: Sesión ausente o expirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/auth/csrf:
     get:
       summary: Recupera el token CSRF de la sesión actual
@@ -130,6 +139,9 @@ paths:
           description: Sesión cerrada
         '403':
           description: Token CSRF inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/students/me:
     patch:
       summary: Actualiza el perfil del estudiante autenticado
@@ -159,7 +171,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/StudentResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
-        '401': { description: Sesión ausente o expirada }
+        '401':
+          description: Sesión ausente o expirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/students:
     get:
       summary: Lista estudiantes (solo administradores)
@@ -174,7 +190,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StudentPageResponse' }
-        '403': { description: Se requiere rol administrador }
+        '403':
+          description: Se requiere rol administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/students/{id}:
     get:
       summary: Busca un estudiante por ID (solo administradores)
@@ -191,7 +211,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StudentResponse' }
-        '404': { description: Estudiante no encontrado }
+        '404':
+          description: Estudiante no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/students/{id}/history:
     get:
       summary: Historial propio o de un estudiante (administración)
@@ -211,8 +235,16 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/QueryPageResponse' }
-        '401': { description: Sesión ausente o expirada }
-        '404': { description: Estudiante no encontrado }
+        '401':
+          description: Sesión ausente o expirada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Estudiante no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/queries:
     post:
       summary: Registra una pregunta antes de iniciar n8n
@@ -270,7 +302,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/QueryDetailResponse' }
-        '404': { description: Consulta no encontrada }
+        '404':
+          description: Consulta no encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/internal/n8n/results:
     post:
       summary: Recibe resultado autenticado de n8n
@@ -329,7 +365,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CallbackResponse' }
-        '401': { description: Callback no autenticado }
+        '401':
+          description: Callback no autenticado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/internal/courses/active:
     get:
       summary: Lista el catálogo activo para sincronización autenticada de n8n
@@ -344,8 +384,16 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ActiveCoursePageResponse' }
-        '401': { description: Sincronización no autenticada }
-        '503': { description: Sincronización no configurada }
+        '401':
+          description: Sincronización no autenticada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '503':
+          description: Sincronización no configurada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/internal/rag/index-config:
     get:
       summary: Devuelve configuración no secreta para la indexación n8n
@@ -360,7 +408,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/IndexingConfigResponse' }
-        '401': { description: Sincronización no autenticada }
+        '401':
+          description: Sincronización no autenticada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
         '503':
           description: Configuración de indexación ausente
           content:
@@ -398,8 +450,16 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/RatingResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { description: Recomendación no encontrada }
-        '409': { description: Ya existe una calificación }
+        '404':
+          description: Recomendación no encontrada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '409':
+          description: Ya existe una calificación
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/admin/statistics:
     get:
       summary: Métricas globales requeridas (solo administradores)
@@ -411,7 +471,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/StatisticsResponse' }
-        '403': { description: Se requiere rol administrador }
+        '403':
+          description: Se requiere rol administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/courses:
     get:
       summary: Catálogo público de cursos activos
@@ -452,7 +516,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CourseResponse' }
-        '404': { description: Curso no encontrado o inactivo }
+        '404':
+          description: Curso no encontrado o inactivo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/admin/courses:
     get:
       summary: Lista cursos activos e inactivos (solo administradores)
@@ -470,7 +538,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CoursePageResponse' }
-        '403': { description: Se requiere rol administrador }
+        '403':
+          description: Se requiere rol administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
     post:
       summary: Crea curso (solo administradores)
       security:
@@ -502,7 +574,11 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/CourseResponse' }
         '400': { $ref: '#/components/responses/ValidationError' }
-        '403': { description: Sin permiso o CSRF inválido }
+        '403':
+          description: Sin permiso o CSRF inválido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/admin/courses/{id}:
     get:
       summary: Busca un curso (incluye inactivos; solo administradores)
@@ -519,8 +595,16 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CourseResponse' }
-        '403': { description: Se requiere rol administrador }
-        '404': { description: Curso no encontrado }
+        '403':
+          description: Se requiere rol administrador
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
+        '404':
+          description: Curso no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
     patch:
       summary: Actualiza un curso (solo administradores)
       security:
@@ -555,7 +639,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CourseResponse' }
-        '404': { description: Curso no encontrado }
+        '404':
+          description: Curso no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
   /api/v1/admin/courses/{id}/status:
     patch:
       summary: Activa o desactiva un curso (solo administradores)
@@ -586,7 +674,11 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/CourseResponse' }
-        '404': { description: Curso no encontrado }
+        '404':
+          description: Curso no encontrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiError' }
 components:
   parameters:
     Search:

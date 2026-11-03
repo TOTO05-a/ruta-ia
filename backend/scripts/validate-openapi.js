@@ -71,11 +71,12 @@ for (const [route, pathItem] of Object.entries(spec?.paths || {})) {
       if (!response?.$ref && typeof response?.description !== 'string') {
         errors.push(`${method.toUpperCase()} ${route} response ${status}: description is required`);
       }
-      if (['200', '201', '202'].includes(status)) {
+      const isHttpError = /^\d{3}$/.test(status) && Number(status) >= 400;
+      if (['200', '201', '202'].includes(status) || isHttpError) {
         const responseDefinition = response?.$ref ? resolveLocalRef(response.$ref) : response;
         const mediaTypes = Object.values(responseDefinition?.content || {});
         if (mediaTypes.length === 0 || mediaTypes.some((mediaType) => !mediaType?.schema)) {
-          errors.push(`${method.toUpperCase()} ${route} response ${status}: a success response schema is required`);
+          errors.push(`${method.toUpperCase()} ${route} response ${status}: a response schema is required`);
         }
       }
     }
