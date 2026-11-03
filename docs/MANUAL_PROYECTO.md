@@ -15,15 +15,15 @@ Estado comprobado en este entorno:
 
 - 3 nov: `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron; los cuatro servicios RutaIA quedaron `healthy`. `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200.
 - 3 nov: backend actualizado reconstruido y saludable. Ollama local tiene `bge-m3` y `qwen2.5:3b`; el contenedor n8n obtuvo HTTP 200 desde `host.docker.internal:11434/api/tags`.
-- 3 nov: los dos workflows actuales se importaron por ID existente (14 nodos cada uno), sin duplicados y permanecen inactivos. Un smoke test con 20 cursos, embeddings de 1024 dimensiones, Qdrant temporal y consulta sintética recuperó cinco fuentes y obtuvo los tres campos JSON de Qwen; eliminó la colección temporal.
+- 3 nov: los dos workflows actuales están guardados por sus IDs existentes (14 nodos cada uno), sin duplicados y permanecen inactivos. El workflow real de indexación n8n se ejecutó dos veces con éxito usando el catálogo público: 20 embeddings BGE-M3 de 1024 dimensiones, upsert/reconciliación Qdrant; después de repetir seguían exactamente 20 puntos. Una búsqueda real Ollama→Qdrant devolvió cinco cursos de Gastronomía sobre el umbral 0.50.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
-- 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Tras la curación oficial, la base contiene 20 ofertas INTECAP; Qdrant sigue sin colecciones.
+- 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Tras la curación oficial, la base contiene 20 ofertas INTECAP; Qdrant tiene la colección Cosine `rutaia_courses`, 1024 dimensiones y 20 puntos.
 - La migración `002_finite_similarity_score.sql` quedó aplicada en `rutaia` y `rutaia_test`; reemplaza el constraint de score para rechazar `NaN` y ambas infinitudes. La integración probó los tres rechazos y la migración repetida fue idempotente.
 - La inspección visual autenticada sigue pendiente. En esta sesión Work settings deshabilitó el navegador local; no se crearon cuentas ni se enviaron formularios.
 - 3 nov: `npm test`: 24 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye seis pruebas aisladas de Code nodes (catálogo vacío, selección de fuentes y estructura JSON de Ollama) y pruebas del cliente n8n. `npm run test:integration`: 1 aprobada contra `rutaia_test`, comprobó autenticación, catálogo, historial/aislamiento, callbacks, calificaciones e idempotencia.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 95 referencias locales resueltas y schemas obligatorios para éxitos 200/201/202 y errores HTTP declarados.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
-- **RAG integral aún no está habilitado:** catálogo activo = 20, Qdrant queda sin colecciones tras el smoke test temporal y los dos workflows siguen inactivos. La calibración local sintética produjo rango candidato `0.4475–0.5785`; `.env` usa provisionalmente `RAG_MIN_SIMILARITY=0.50`. n8n ya tiene credenciales de sync y callback, pero sus nodos aún apuntan a IDs antiguos; falta el bearer y cambiar a `None` la autenticación sobrante de los dos nodos Ollama. Después se debe indexar y ejecutar el recorrido workflow→callback→historial/calificación.
+- **RAG integral aún no está habilitado:** el workflow de indexación real se ejecutó dos veces; `rutaia_courses` conserva 20 puntos y la búsqueda local devuelve resultados del tema. Los dos workflows siguen inactivos. La calibración sintética produjo rango candidato `0.4475–0.5785`; `.env` usa `RAG_MIN_SIMILARITY=0.50`. n8n ya tiene credenciales de sync y callback; sync está asignada en los dos nodos de indexación, pero la lectura de catálogo del workflow de consulta y los tres callbacks siguen con IDs antiguos. Falta crear/asignar el bearer y cambiar a `None` la autenticación OpenRouter de los nodos Ollama; después, ejecutar consulta→callback→historial/calificación.
 
 `healthy` demuestra disponibilidad de proceso/healthcheck, no significa que el RAG esté listo.
 
@@ -105,7 +105,7 @@ Copia `.env.example` a `.env` en la raíz. `.env` es local/ignorado y nunca se d
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Cuenta y puerto local de PostgreSQL. Contraseña URL-safe para la URL construida por Compose. |
 | `SESSION_SECRET`, `SESSION_TTL_HOURS` | Firma/secreto de sesiones y duración. Secreto aleatorio de al menos 32 caracteres. |
 | `FRONTEND_URL`, `APP_PORT` | Origen permitido por CORS y puerto publicado de la app. Si se usa 3001, pon `FRONTEND_URL=http://localhost:3001`. |
-| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección en ejecución local; Compose usa `http://qdrant:6333`. No crees colección hasta confirmar la dimensión elegida. |
+| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección en ejecución local; Compose usa `http://qdrant:6333`. La colección `rutaia_courses` es Cosine, 1024 dimensiones y 20 puntos BGE-M3. |
 | `N8N_QUERY_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET` | Webhook que Express llama y su autenticación bearer. Compose usa `http://n8n:5678/webhook/rutaia-query`. |
 | `N8N_CALLBACK_URL`, `N8N_CALLBACK_SECRET` | Callback interno que n8n invoca en Express y su secreto. Compose usa `http://backend:3000/api/v1/internal/n8n/results`. |
 | `N8N_COURSE_SYNC_SECRET` | Protege las consultas internas de cursos/configuración para n8n. |
@@ -208,7 +208,8 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
 2. Los dos workflows ya están sincronizados por sus IDs existentes e inactivos. No los reimportes mientras asignas las credenciales. Reasigna sync/callback a sus nodos, crea/asigna el bearer al webhook y deja los dos nodos Ollama en `Authentication: None`, según `automation/n8n/README.md`.
-4. El catálogo autorizado de 20 cursos ya está cargado en los seeds y verificado por API. Corre la indexación y verifica dimensión, cantidad, payload y búsqueda real. Prueba desactivación y reconciliación.
+3. Indexación ya comprobada dos veces: 20 vectores, dimensión 1024 y 20 puntos tras repetir. Verifica desactivar/reactivar y la reconciliación del catálogo.
+4. Continúa con consulta RAG de extremo a extremo y contrasta estado, fuentes, historial y rating en API/PostgreSQL.
 5. El calibrador sintético local sugirió `0.50`; confirma ese candidato con consultas del flujo n8n etiquetadas dentro/fuera de dominio, sin guardar datos personales. Ajusta `RAG_MIN_SIMILARITY` si la precisión observada lo requiere.
 6. Verifica con una cuenta de prueba los estados Respondida/Sin resultados/Error, fuentes existentes/activas, historial/aislamiento y rating. Elimina fixtures de prueba al terminar.
 7. Completa revisión del frontend en navegador a escritorio y móvil, incluyendo registro, login, catálogo/filtros, consulta, fuentes, historial, perfil, calificación y logout/error.
