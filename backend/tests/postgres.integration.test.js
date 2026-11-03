@@ -313,6 +313,17 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         });
         assert.equal(repeatedInactiveSourceCallback.status, 200);
 
+        const ownHistory = await (await request(`/api/v1/students/${owner.id}/history?page=1&limit=10`, { cookie: owner.cookie })).json();
+        assert.equal(ownHistory.data.total, 5);
+        const answeredHistoryItem = ownHistory.data.items.find((item) => item.id === answeredQueryId);
+        assert.ok(answeredHistoryItem);
+        assert.equal(answeredHistoryItem.status, "Respondida");
+        assert.equal(answeredHistoryItem.summary, "Tres cursos de integración.");
+        assert.deepEqual(answeredHistoryItem.sources.map((source) => source.courseId), courses.map((course) => course.id));
+        const filteredHistory = await (await request("/api/v1/queries?status=Respondida&page=1&limit=10", { cookie: owner.cookie })).json();
+        assert.equal(filteredHistory.data.total, 1);
+        assert.equal(filteredHistory.data.items[0].id, answeredQueryId);
+
         const ratingUrl = `/api/v1/recommendations/${savedAnswer.data.recommendationId}/rating`;
         const otherStudentRating = await request(ratingUrl, {
             method: "POST", cookie: other.cookie, csrf: other.csrfToken, body: { score: 1, comment: "No pertenece a esta recomendación" }
