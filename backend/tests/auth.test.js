@@ -51,6 +51,8 @@ test("curso exige descripción, nivel permitido y duración positiva", () => {
     };
     assert.equal(courseSchema.safeParse(course).success, true);
     assert.equal(courseSchema.safeParse({ ...course, durationHours: 0 }).success, false);
+    assert.equal(courseSchema.safeParse({ ...course, intecapCareerType: "CTM" }).success, true);
+    assert.equal(courseSchema.safeParse({ ...course, intecapCareerType: "Técnico medio" }).success, false);
     assert.equal(courseSchema.safeParse({ ...course, description: "corto" }).success, false);
     assert.equal(coursePatchSchema.safeParse({}).success, false);
     assert.equal(statusSchema.safeParse({ isActive: "false" }).success, false);

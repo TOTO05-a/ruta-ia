@@ -30,7 +30,8 @@ function course(id, overrides = {}) {
         name: `Curso ${id}`,
         description: `Descripción ${id}`,
         category: "Desarrollo web",
-        level: "Principiante",
+        level: "Básico",
+        intecapCareerType: null,
         durationHours: 20,
         ...overrides
     };
@@ -47,7 +48,7 @@ test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () =
         question: "¿Cómo empiezo desarrollo web?",
         minSimilarity: 0.7
     };
-    const activeCourses = [course("active-a"), course("active-b"), course("active-c")];
+    const activeCourses = [course("active-a", { intecapCareerType: "CTM" }), course("active-b"), course("active-c")];
     const result = executeCode(node, {
         "Webhook autenticado de consulta": { body: request },
         "Leer catálogo activo PostgreSQL": { data: { items: activeCourses } }
@@ -65,7 +66,9 @@ test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () =
     assert.equal(result[0].status, "Respondida");
     assert.deepEqual(result[0].sources.map((source) => source.courseId), ["active-a", "active-b", "active-c"]);
     assert.deepEqual(result[0].sources.map((source) => source.similarity), [0.8, 0.75, 0.7]);
+    assert.equal(result[0].sources[0].intecapCareerType, "CTM");
     assert.match(result[0].context, /Curso active-a/);
+    assert.match(result[0].context, /Clasificación INTECAP: CTM/);
     assert.doesNotMatch(result[0].context, /inactive/);
 });
 
@@ -94,7 +97,7 @@ test("workflow RAG ordena por score y limita las fuentes a cinco", () => {
 
 test("indexación conserva asociación por índice y valida dimensión y valores finitos", () => {
     const node = codeNode(indexWorkflow, "Validar y preparar puntos Qdrant");
-    const courses = [course("course-a"), course("course-b")];
+    const courses = [course("course-a", { intecapCareerType: "CTO" }), course("course-b")];
     const context = {
         "Preparar textos de cursos": {
             qdrantUrl: "http://qdrant:6333/",
@@ -114,6 +117,7 @@ test("indexación conserva asociación por índice y valida dimensión y valores
     assert.deepEqual(result[0].points.map((point) => point.id), ["course-a", "course-b"]);
     assert.deepEqual(result[0].points.map((point) => point.vector), [[1, 0, 0], [0, 1, 0]]);
     assert.deepEqual(result[0].points.map((point) => point.payload.course_id), ["course-a", "course-b"]);
+    assert.deepEqual(result[0].points.map((point) => point.payload.intecap_career_type), ["CTO", null]);
 
     assert.throws(() => executeCode(node, context, { data: [{ index: 0, embedding: [1, 0, 0] }] }), /cantidad de embeddings inválida/);
     assert.throws(() => executeCode(node, context, { data: [

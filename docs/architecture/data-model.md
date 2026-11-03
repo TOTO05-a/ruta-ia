@@ -1,6 +1,6 @@
 # Modelo entidad-relación
 
-El esquema relacional está implementado en `database/migrations/001_initial_schema.sql`; `002_finite_similarity_score.sql` refuerza la validación de scores persistidos. PostgreSQL es la fuente de verdad. Qdrant almacena índices vectoriales vinculados por `course_id` y nunca sustituye la comprobación relacional.
+El esquema relacional está implementado en `database/migrations/001_initial_schema.sql`; `002_finite_similarity_score.sql` refuerza la validación de scores persistidos y `003_intecap_career_type.sql` añade la clasificación oficial separada de dificultad. PostgreSQL es la fuente de verdad. Qdrant almacena índices vectoriales vinculados por `course_id` y nunca sustituye la comprobación relacional.
 
 ```mermaid
 erDiagram
@@ -27,6 +27,7 @@ erDiagram
         text description
         text category
         text level
+        text intecap_career_type
         numeric duration_hours
         boolean is_active
     }
@@ -65,6 +66,7 @@ erDiagram
 
 - El correo tiene índice único insensible a mayúsculas/minúsculas.
 - Los niveles, estados, duración, campos requeridos, estrellas y posiciones tienen restricciones en PostgreSQL.
+- `courses.level` representa dificultad didáctica de RutaIA (`Básico`/`Intermedio`/`Avanzado`). `courses.intecap_career_type` conserva por separado los tipos oficiales CTO/CTM/CTMS; no se convierten entre sí. En formaciones modulares sin tipo de carrera, el campo oficial queda `NULL`.
 - Una consulta puede producir como máximo una recomendación; cada recomendación conserva de una a cinco fuentes mediante posiciones únicas. La capa de servicio debe exigir al menos una fuente antes de marcarla como `Respondida`.
 - La puntuación se almacena sin asumir una escala universal. La integración debe validar que sea finita y documentar la métrica Qdrant seleccionada.
 - La calificación es única por recomendación, de acuerdo con la decisión aprobada.

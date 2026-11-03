@@ -193,7 +193,8 @@
     content.replaceChildren();
     content.append(node("div", "eyebrow", course.category), node("h2", "", course.name), node("p", "", course.description));
     const meta = node("div", "source-meta");
-    meta.append(node("span", "", `Nivel: ${course.level}`), node("span", "", `Duración: ${course.durationHours} horas`));
+    meta.append(node("span", "", `Nivel RutaIA: ${course.level}`), node("span", "", `Duración: ${course.durationHours} horas`));
+    if (course.intecapCareerType) meta.append(node("span", "", `Clasificación INTECAP: ${course.intecapCareerType}`));
     content.append(meta);
     $("#detail-dialog").showModal();
   }
@@ -376,7 +377,8 @@
     const card = node("article", "source-card");
     card.append(node("h3", "", source.name), node("p", "", source.description || ""));
     const meta = node("div", "source-meta");
-    meta.append(node("span", "", source.category || ""), node("span", "", source.level || ""), node("span", "", `${source.durationHours} h`));
+    meta.append(node("span", "", source.category || ""), node("span", "", `Nivel RutaIA: ${source.level || "No indicado"}`), node("span", "", `${source.durationHours} h`));
+    if (source.intecapCareerType) meta.append(node("span", "", `Clasificación INTECAP: ${source.intecapCareerType}`));
     const similarity = Number(source.similarity);
     if (Number.isFinite(similarity)) meta.append(node("strong", "", `Puntaje vectorial ${similarity.toFixed(3)}`));
     card.append(meta);
@@ -431,7 +433,8 @@
   function adminCourseCard(course) {
     const row = node("article", "admin-course-card");
     const title = node("div", "admin-course-title");
-    title.append(node("strong", "", course.name), node("small", "", `${course.category} · ${course.level} · ${course.durationHours} h`));
+    const courseMeta = `${course.category} · Nivel RutaIA: ${course.level} · ${course.durationHours} h`;
+    title.append(node("strong", "", course.name), node("small", "", course.intecapCareerType ? `${courseMeta} · INTECAP: ${course.intecapCareerType}` : courseMeta));
     row.append(title, node("div", "admin-course-description", course.description), node("span", "course-level", course.isActive ? "Activo" : "Inactivo"));
     const actions = node("div", "admin-course-actions");
     const edit = node("button", "small-action", "Editar");
@@ -458,6 +461,7 @@
       form.elements.description.value = course.description;
       form.elements.category.value = course.category;
       form.elements.level.value = course.level;
+      form.elements.intecapCareerType.value = course.intecapCareerType || "";
       form.elements.durationHours.value = course.durationHours;
     }
     $("#course-dialog-title").textContent = course ? "Editar curso" : "Nuevo curso";
@@ -474,6 +478,7 @@
       description: form.elements.description.value.trim(),
       category: form.elements.category.value.trim(),
       level: form.elements.level.value,
+      intecapCareerType: form.elements.intecapCareerType.value || null,
       durationHours: Number(form.elements.durationHours.value)
     };
     const button = $("#course-save-button");

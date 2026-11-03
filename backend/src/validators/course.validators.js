@@ -5,6 +5,7 @@ const courseSchema = z.object({
     description: z.string().trim().min(20).max(10_000),
     category: z.string().trim().min(2).max(100),
     level: z.enum(["Básico", "Intermedio", "Avanzado"]),
+    intecapCareerType: z.enum(["CTO", "CTM", "CTMS"]).nullable().optional(),
     durationHours: z.number().positive().max(100_000)
 }).strict();
 

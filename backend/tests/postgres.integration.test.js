@@ -1,6 +1,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
+const fs = require("node:fs");
 const path = require("node:path");
 const { execFileSync } = require("node:child_process");
 const dotenv = require("dotenv");
@@ -118,6 +119,32 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             "SELECT (SELECT count(*) FROM students)::int AS students, (SELECT count(*) FROM courses)::int AS courses, (SELECT count(*) FROM queries)::int AS queries, (SELECT count(*) FROM recommendations)::int AS recommendations, (SELECT count(*) FROM ratings)::int AS ratings"
         );
         assert.deepEqual(existing.rows[0], { students: 0, courses: 0, queries: 0, recommendations: 0, ratings: 0 }, "Recrea rutaia_test si contiene datos previos");
+
+        const officialCourseSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/001_intecap_programacion_plc.sql"),
+            "utf8"
+        );
+        const firstSeedRun = await pool.query(officialCourseSeed);
+        assert.equal(firstSeedRun.rowCount, 1, "El seed debe insertar el curso oficial en la base aislada");
+        const officialCourseResult = await pool.query(
+            "SELECT id, name, category, level, duration_hours AS \"durationHours\" FROM courses WHERE lower(name) = lower($1)",
+            ["Programación básica de control lógico programable PLC"]
+        );
+        assert.equal(officialCourseResult.rowCount, 1);
+        const officialCourse = officialCourseResult.rows[0];
+        assert.equal(officialCourse.level, "Básico");
+        assert.equal(Number(officialCourse.durationHours), 100);
+        courseIds.push(officialCourse.id);
+
+        const repeatedSeedRun = await pool.query(officialCourseSeed);
+        assert.equal(repeatedSeedRun.rowCount, 0, "Repetir el seed no debe duplicar el curso");
+        const publicOfficialCourse = await request(
+            `/api/v1/courses?search=${encodeURIComponent(officialCourse.name)}`
+        );
+        assert.equal(publicOfficialCourse.status, 200);
+        const publicCatalog = await publicOfficialCourse.json();
+        assert.equal(publicCatalog.data.total, 1);
+        assert.equal(publicCatalog.data.items[0].id, officialCourse.id);
 
         const admin = await register("admin");
         const owner = await register("owner");
