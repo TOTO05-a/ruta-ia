@@ -293,6 +293,26 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             );
         }
 
+        const inactiveSourceQueryId = await insertPendingQuery(owner.id, "Query con una fuente desactivada");
+        await pool.query("UPDATE courses SET is_active = FALSE WHERE id = $1", [courses[2].id]);
+        const inactiveSourceBody = {
+            ...answeredBody,
+            queryId: inactiveSourceQueryId
+        };
+        const inactiveSourceCallback = await request("/api/v1/internal/n8n/results", {
+            method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: inactiveSourceBody
+        });
+        assert.equal(inactiveSourceCallback.status, 202);
+        const rejectedInactiveSources = await (await request(`/api/v1/queries/${inactiveSourceQueryId}`, { cookie: owner.cookie })).json();
+        assert.equal(rejectedInactiveSources.data.status, "Error");
+        assert.equal(rejectedInactiveSources.data.errorCode, "N8N_INVALID_SOURCES");
+        assert.equal(rejectedInactiveSources.data.recommendationId, null);
+        await pool.query("UPDATE courses SET is_active = TRUE WHERE id = $1", [courses[2].id]);
+        const repeatedInactiveSourceCallback = await request("/api/v1/internal/n8n/results", {
+            method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: inactiveSourceBody
+        });
+        assert.equal(repeatedInactiveSourceCallback.status, 200);
+
         const ratingUrl = `/api/v1/recommendations/${savedAnswer.data.recommendationId}/rating`;
         const otherStudentRating = await request(ratingUrl, {
             method: "POST", cookie: other.cookie, csrf: other.csrfToken, body: { score: 1, comment: "No pertenece a esta recomendación" }
@@ -311,7 +331,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const statsResponse = await request("/api/v1/admin/statistics", { cookie: admin.cookie });
         assert.equal(statsResponse.status, 200);
         const stats = (await statsResponse.json()).data;
-        assert.equal(stats.totalQueries, 4);
+        assert.equal(stats.totalQueries, 5);
         assert.equal(stats.answeredQueries, 1);
         assert.equal(stats.noResultQueries, 1);
         assert.equal(stats.averageRating, 5);
