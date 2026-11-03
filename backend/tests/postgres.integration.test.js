@@ -151,6 +151,34 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const other = await register("other");
         await pool.query("UPDATE students SET role = 'admin' WHERE id = $1", [admin.id]);
 
+        const failedLogin = await request("/api/v1/auth/login", {
+            method: "POST",
+            body: { email: owner.email, password: "Incorrect-Password-42!" }
+        });
+        assert.equal(failedLogin.status, 401);
+        assert.equal((await failedLogin.json()).error.code, "INVALID_CREDENTIALS");
+        const login = await request("/api/v1/auth/login", {
+            method: "POST",
+            body: { email: owner.email, password: "Integration-Only-42!" }
+        });
+        assert.equal(login.status, 200);
+        const loginResult = await login.json();
+        const loginCookie = login.headers.get("set-cookie").split(";", 1)[0];
+        assert.equal(loginResult.data.student.id, owner.id);
+        assert.match(login.headers.get("set-cookie"), /HttpOnly/);
+
+        const me = await request("/api/v1/auth/me", { cookie: loginCookie });
+        assert.equal(me.status, 200);
+        assert.equal((await me.json()).data.student.email, owner.email);
+        const csrf = await request("/api/v1/auth/csrf", { cookie: loginCookie });
+        assert.equal((await csrf.json()).data.csrfToken, loginResult.data.csrfToken);
+        const logout = await request("/api/v1/auth/logout", {
+            method: "POST", cookie: loginCookie, csrf: loginResult.data.csrfToken
+        });
+        assert.equal(logout.status, 204);
+        const expiredSession = await request("/api/v1/auth/me", { cookie: loginCookie });
+        assert.equal(expiredSession.status, 401);
+
         const csrfDenied = await request("/api/v1/admin/courses", {
             method: "POST", cookie: admin.cookie,
             body: {
