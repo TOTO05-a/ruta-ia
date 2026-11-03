@@ -149,6 +149,30 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(publicCatalog.data.items[0].level, "Básico");
         assert.equal(publicCatalog.data.items[0].intecapCareerType, null);
 
+        const analysisDataSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/002_intecap_analisis_datos_excel_powerbi.sql"),
+            "utf8"
+        );
+        assert.equal((await pool.query(analysisDataSeed)).rowCount, 1);
+        const analysisDataResult = await pool.query(
+            `SELECT id, level, intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours"
+             FROM courses WHERE lower(name) = lower($1)`,
+            ["Análisis de datos con Excel y Power BI (E-learning)"]
+        );
+        assert.equal(analysisDataResult.rowCount, 1);
+        assert.equal(analysisDataResult.rows[0].level, "Avanzado");
+        assert.equal(analysisDataResult.rows[0].intecapCareerType, null);
+        assert.equal(Number(analysisDataResult.rows[0].durationHours), 100);
+        courseIds.push(analysisDataResult.rows[0].id);
+        assert.equal((await pool.query(analysisDataSeed)).rowCount, 0, "El segundo seed también debe ser idempotente");
+        const publicAnalysisData = await request(
+            `/api/v1/courses?search=${encodeURIComponent("Análisis de datos con Excel y Power BI")}`
+        );
+        assert.equal(publicAnalysisData.status, 200);
+        const analysisCatalog = await publicAnalysisData.json();
+        assert.equal(analysisCatalog.data.total, 1);
+        assert.equal(analysisCatalog.data.items[0].id, analysisDataResult.rows[0].id);
+
         const admin = await register("admin");
         const owner = await register("owner");
         const other = await register("other");
