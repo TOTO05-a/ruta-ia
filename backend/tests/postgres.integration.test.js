@@ -127,12 +127,13 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const firstSeedRun = await pool.query(officialCourseSeed);
         assert.equal(firstSeedRun.rowCount, 1, "El seed debe insertar el curso oficial en la base aislada");
         const officialCourseResult = await pool.query(
-            "SELECT id, name, category, level, duration_hours AS \"durationHours\" FROM courses WHERE lower(name) = lower($1)",
+            "SELECT id, name, category, level, intecap_career_type AS \"intecapCareerType\", duration_hours AS \"durationHours\" FROM courses WHERE lower(name) = lower($1)",
             ["Programación básica de control lógico programable PLC"]
         );
         assert.equal(officialCourseResult.rowCount, 1);
         const officialCourse = officialCourseResult.rows[0];
         assert.equal(officialCourse.level, "Básico");
+        assert.equal(officialCourse.intecapCareerType, null, "Una oferta modular no se convierte a una clasificación de carrera");
         assert.equal(Number(officialCourse.durationHours), 100);
         courseIds.push(officialCourse.id);
 
@@ -145,6 +146,8 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const publicCatalog = await publicOfficialCourse.json();
         assert.equal(publicCatalog.data.total, 1);
         assert.equal(publicCatalog.data.items[0].id, officialCourse.id);
+        assert.equal(publicCatalog.data.items[0].level, "Básico");
+        assert.equal(publicCatalog.data.items[0].intecapCareerType, null);
 
         const admin = await register("admin");
         const owner = await register("owner");
@@ -236,7 +239,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(duplicate.status, 409);
 
         const courses = [];
-        for (const [label, level] of [["basic-a", "Básico"], ["basic-b", "Básico"], ["intermediate", "Intermedio"]]) {
+        for (const [label, level, intecapCareerType] of [["basic-a", "Básico", null], ["basic-b", "Básico", null], ["intermediate", "Intermedio", "CTM"]]) {
             const response = await request("/api/v1/admin/courses", {
                 method: "POST",
                 cookie: admin.cookie,
@@ -246,6 +249,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
                     description: "Curso sintético exclusivo para probar la API relacional de integración.",
                     category: `Integration-${suffix}`,
                     level,
+                    intecapCareerType,
                     durationHours: 4
                 }
             });
@@ -253,6 +257,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             const result = await response.json();
             courses.push(result.data);
             courseIds.push(result.data.id);
+            assert.equal(result.data.intecapCareerType, intecapCareerType);
         }
 
         const basicFilter = new URLSearchParams({ category: `Integration-${suffix}`, level: "Básico", page: "1", limit: "1" });
