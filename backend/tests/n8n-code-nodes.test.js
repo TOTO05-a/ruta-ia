@@ -41,6 +41,33 @@ function hit(courseId, score) {
     return { payload: { course_id: courseId }, score };
 }
 
+test("workflow RAG prepara el embedding con la configuración enviada por Express", () => {
+    const node = codeNode(answerWorkflow, "Preparar embedding de pregunta");
+    const request = {
+        queryId: "query-embedding",
+        question: "Me interesa cocina y gastronomía",
+        experienceLevel: "Principiante",
+        interestArea: "Gastronomía",
+        embeddingModel: "bge-m3",
+        chatModel: "qwen2.5:3b",
+        ollamaBaseUrl: "http://host.docker.internal:11434",
+        minSimilarity: 0.5,
+        qdrantCollection: "rutaia_courses",
+        qdrantUrl: "http://qdrant:6333",
+        callbackUrl: "http://backend:3000/api/v1/internal/n8n/results"
+    };
+    const context = { "Webhook autenticado de consulta": { body: request } };
+
+    assert.deepEqual(executeCode(node, context, {}), [{
+        model: "bge-m3",
+        input: "Me interesa cocina y gastronomía",
+        ollamaBaseUrl: "http://host.docker.internal:11434"
+    }]);
+    assert.throws(() => executeCode(node, {
+        "Webhook autenticado de consulta": { body: { ...request, callbackUrl: undefined } }
+    }, {}), /Payload de consulta incompleto/);
+});
+
 test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () => {
     const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
     const request = {
