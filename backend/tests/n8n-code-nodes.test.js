@@ -1,0 +1,127 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const vm = require("node:vm");
+const test = require("node:test");
+
+const workflowDirectory = path.resolve(__dirname, "../../automation/n8n");
+const answerWorkflow = JSON.parse(fs.readFileSync(path.join(workflowDirectory, "answer-query.json"), "utf8"));
+const indexWorkflow = JSON.parse(fs.readFileSync(path.join(workflowDirectory, "index-courses.json"), "utf8"));
+
+function codeNode(workflow, name) {
+    const node = workflow.nodes.find((candidate) => candidate.name === name);
+    assert.ok(node, `No existe el nodo ${name}`);
+    assert.equal(node.type, "n8n-nodes-base.code");
+    return node.parameters.jsCode;
+}
+
+function executeCode(source, nodeData, input) {
+    const wrapped = new vm.Script(`(function $(name) { return { first: () => ({ json: nodeData[name] }) }; })`);
+    const lookup = wrapped.runInNewContext({ nodeData });
+    const fn = new vm.Script(`(function ($, $input) { ${source}\n})`).runInNewContext();
+    const result = fn(lookup, { first: () => ({ json: input }) });
+    const normalized = JSON.parse(JSON.stringify(result));
+    return normalized.map((item) => item.json);
+}
+
+function course(id, overrides = {}) {
+    return {
+        id,
+        name: `Curso ${id}`,
+        description: `Descripción ${id}`,
+        category: "Desarrollo web",
+        level: "Principiante",
+        durationHours: 20,
+        ...overrides
+    };
+}
+
+function hit(courseId, score) {
+    return { payload: { course_id: courseId }, score };
+}
+
+test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () => {
+    const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const request = {
+        queryId: "query-1",
+        question: "¿Cómo empiezo desarrollo web?",
+        minSimilarity: 0.7
+    };
+    const activeCourses = [course("active-a"), course("active-b"), course("active-c")];
+    const result = executeCode(node, {
+        "Webhook autenticado de consulta": { body: request },
+        "Leer catálogo activo PostgreSQL": { data: { items: activeCourses } }
+    }, {
+        result: { points: [
+            hit("inactive", 0.99),
+            hit("active-a", 0.8),
+            hit("active-a", 0.95),
+            hit("active-b", 0.69),
+            hit("active-b", 0.75),
+            hit("active-c", 0.7)
+        ] }
+    });
+
+    assert.equal(result[0].status, "Respondida");
+    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["active-a", "active-b", "active-c"]);
+    assert.deepEqual(result[0].sources.map((source) => source.similarity), [0.8, 0.75, 0.7]);
+    assert.match(result[0].context, /Curso active-a/);
+    assert.doesNotMatch(result[0].context, /inactive/);
+});
+
+test("workflow RAG devuelve Sin resultados con menos de tres fuentes elegibles", () => {
+    const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const result = executeCode(node, {
+        "Webhook autenticado de consulta": { body: { queryId: "query-2", minSimilarity: 0.8 } },
+        "Leer catálogo activo PostgreSQL": { data: { items: [course("one"), course("two")] } }
+    }, { result: { points: [hit("one", 0.9), hit("two", 0.4)] } });
+
+    assert.deepEqual(result, [{ queryId: "query-2", status: "Sin resultados" }]);
+});
+
+test("workflow RAG ordena por score y limita las fuentes a cinco", () => {
+    const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const courses = Array.from({ length: 7 }, (_, index) => course(`course-${index}`));
+    const points = courses.map((item, index) => hit(item.id, 0.7 + index / 100));
+    const result = executeCode(node, {
+        "Webhook autenticado de consulta": { body: { queryId: "query-3", minSimilarity: 0.7 } },
+        "Leer catálogo activo PostgreSQL": { data: { items: courses } }
+    }, { result: { points } });
+
+    assert.equal(result[0].sources.length, 5);
+    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4", "course-3", "course-2"]);
+});
+
+test("indexación conserva asociación por índice y valida dimensión y valores finitos", () => {
+    const node = codeNode(indexWorkflow, "Validar y preparar puntos Qdrant");
+    const courses = [course("course-a"), course("course-b")];
+    const context = {
+        "Preparar textos de cursos": {
+            qdrantUrl: "http://qdrant:6333/",
+            collection: "rutaia-courses",
+            courses
+        }
+    };
+    const result = executeCode(node, context, {
+        data: [
+            { index: 1, embedding: [0, 1, 0] },
+            { index: 0, embedding: [1, 0, 0] }
+        ]
+    });
+
+    assert.equal(result[0].qdrantUrl, "http://qdrant:6333");
+    assert.equal(result[0].dimension, 3);
+    assert.deepEqual(result[0].points.map((point) => point.id), ["course-a", "course-b"]);
+    assert.deepEqual(result[0].points.map((point) => point.vector), [[1, 0, 0], [0, 1, 0]]);
+    assert.deepEqual(result[0].points.map((point) => point.payload.course_id), ["course-a", "course-b"]);
+
+    assert.throws(() => executeCode(node, context, { data: [{ index: 0, embedding: [1, 0, 0] }] }), /cantidad de embeddings inválida/);
+    assert.throws(() => executeCode(node, context, { data: [
+        { index: 0, embedding: [1, 0] },
+        { index: 1, embedding: [0, 1, 0] }
+    ] }), /dimensión o valores válidos/);
+    assert.throws(() => executeCode(node, context, { data: [
+        { index: 0, embedding: [1, Number.NaN, 0] },
+        { index: 1, embedding: [0, 1, 0] }
+    ] }), /dimensión o valores válidos/);
+});

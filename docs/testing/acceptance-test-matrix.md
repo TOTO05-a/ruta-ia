@@ -6,11 +6,11 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | Verificación | Comando/procedimiento | Resultado actual |
 | --- | --- | --- |
-| Suite unitaria y HTTP local | `cd backend; npm test` | **Probado en esta sesión:** 12/12 pasan, 0 fallan; la prueba optativa de DB se omite en esta suite. El primer intento fue bloqueado por sockets loopback del sandbox y el segundo, autorizado localmente, pasó |
+| Suite unitaria, HTTP local y lógica RAG aislada | `cd backend; npm test` | **Probado en esta sesión:** 16 pasan, 0 fallan; 1 integración optativa se omite. Incluye fixtures aislados para selección de cursos activos/score/máximo de fuentes y validación/orden de embeddings en `backend/tests/n8n-code-nodes.test.js`; no ejecuta los workflows ni llama servicios externos |
 | Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado en esta sesión:** 1/1 pasa con migración ya aplicada; el runner limpia sus fixtures al terminar |
-| Sintaxis JavaScript backend | `node --check` sobre todos los archivos `backend/**/*.js` | **Probado:** 48 archivos pasan |
+| Sintaxis JavaScript backend | `node --check` sobre todos los archivos JS versionados/no ignorados de `backend/` | **Probado en esta revisión:** 51 archivos pasan |
 | Contrato OpenAPI | `cd backend; npm run validate:openapi` | **Probado en esta sesión:** YAML parseado; las 28 operaciones coinciden con declaraciones de routers y montajes leídos desde `app.js`; 10 referencias locales resueltas. Es una comprobación del proyecto, no un validador oficial completo de OpenAPI |
-| Grafo de workflows | Parse JSON, unicidad de ID/nombre, aristas y compilación de `jsCode` | **Probado estáticamente e importado:** 11 nodos de indexación y 14 de consulta; ambos workflows inactivos |
+| Grafo de workflows | `cd backend; npm run validate:workflows` | **Probado en esta sesión:** 25 nodos, 30 conexiones, 8 Code nodes compilables; ambos workflows exportados inactivos. Cuatro pruebas ejecutan lógica seleccionada con contexto simulado; no acreditan operación en n8n |
 | Configuración Docker Compose | `docker compose --env-file .env.example config --quiet`; inspección de solo lectura con `docker ps` | **Probado en esta sesión:** configuración expandida válida; PostgreSQL, Qdrant, n8n y API healthy en puertos loopback; Home Assistant activo; MongoDB no figura en ejecución. No se modificaron contenedores |
 | PostgreSQL / migración | Compose de app y base de pruebas aislada; migrador y versión consultados | **Probado:** ocho tablas públicas en `rutaia`, migración también idempotente en `rutaia_test`; ambas bases sin fixtures funcionales |
 | API conectada a PostgreSQL | Registro HTTP 201, `GET /auth/me` usando cookie y eliminación de cuenta temporal | **Probado:** alta y sesión contra DB real |
