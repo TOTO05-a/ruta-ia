@@ -52,7 +52,7 @@ El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar.
 - `backend/src/controllers/`, `services/`, `repositories/`, `validators/`: HTTP, dominio, SQL y esquemas Zod.
 - `backend/src/integrations/n8n/`: invocación de webhook desde Express.
 - `backend/scripts/`: migración, promoción admin, runner de integración y validador OpenAPI.
-- `database/migrations/001_initial_schema.sql` y `002_finite_similarity_score.sql`: esquema y restricción finita para scores, aplicados por el migrador versionado.
+- `database/migrations/001_initial_schema.sql`, `002_finite_similarity_score.sql` y `003_intecap_career_type.sql`: esquema, restricción finita para scores y clasificación INTECAP nullable separada del nivel RutaIA, aplicados por el migrador versionado.
 - `database/docker-init/001-n8n-schema.sql`: preparación del esquema PostgreSQL de n8n.
 - `automation/n8n/index-courses.json`: indexación/reconciliación de cursos activos.
 - `automation/n8n/answer-query.json`: consulta, recuperación, selección de fuentes, generación y callback.
@@ -183,28 +183,27 @@ El runner valida host/nombre de DB antes de conectarse. La suite migra la base d
 ## 7. Flujo principal y qué falta probar
 
 1. **Registro/inicio:** Express valida los campos, guarda hash de contraseña, crea sesión y cookie HttpOnly, devuelve CSRF. Auth, logout y perfil tienen cobertura API/DB; la UI de cierre conserva sesión si el servidor falla.
-2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas. `level` conserva dificultad didáctica RutaIA y `intecapCareerType` conserva CTO/CTM/CTMS por separado; ofertas modulares sin tipo de carrera usan `NULL`. En este entorno hay un registro institucional PLC activo, cargado desde la semilla documentada; faltan al menos 19 para el mínimo académico.
+2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas. `level` conserva dificultad didáctica RutaIA y `intecapCareerType` conserva CTO/CTM/CTMS por separado; ofertas modulares sin tipo de carrera usan `NULL`. En este entorno hay 20 cursos oficiales INTECAP activos desde cuatro seeds idempotentes, verificados por búsqueda y detalle API.
 3. **Consulta:** estudiante autenticado envía pregunta con CSRF. Express crea registro y llama el webhook autenticado de n8n.
 4. **RAG planeado en JSON:** n8n genera embedding, consulta candidatos Qdrant, revalida cursos contra PostgreSQL, aplica umbral y pasa hasta cinco cursos a generación. Tres a cinco fuentes llevan a `Respondida`; insuficiencia a `Sin resultados`; error seguro a `Error`; callback persiste estado, fuentes y score.
-5. **Historial:** cada estudiante solo puede consultar sus consultas y resultados. API/DB y aislamiento de consultas se probaron sintéticamente.
-6. **Calificación:** la UI ofrece rating 1–5 para una recomendación; el backend persiste una sola por recomendación. Se probó callback/rating sintético, no una recomendación RAG externa.
+5. **Historial:** cada estudiante solo puede consultar sus consultas y resultados. La integración API/DB prueba historial propio, aislamiento entre cuentas, admin, 401 sin sesión y 404 para estudiante inexistente.
+6. **Calificación:** la UI ofrece rating 1–5 para una recomendación; el backend persiste una sola por recomendación. Se probó rating con fixtures en PostgreSQL, no una recomendación RAG externa.
 
-Las pruebas sintéticas del callback validan contrato/persistencia, pero no sustituyen una ejecución real de workflows. Hoy el catálogo está vacío, Qdrant no contiene colección y el n8n importado no se pudo consultar sin autenticación; por tanto no se verificó la cadena pregunta→embedding→recuperación→generación→fuentes→rating de punta a punta.
+Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persistencia, pero no sustituyen una ejecución real de workflows. El catálogo sí está cargado (20 cursos), pero Qdrant no contiene colección, los modelos/umbral siguen sin configurar y n8n requiere sesión propietaria; por tanto no se verificó la cadena pregunta→embedding→recuperación→generación→fuentes→rating de punta a punta.
 
 ## 8. Problemas pendientes confirmados
 
-1. **Catálogo institucional INTECAP:** hay 20 ofertas 2027 con fuentes oficiales, duración total de formación y resumen de objetivos/requisitos en `database/seeds/001`–`004`. Los registros iniciales son [PLC](https://cursos.intecap.edu.gt/detalle/902/2027) (100 h), [Excel/Power BI](https://cursos.intecap.edu.gt/detalle/4377/2027) (100 h, currículo 60+40), [paneles fotovoltaicos](https://cursos.intecap.edu.gt/detalle/905/2027) (140 h) y [mantenimiento básico del sistema de motocicleta](https://cursos.intecap.edu.gt/detalle/894/2027) (80 h). Las 16 ofertas del seed `004` cubren soporte informático (300 h), bases de datos SQL Server (720 h), electrónica automotriz (555 h), inyección electrónica de motocicletas (80 h), electromecánica automotriz (500 h), electricidad domiciliar (635 h), refrigeración y aire acondicionado (1,175 h), mecánica de motocicletas (1,060 h), soldadura oxiacetilénica (90 h), cocina saludable (80 h), repostería (780 h), sastrería (620 h), pintura automotriz (200 h), maridaje gastronómico (100 h), cocina para pequeños negocios (260 h) y formación de cocinero (1,020 h). Sus fuentes directas y notas de horas prácticas separadas están comentadas en [004_intecap_catalogo_2027.sql](../database/seeds/004_intecap_catalogo_2027.sql). La integración valida los cuatro seeds, horas/nombres/niveles, CTO/CTM/CTMS separado, repetición e interacción individual por API con los 20; fixtures se limpian al finalizar. `level` es la evaluación pedagógica interna de RutaIA sustentada en objetivos/requisitos; `intecap_career_type` conserva el tipo ocupacional publicado y queda NULL cuando no se declara.
-2. **Cuenta propietaria n8n:** `GET /rest/workflows` devolvió `401 Unauthorized` sin sesión. El acceso de gestión requiere login normal en `http://localhost:5678`; no se pueden sincronizar los JSON sin esa sesión.
-3. **OpenRouter:** el backend Compose reporta modelos vacíos; no hay credencial configurada en n8n disponible para probar. Confirmar endpoint elegible para ZDR y `data_collection=deny`; pedir aprobación institucional para procesamiento externo. No añadir claves al repo.
-4. **Qdrant/RAG:** cero colecciones/vectores por falta de catálogo; la indexación y consulta no se ejecutaron. Elegir colección/dimensión concordante y calibrar threshold con preguntas etiquetadas relevantes y fuera de dominio.
-5. **Frontend:** sintaxis y entrega HTTP están comprobadas parcialmente; una revisión visual integral de vistas autenticadas/escritorio/viewport móvil y pruebas interactivas sigue pendiente.
-6. **Contrato/API:** ruta y YAML se comparan, pero queda cotejar a fondo esquemas request/response con controladores.
+1. **Cuenta propietaria n8n:** `GET /rest/workflows` devolvió `401 Unauthorized` sin sesión. El acceso de gestión requiere login normal en `http://localhost:5678`; no se pueden sincronizar los JSON sin esa sesión.
+2. **OpenRouter:** el backend Compose reporta modelos vacíos; no hay credencial configurada en n8n disponible para probar. Confirmar endpoint elegible para ZDR y `data_collection=deny`; pedir aprobación institucional para procesamiento externo. No añadir claves al repo.
+3. **Qdrant/RAG:** el catálogo de 20 cursos ya está cargado, pero Qdrant tiene cero colecciones/vectores porque el workflow de indexación no se ejecutó. Falta acceso propietario n8n, credenciales/modelos OpenRouter aprobados, colección/dimensión concordante y calibración del threshold con preguntas etiquetadas relevantes y fuera de dominio.
+4. **Frontend:** sintaxis y entrega HTTP están comprobadas parcialmente; una revisión visual integral de vistas autenticadas/escritorio/viewport móvil y pruebas interactivas sigue pendiente.
+5. **Contrato/API:** ruta y YAML se comparan, pero queda cotejar a fondo esquemas request/response con controladores.
 
 ## 9. Cómo continuar en la próxima sesión
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
 2. Con el propietario autenticado, importa las versiones actuales de `automation/n8n/index-courses.json` y `answer-query.json`, asigna las cuatro credenciales Header Auth descritas en `automation/n8n/README.md`; OpenRouter requiere revisión ZDR/privacidad previa.
-4. Carga únicamente el catálogo autorizado (20+), corre indexación y verifica dimensión, cantidad, payload y búsqueda real. Prueba desactivación y reconciliación.
+4. El catálogo autorizado de 20 cursos ya está cargado en los seeds y verificado por API. Corre la indexación y verifica dimensión, cantidad, payload y búsqueda real. Prueba desactivación y reconciliación.
 5. Construye set etiquetado de consultas dentro/fuera de dominio; calibra `RAG_MIN_SIMILARITY`. No actives generación de preguntas estudiantiles reales sin autorización.
 6. Verifica con una cuenta de prueba los estados Respondida/Sin resultados/Error, fuentes existentes/activas, historial/aislamiento y rating. Elimina fixtures de prueba al terminar.
 7. Completa revisión del frontend en navegador a escritorio y móvil, incluyendo registro, login, catálogo/filtros, consulta, fuentes, historial, perfil, calificación y logout/error.

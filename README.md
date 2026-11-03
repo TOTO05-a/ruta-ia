@@ -11,7 +11,7 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 - Windows 10/11, PowerShell y Docker Desktop con motor Linux.
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
-- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. Las fichas actuales pueden incluir horas y objetivos (por ejemplo, [Programación básica PLC, 100 horas](https://cursos.intecap.edu.gt/detalle/902/2027)); la curación y carga de al menos 20 registros siguen pendientes. No asignar niveles ni horas faltantes sin respaldo oficial.
+- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Los 20 registros curados con fichas oficiales están en `database/seeds/001`–`004`; se verificaron en PostgreSQL y mediante búsqueda/detalle API. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
 - Una cuenta propietaria local de n8n y una clave de OpenRouter, con endpoints elegibles para la política ZDR, cuando se vaya a habilitar RAG.
 
 ## Instalación y configuración inicial
