@@ -17,6 +17,7 @@ const cases = [
     { expected: "Datos", query: "Busco cursos de análisis de datos y bases de datos." },
     { expected: null, query: "¿Qué requisitos necesito para estudiar medicina en la universidad?" },
     { expected: null, query: "Recomiéndame una receta de pastel de chocolate." },
+    { expected: null, query: "Quiero aprender cocina italiana." },
     { expected: null, query: "¿Cuál es el pronóstico del clima para mañana?" },
     { expected: null, query: "Necesito consejos para reparar mi teléfono celular." },
     { expected: null, query: "¿Quién ganó el partido de fútbol de ayer?" },

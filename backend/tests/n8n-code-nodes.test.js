@@ -41,6 +41,12 @@ function hit(courseId, score) {
     return { payload: { course_id: courseId }, score };
 }
 
+test("workflow RAG limita la generación local a una salida JSON manejable", () => {
+    const node = answerWorkflow.nodes.find((candidate) => candidate.name === "Generar respuesta grounded");
+    assert.ok(node, "Existe el nodo de generación grounded");
+    assert.match(node.parameters.jsonBody, /options: \{ temperature: 0\.2, num_predict: 512 \}/);
+});
+
 test("workflow RAG prepara el embedding con la configuración enviada por Express", () => {
     const node = codeNode(answerWorkflow, "Preparar embedding de pregunta");
     const request = {
