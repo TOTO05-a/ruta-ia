@@ -45,6 +45,14 @@ docker compose ps
 
 Compose levanta PostgreSQL, Qdrant, n8n y Express. La API aplica las migraciones al arrancar. En el `.env` actual de esta PC, la app está en `http://localhost:3001`; n8n en `http://localhost:5678`; PostgreSQL en `localhost:5432`; Qdrant en `http://localhost:6333`. Los puertos publicados están limitados a loopback.
 
+Para cargar el primer registro institucional autenticado, ejecuta el seed idempotente de PLC después del arranque:
+
+```powershell
+Get-Content -Raw .\database\seeds\001_intecap_programacion_plc.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
+```
+
+El seed contiene un curso INTECAP con 100 horas y nivel básico respaldados por su ficha oficial; la categoría es la taxonomía temática de RutaIA. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. Este registro inicial no cumple el mínimo académico de 20 ni habilita por sí solo RAG.
+
 Comprueba la API y las dependencias:
 
 ```powershell
@@ -73,7 +81,7 @@ No ejecutes `down -v` si necesitas conservar PostgreSQL, Qdrant o datos de n8n. 
 - La API usa `postgres` para la base relacional. `GET /health/ready` comprueba esa conexión.
 - Backend y n8n se conectan por DNS interno Compose (`backend:3000`, `n8n:5678`); n8n consulta cursos activos/configuración a Express, consulta Qdrant y envía resultados a callbacks autenticados.
 - Qdrant debe tener la colección `rutaia_courses` (o la indicada por `QDRANT_COLLECTION`) tras indexar cursos. `GET http://localhost:6333/collections` permite inspeccionarla.
-- n8n presenta su interfaz en `http://localhost:5678`. Crea la cuenta propietaria desde la interfaz, importa los dos JSON de `automation/n8n/`, asigna credenciales y ejecuta primero la indexación manual con cursos autorizados. No actives flujos con catálogo vacío o credenciales sin validar.
+- n8n presenta su interfaz en `http://localhost:5678`. Crea la cuenta propietaria desde la interfaz, importa los dos JSON de `automation/n8n/`, asigna credenciales y ejecuta primero la indexación manual con cursos autorizados. No actives la consulta RAG hasta tener al menos tres cursos válidos, índice verificado y credenciales probadas.
 - `docker compose ps` saludable y una respuesta sintética de callback **no** prueban el RAG completo. Consulta pasos de credenciales, privacidad y flujos en [automation/n8n/README.md](automation/n8n/README.md).
 
 ## Pruebas y validaciones
@@ -123,9 +131,9 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
 - `npm test`: 22 aprobadas, 0 fallidas, 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes, 10 refs locales. `npm run validate:workflows`: 25 nodos, 30 conexiones y 8 Code nodes compilables.
-- Catálogo actual: **0 cursos**. Qdrant: **0 colecciones**. INTECAP y su portal oficial ya están identificados; falta seleccionar y cargar al menos 20 registros con los campos requeridos respaldados por fuente. No se inventan descripciones, niveles ni duraciones.
+- Catálogo actual: **1 curso INTECAP** cargado desde `database/seeds/001_intecap_programacion_plc.sql`; su ficha oficial respalda título, nivel básico, objetivo y 100 horas. Qdrant: **0 colecciones**. Faltan al menos 19 cursos completos para el mínimo; no se inventan descripciones, niveles ni duraciones.
 - Backend en Compose: modelos y umbral RAG están sin configurar. La API de gestión de workflows n8n responde `401 Unauthorized` sin sesión; sus copias importadas no se actualizaron ni probaron con credenciales.
-- Por ello, registro/login, catálogo vacío, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere curación de cursos INTECAP, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
+- Por ello, registro/login, catálogo con un registro oficial, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere completar el catálogo INTECAP, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.
 
 ## Continuidad

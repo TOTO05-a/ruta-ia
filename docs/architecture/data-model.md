@@ -69,4 +69,4 @@ erDiagram
 - La puntuación se almacena sin asumir una escala universal. La integración debe validar que sea finita y documentar la métrica Qdrant seleccionada.
 - La calificación es única por recomendación, de acuerdo con la decisión aprobada.
 - La capa de servicio debe comprobar que la calificación y sus consultas pertenezcan al estudiante autenticado.
-- Los cursos institucionales y sus semillas quedan pendientes de recibir una fuente autorizada; no se inventan registros para completar el mínimo académico.
+- Hay una semilla institucional respaldada por la ficha oficial INTECAP `database/seeds/001_intecap_programacion_plc.sql`; faltan al menos 19 cursos para el mínimo académico. No se inventan registros ni atributos para completar el mínimo.

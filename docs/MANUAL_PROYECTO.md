@@ -17,13 +17,13 @@ Estado comprobado en este entorno:
 
 - 3 nov: `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron; los cuatro servicios RutaIA quedaron `healthy`. `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
-- 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Catálogo activo: 0 cursos; Qdrant: 0 colecciones.
+- 3 nov: inspección de solo lectura del esquema PostgreSQL confirmó ocho tablas, 8 claves primarias, 7 foráneas, 17 `CHECK`, 4 `UNIQUE` y 21 índices. Se cargó y verificó un curso INTECAP oficial mediante un seed idempotente; Qdrant sigue sin colecciones.
 - La migración `002_finite_similarity_score.sql` quedó aplicada en `rutaia` y `rutaia_test`; reemplaza el constraint de score para rechazar `NaN` y ambas infinitudes. La integración probó los tres rechazos y la migración repetida fue idempotente.
 - La inspección visual autenticada sigue pendiente. En esta sesión Work settings deshabilitó el navegador local; no se crearon cuentas ni se enviaron formularios.
 - 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
-- **La recomendación RAG integral no está habilitada:** catálogo activo = 0, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión.
+- **La recomendación RAG integral no está habilitada:** catálogo activo = 1, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión. El workflow exige tres fuentes distintas para responder.
 
 `healthy` demuestra disponibilidad de proceso/healthcheck, no significa que el RAG esté listo.
 
@@ -183,7 +183,7 @@ El runner valida host/nombre de DB antes de conectarse. La suite migra la base d
 ## 7. Flujo principal y qué falta probar
 
 1. **Registro/inicio:** Express valida los campos, guarda hash de contraseña, crea sesión y cookie HttpOnly, devuelve CSRF. Auth, logout y perfil tienen cobertura API/DB; la UI de cierre conserva sesión si el servidor falla.
-2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas. En este entorno no hay cursos cargados.
+2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas. En este entorno hay un registro institucional PLC activo, cargado desde la semilla documentada; faltan al menos 19 para el mínimo académico.
 3. **Consulta:** estudiante autenticado envía pregunta con CSRF. Express crea registro y llama el webhook autenticado de n8n.
 4. **RAG planeado en JSON:** n8n genera embedding, consulta candidatos Qdrant, revalida cursos contra PostgreSQL, aplica umbral y pasa hasta cinco cursos a generación. Tres a cinco fuentes llevan a `Respondida`; insuficiencia a `Sin resultados`; error seguro a `Error`; callback persiste estado, fuentes y score.
 5. **Historial:** cada estudiante solo puede consultar sus consultas y resultados. API/DB y aislamiento de consultas se probaron sintéticamente.
@@ -193,7 +193,7 @@ Las pruebas sintéticas del callback validan contrato/persistencia, pero no sust
 
 ## 8. Problemas pendientes confirmados
 
-1. **Catálogo institucional INTECAP:** el portal oficial de [programación de cursos](https://intecap.edu.gt/informacion-de-cursos/) y el [listado de oferta](https://cursos.intecap.edu.gt/) están identificados. Una ficha actual puede documentar horas explícitas: [Programación básica PLC](https://cursos.intecap.edu.gt/detalle/902/2027) indica 100 horas. Otras, como [Desarrollo de aplicaciones con Python](https://cursos.intecap.edu.gt/detalle/832/2027), describen objetivos y convocatoria sin declarar horas totales. También existe una diferencia semántica: las clases INTECAP CTO/CTM/CTMS son niveles de formación/carrera; no equivalen automáticamente a `Básico`/`Intermedio`/`Avanzado`, que es el `level` del modelo RutaIA. PostgreSQL tiene cero cursos. Antes de cargar 20, documentar una fuente explícita o una regla de conversión aprobada para cada campo; no completar niveles u horas por inferencia.
+1. **Catálogo institucional INTECAP:** el portal oficial de [programación de cursos](https://intecap.edu.gt/informacion-de-cursos/) y el [listado de oferta](https://cursos.intecap.edu.gt/) están identificados. Se cargó una oferta completa: [Programación básica PLC](https://cursos.intecap.edu.gt/detalle/902/2027), con nivel básico explícito en título/objetivos y 100 horas en la convocatoria. Su seed idempotente es `database/seeds/001_intecap_programacion_plc.sql`; la API pública devolvió el registro con HTTP 200. Otras fichas, como [Desarrollo de aplicaciones con Python](https://cursos.intecap.edu.gt/detalle/832/2027), no declaran horas totales. CTO/CTM/CTMS tampoco equivalen automáticamente a `Básico`/`Intermedio`/`Avanzado`, el `level` del modelo RutaIA. PostgreSQL tiene 1 curso; faltan 19 o más para el mínimo académico, sin inferir atributos ausentes.
 2. **Cuenta propietaria n8n:** `GET /rest/workflows` devolvió `401 Unauthorized` sin sesión. El acceso de gestión requiere login normal en `http://localhost:5678`; no se pueden sincronizar los JSON sin esa sesión.
 3. **OpenRouter:** el backend Compose reporta modelos vacíos; no hay credencial configurada en n8n disponible para probar. Confirmar endpoint elegible para ZDR y `data_collection=deny`; pedir aprobación institucional para procesamiento externo. No añadir claves al repo.
 4. **Qdrant/RAG:** cero colecciones/vectores por falta de catálogo; la indexación y consulta no se ejecutaron. Elegir colección/dimensión concordante y calibrar threshold con preguntas etiquetadas relevantes y fuera de dominio.
