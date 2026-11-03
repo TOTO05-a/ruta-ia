@@ -322,6 +322,14 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const missingStudent = await request(`/api/v1/students/${missingId}`, { cookie: admin.cookie });
         assert.equal(missingStudent.status, 404);
         assert.equal((await missingStudent.json()).error.code, "STUDENT_NOT_FOUND");
+        const missingStudentHistory = await request(`/api/v1/students/${missingId}/history`, { cookie: admin.cookie });
+        assert.equal(missingStudentHistory.status, 404);
+        assert.equal((await missingStudentHistory.json()).error.code, "STUDENT_NOT_FOUND");
+        const unauthenticatedHistory = await request(`/api/v1/students/${owner.id}/history`);
+        assert.equal(unauthenticatedHistory.status, 401);
+        assert.equal((await unauthenticatedHistory.json()).error.code, "UNAUTHENTICATED");
+        const adminHistory = await request(`/api/v1/students/${owner.id}/history`, { cookie: admin.cookie });
+        assert.equal(adminHistory.status, 200);
         const invalidCourseId = await request("/api/v1/courses/not-a-uuid");
         assert.equal(invalidCourseId.status, 400);
         assert.equal((await invalidCourseId.json()).error.code, "VALIDATION_ERROR");

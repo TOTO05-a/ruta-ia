@@ -89,7 +89,7 @@ Lee las capas en este orden y muestra siempre la implementación real:
 - `backend/tests/auth.test.js`: registro/login, hash, validación de cursos/perfil, pregunta vacía, callback con fuentes y rating.
 - `backend/tests/n8n-code-nodes.test.js`: ejecuta con contexto simulado la selección RAG (actividad, score, duplicados y máximo cinco fuentes) y validación de embeddings. No ejecuta n8n ni usa cursos reales.
 - `backend/tests/n8n-client.test.js`: verifica configuración requerida, códigos seguros para timeout/red/HTTP no exitoso y el payload autenticado con `fetch` simulado; no contacta n8n.
-- `backend/tests/postgres.integration.test.js`: API, PostgreSQL, historial propio/aislamiento con fuentes persistidas y filtro por estado, callbacks `Respondida`/`Sin resultados`/`Error` idempotentes, rechazo de fuentes inactivas (`N8N_INVALID_SOURCES`), rating propio/ajeno, calificaciones y estadísticas sobre `rutaia_test`.
+- `backend/tests/postgres.integration.test.js`: API, PostgreSQL, auth, historial propio/admin y aislamiento, 401 sin sesión, 404 para estudiante/historial inexistente, fuentes persistidas y filtro por estado, callbacks idempotentes `Respondida`/`Sin resultados`/`Error`, rechazo de fuentes inactivas (`N8N_INVALID_SOURCES`), rating y estadísticas sobre `rutaia_test`.
 - `backend/scripts/validate-workflows.js`: verifica JSON, IDs/nombres, aristas y compilación de los ocho Code nodes; ejecutar `npm run validate:workflows` desde `backend/`.
 
 Las pruebas con fixtures sintéticos demuestran contratos y persistencia de prueba, no cursos ni fuentes institucionales reales. Para material audiovisual, presenta únicamente lo que la pantalla, DB y workflow demuestren en vivo; identifica los pendientes de RAG como pendientes.

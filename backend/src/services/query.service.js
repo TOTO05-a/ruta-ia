@@ -1,4 +1,5 @@
 const repository = require("../repositories/query.repository");
+const studentRepository = require("../repositories/student.repository");
 const n8n = require("../integrations/n8n/client");
 const ApiError = require("../utils/api-error");
 
@@ -43,6 +44,8 @@ async function listStudentHistory(targetStudentId, requestingStudent, filters) {
     if (targetStudentId !== requestingStudent.id && requestingStudent.role !== "admin") {
         throw new ApiError(404, "STUDENT_NOT_FOUND", "No se encontró el estudiante");
     }
+    const student = await studentRepository.findById(targetStudentId);
+    if (!student) throw new ApiError(404, "STUDENT_NOT_FOUND", "No se encontró el estudiante");
     return repository.listByStudent(targetStudentId, filters);
 }
 
