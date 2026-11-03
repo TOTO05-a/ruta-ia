@@ -1,4 +1,6 @@
-# RutaIA — diagnóstico y decisiones de implementación
+# RutaIA — diagnóstico inicial y decisiones de implementación
+
+**Nota:** este archivo conserva la fotografía inicial del diagnóstico. El estado actual está en [MANUAL_PROYECTO.md](../MANUAL_PROYECTO.md) y la matriz de evidencia en [acceptance-test-matrix.md](../testing/acceptance-test-matrix.md).
 
 Fecha: 2026-11-02
 
