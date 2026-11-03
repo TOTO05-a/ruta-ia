@@ -314,14 +314,16 @@
     const input = $("#question-input");
     const button = $("#ask-button");
     setMessage($("#query-message"), "");
-    setLoading(button, true, "Buscando en el catálogo…");
+    setLoading(button, true, "Consultando el catálogo y el modelo local…");
     try {
       const created = await api("/queries", { method: "POST", body: JSON.stringify({ question: input.value }) });
       state.query = created;
       await displayQuery(created.id);
       if (created.status === "Pendiente") {
-        for (let attempt = 0; attempt < 20; attempt += 1) {
-          await sleep(1200);
+        const pollIntervalMs = 2000;
+        const maxWaitMs = 180_000;
+        for (let elapsedMs = 0; elapsedMs < maxWaitMs; elapsedMs += pollIntervalMs) {
+          await sleep(pollIntervalMs);
           const current = await api(`/queries/${encodeURIComponent(created.id)}`);
           if (current.status !== "Pendiente") { renderResult(current, $("#latest-result")); break; }
         }
