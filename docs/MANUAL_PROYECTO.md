@@ -15,7 +15,7 @@ El profesor autorizó sustituir Java/Spring Boot por Node.js/Express. Es una exc
 
 Estado comprobado en este entorno:
 
-- 3 nov: `docker compose ps` mostró sus cuatro servicios `healthy`; `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200. `docker compose --env-file .env config --quiet` pasó.
+- 3 nov: `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron; los cuatro servicios RutaIA quedaron `healthy`. `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
 - 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
