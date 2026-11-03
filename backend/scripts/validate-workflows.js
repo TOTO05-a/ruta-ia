@@ -13,6 +13,7 @@ for (const file of files) {
     const workflow = JSON.parse(fs.readFileSync(filePath, "utf8"));
     assert.equal(workflow.active, false, `${file} debe exportarse inactivo`);
     assert.ok(Array.isArray(workflow.nodes) && workflow.nodes.length > 0, `${file} no contiene nodos`);
+    assert.ok(!JSON.stringify(workflow).includes("openrouter.ai"), `${file} no debe enviar datos a OpenRouter`);
 
     const names = new Set();
     const ids = new Set();
@@ -50,12 +51,26 @@ for (const file of files) {
         const routes = workflow.connections ?? {};
         assert.equal(routes["Preparar textos de cursos"]?.main?.[0]?.[0]?.node, "¿Hay cursos activos para indexar?",
             "el catálogo debe decidir la ruta de indexación o limpieza");
-        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[0]?.[0]?.node, "Generar embeddings OpenRouter",
+        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[0]?.[0]?.node, "Generar embeddings Ollama",
             "los cursos disponibles deben continuar por embeddings");
+        const embeddings = workflow.nodes.find((node) => node.name === "Generar embeddings Ollama");
+        assert.equal(embeddings.parameters.url, "={{ $('Preparar textos de cursos').first().json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
+            "la indexación debe usar Ollama local");
         assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[1]?.[0]?.node, "Eliminar vectores de catálogo vacío",
             "un catálogo vacío debe limpiar Qdrant sin llamar al proveedor de embeddings");
         assert.equal(routes["Eliminar vectores de catálogo vacío"]?.main?.[0]?.[0]?.node, "Validar limpieza del catálogo vacío",
             "la limpieza debe distinguir colección inexistente de fallos reales de Qdrant");
+    }
+
+    if (file === "answer-query.json") {
+        const embedNode = workflow.nodes.find((node) => node.name === "Crear embedding de pregunta");
+        const chatNode = workflow.nodes.find((node) => node.name === "Generar respuesta grounded");
+        assert.equal(embedNode.parameters.url, "={{ $json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
+            "la pregunta debe embebirse con Ollama local");
+        assert.equal(chatNode.parameters.url, "={{ $('Webhook autenticado de consulta').first().json.body.ollamaBaseUrl.replace(/\\/$/, '') + '/api/chat' }}",
+            "la generación debe usar Ollama local");
+        assert.ok(chatNode.parameters.jsonBody.includes("additionalProperties: false") && chatNode.parameters.jsonBody.includes("required: ['answer', 'summary', 'explanation']"),
+            "Ollama debe recibir el schema JSON requerido para la respuesta");
     }
 
     totalNodes += workflow.nodes.length;

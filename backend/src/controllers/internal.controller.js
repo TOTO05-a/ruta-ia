@@ -7,7 +7,7 @@ async function activeCourses(req, res) {
 }
 
 async function indexingConfig(req, res) {
-    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.QDRANT_URL) {
+    if (!env.OLLAMA_BASE_URL || !env.OLLAMA_EMBEDDING_MODEL || !env.QDRANT_URL) {
         return res.status(503).json({
             error: {
                 code: "INDEXING_NOT_CONFIGURED",
@@ -18,7 +18,8 @@ async function indexingConfig(req, res) {
     }
     return res.json({
         data: {
-            embeddingModel: env.OPENROUTER_EMBEDDING_MODEL,
+            embeddingModel: env.OLLAMA_EMBEDDING_MODEL,
+            ollamaBaseUrl: env.OLLAMA_BASE_URL,
             collection: env.QDRANT_COLLECTION,
             qdrantUrl: env.QDRANT_URL
         }

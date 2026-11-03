@@ -105,28 +105,23 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://openrouter.ai/api/v1/embeddings",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "={{ $('Preparar textos de cursos').first().json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs, provider: { zdr: true, data_collection: 'deny' } } }}",
+        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "d79b216c-b4c8-4899-ad32-31786fd409fb",
-      "name": "Generar embeddings OpenRouter",
+      "name": "Generar embeddings Ollama",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1220, 360],
-      "credentials": {
-        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
-      }
+      "position": [1220, 360]
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.data ?? result.body?.data;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('OpenRouter devolvió una cantidad de embeddings inválida');\nconst ordered = [...vectors].sort((a, b) => a.index - b.index);\nconst dimension = ordered[0]?.embedding?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nfor (const vector of ordered) if (vector.embedding.length !== dimension || vector.embedding.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: ordered[i].embedding, payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
+        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.embeddings ?? result.body?.embeddings;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('Ollama devolvió una cantidad de embeddings inválida');\nconst dimension = vectors[0]?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nfor (const vector of vectors) if (!Array.isArray(vector) || vector.length !== dimension || vector.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: vectors[i], payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
       },
       "id": "5e9f4b52-ec46-4a5b-9be5-4227c50fc291",
       "name": "Validar y preparar puntos Qdrant",
@@ -200,9 +195,9 @@
     "Leer configuración de indexación": {"main": [[{"node": "Leer catálogo PostgreSQL", "type": "main", "index": 0}]]},
     "Leer catálogo PostgreSQL": {"main": [[{"node": "Preparar textos de cursos", "type": "main", "index": 0}]]},
     "Preparar textos de cursos": {"main": [[{"node": "¿Hay cursos activos para indexar?", "type": "main", "index": 0}]]},
-    "¿Hay cursos activos para indexar?": {"main": [[{"node": "Generar embeddings OpenRouter", "type": "main", "index": 0}], [{"node": "Eliminar vectores de catálogo vacío", "type": "main", "index": 0}]]},
+    "¿Hay cursos activos para indexar?": {"main": [[{"node": "Generar embeddings Ollama", "type": "main", "index": 0}], [{"node": "Eliminar vectores de catálogo vacío", "type": "main", "index": 0}]]},
     "Eliminar vectores de catálogo vacío": {"main": [[{"node": "Validar limpieza del catálogo vacío", "type": "main", "index": 0}]]},
-    "Generar embeddings OpenRouter": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
+    "Generar embeddings Ollama": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
     "Validar y preparar puntos Qdrant": {"main": [[{"node": "Crear colección si falta", "type": "main", "index": 0}]]},
     "Crear colección si falta": {"main": [[{"node": "Upsert idempotente en Qdrant", "type": "main", "index": 0}]]},
     "Upsert idempotente en Qdrant": {"main": [[{"node": "Preparar filtro de vectores obsoletos", "type": "main", "index": 0}]]},

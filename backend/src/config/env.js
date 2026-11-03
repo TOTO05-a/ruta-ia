@@ -13,8 +13,12 @@ const envSchema = z.object({
     N8N_CALLBACK_SECRET: z.string().min(24).optional(),
     N8N_COURSE_SYNC_SECRET: z.string().min(24).optional(),
     N8N_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(10_000),
-    OPENROUTER_EMBEDDING_MODEL: z.string().optional(),
-    OPENROUTER_CHAT_MODEL: z.string().optional(),
+    OLLAMA_BASE_URL: z.preprocess(
+        (value) => value === "" ? undefined : value,
+        z.string().url().optional()
+    ),
+    OLLAMA_EMBEDDING_MODEL: z.string().optional(),
+    OLLAMA_CHAT_MODEL: z.string().optional(),
     RAG_MIN_SIMILARITY: z.preprocess(
         (value) => value === "" || value === undefined ? undefined : value,
         z.coerce.number().min(-1).max(1).optional()

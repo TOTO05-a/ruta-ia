@@ -39,7 +39,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingModel || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nreturn [{ json: { model: request.embeddingModel, input: request.question } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingModel || !request?.ollamaBaseUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nreturn [{ json: { model: request.embeddingModel, input: request.question, ollamaBaseUrl: request.ollamaBaseUrl } }];"
       },
       "id": "1214c556-80f0-4f5c-870f-80c8f6c5f536",
       "name": "Preparar embedding de pregunta",
@@ -51,13 +51,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://openrouter.ai/api/v1/embeddings",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "={{ $json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.model, input: $json.input, provider: { zdr: true, data_collection: 'deny' } } }}",
+        "jsonBody": "={{ { model: $json.model, input: $json.input } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b2ff63f1-0fd4-4f48-b20e-b20d92f1e016",
@@ -65,15 +63,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1000, 340],
-      "credentials": {
-        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
-      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst result = $input.first().json;\nconst vector = (result.data ?? result.body?.data)?.[0]?.embedding;\nif (!Array.isArray(vector) || vector.length < 1 || vector.some(n => !Number.isFinite(n))) throw new Error('Embedding de consulta inválido');\nreturn [{ json: { vector, collection: request.qdrantCollection, qdrantUrl: request.qdrantUrl.replace(/\\/$/, '') } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst result = $input.first().json;\nconst vector = (result.embeddings ?? result.body?.embeddings)?.[0];\nif (!Array.isArray(vector) || vector.length < 1 || vector.some(n => !Number.isFinite(n))) throw new Error('Embedding de consulta inválido');\nreturn [{ json: { vector, collection: request.qdrantCollection, qdrantUrl: request.qdrantUrl.replace(/\\/$/, '') } }];"
       },
       "id": "7574587e-5f95-42aa-bf79-376f94030d1a",
       "name": "Validar vector y preparar búsqueda",
@@ -129,13 +124,11 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://openrouter.ai/api/v1/chat/completions",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
+        "url": "={{ $('Webhook autenticado de consulta').first().json.body.ollamaBaseUrl.replace(/\\/$/, '') + '/api/chat' }}",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.chatModel, provider: { zdr: true, data_collection: 'deny', require_parameters: true }, temperature: 0.2, response_format: { type: 'json_object' }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta para responder, dilo. Devuelve únicamente JSON con answer, summary y explanation como cadenas en español.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
+        "jsonBody": "={{ { model: $json.chatModel, stream: false, format: { type: 'object', properties: { answer: { type: 'string' }, summary: { type: 'string' }, explanation: { type: 'string' } }, required: ['answer', 'summary', 'explanation'], additionalProperties: false }, options: { temperature: 0.2 }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta para responder, dilo.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b5e4f091-38b5-49c0-afda-47edcaecb85e",
@@ -143,15 +136,12 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [2200, 240],
-      "credentials": {
-        "httpHeaderAuth": {"id": "31f07d3d-a791-4723-9138-d31bc0a40143", "name": "RutaIA - OpenRouter Bearer"}
-      },
       "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.choices?.[0]?.message?.content ?? response.body?.choices?.[0]?.message?.content;\nif (typeof content !== 'string') throw new Error('OpenRouter no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
+        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.message?.content ?? response.body?.message?.content;\nif (typeof content !== 'string') throw new Error('Ollama no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
       },
       "id": "6944ec2b-2a2f-4a83-a2bf-51c4881bc695",
       "name": "Validar callback de recomendación",

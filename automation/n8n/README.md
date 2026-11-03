@@ -1,62 +1,55 @@
 # Workflows de RutaIA en n8n
 
-Los dos JSON son exportaciones importables; llegan inactivos y sin credenciales. Las credenciales no se guardan en Git ni dentro del JSON. Antes de activar, importa cada workflow, asigna las credenciales indicadas y ejecuta una indexación manual con cursos institucionales autorizados.
+Los archivos `index-courses.json` y `answer-query.json` son workflows exportables y permanecen inactivos en Git. Los modelos se ejecutan con Ollama local; n8n no necesita credenciales de proveedor de IA ni envía cursos o preguntas a un servicio remoto.
 
-## Credenciales que se asignan desde n8n
+## Requisitos y conexión Ollama
 
-Crea credenciales de tipo **Header Auth** y asígnalas en los nodos nombrados. Los valores deben coincidir exactamente con el `.env` local:
+1. Instala/inicia Ollama en Windows y descarga los modelos configurados en `.env`:
 
-| Nombre sugerido | Header | Valor |
+   ```powershell
+   ollama pull bge-m3
+   ollama pull qwen2.5:3b
+   ollama list
+   ```
+
+2. Ollama debe escuchar en una interfaz alcanzable desde Docker Desktop, porque dentro de los contenedores `localhost` es el propio contenedor. La configuración por defecto es `OLLAMA_BASE_URL=http://host.docker.internal:11434`. Comprueba la API local con `Invoke-RestMethod http://localhost:11434/api/tags` y desde el contenedor n8n con una petición a `http://host.docker.internal:11434/api/tags`. Si la segunda falla, corrige el enlace de red de Ollama/Windows Firewall según tu configuración; no publiques el puerto en Internet.
+3. Configura `OLLAMA_EMBEDDING_MODEL=bge-m3` y `OLLAMA_CHAT_MODEL=qwen2.5:3b`. Usa el mismo modelo de embeddings para indexar y consultar. Qdrant creará la colección con la dimensión devuelta por Ollama; cambiar modelo puede requerir una colección nueva y reindexación.
+4. Calibra `RAG_MIN_SIMILARITY` con preguntas pertinentes y fuera de dominio antes de activar la consulta.
+
+Ollama no cobra inferencia; la descarga ocupa espacio local y la generación utiliza CPU/GPU y memoria de la PC. Las versiones fuente de los workflows llaman los endpoints nativos `/api/embed` y `/api/chat`, envían `stream:false` para respuesta y validan las dimensiones/estructura recibidas.
+
+## Credenciales n8n
+
+Los nodos internos conservan estas credenciales Header Auth; crea cada una en n8n y usa los secretos locales correspondientes:
+
+| Nombre exacto | Header | Valor |
 | --- | --- | --- |
 | RutaIA - webhook bearer | `Authorization` | `Bearer <N8N_WEBHOOK_SECRET>` |
 | RutaIA - secreto de sincronización | `X-N8N-Sync-Secret` | `N8N_COURSE_SYNC_SECRET` |
-| RutaIA - OpenRouter Bearer | `Authorization` | `Bearer <clave API de OpenRouter>` |
 | RutaIA - callback Express | `X-N8N-Callback-Secret` | `N8N_CALLBACK_SECRET` |
 
-No introduzcas la clave de OpenRouter en `backend`, el frontend, expresiones `$env` ni archivos del repositorio. El acceso a variables de entorno desde nodos/código de n8n está deshabilitado en Compose. La clave se conserva como credencial cifrada de n8n.
+No hay credencial para Ollama: la API local no exige clave por defecto. Las credenciales de integración se guardan cifradas por n8n y no se incluyen en el repositorio.
 
-## `index-courses.json`
+## Flujo de indexación
 
-- Inicia manualmente o se ejecuta cada seis horas.
-- Lee configuración de modelo, colección y URL de Qdrant desde el endpoint interno autenticado.
-- Obtiene exclusivamente cursos activos de PostgreSQL.
-- Embebe nombre, descripción, categoría, nivel y duración con OpenRouter.
-- Exige `provider.zdr=true` y `provider.data_collection="deny"` en la petición de embeddings; si el modelo no tiene endpoint elegible, la llamada falla y no degrada silenciosamente la política de datos.
-- Comprueba cantidad, dimensión y valores finitos del vector.
-- Crea la colección Cosine si aún no existe, hace upsert usando el UUID del curso como ID estable y elimina puntos cuyo curso dejó de estar activo durante la reconciliación.
-- Si PostgreSQL devuelve cero cursos activos, no llama a OpenRouter: limpia los puntos de la colección con filtro vacío. La colección aún inexistente se trata como no-op; otros errores HTTP detienen esa rama.
-- Antes de esa reconciliación, la búsqueda vuelve a consultar PostgreSQL y descarta cursos inactivos; recupera una ventana interna de candidatos de hasta 50 para que vectores obsoletos no impidan encontrar cinco cursos activos, y nunca envía más de cinco fuentes al modelo.
-- Si se cambia de modelo y la dimensión no coincide con la colección existente, usa un nombre nuevo en `QDRANT_COLLECTION` y reindexa; no borres una colección persistida para resolver el conflicto.
+- Manual y cada seis horas: lee configuración y cursos activos por endpoints internos autenticados de Express/PostgreSQL.
+- Construye los textos de curso y solicita lotes de embeddings a Ollama.
+- Valida recuento, dimensión y valores finitos; crea colección Cosine cuando no existe y hace upsert con UUID del curso.
+- Quita vectores obsoletos al reconciliar los cursos activos. Si el catálogo queda vacío, limpia Qdrant sin invocar Ollama.
 
-## `answer-query.json`
+## Flujo de consulta RAG
 
-- Expone el webhook POST `/webhook/rutaia-query`, autenticado con el header `Authorization` que envía Express. Responde al API al aceptar la ejecución; el procesamiento continúa en n8n.
-- Lee de PostgreSQL el conjunto de cursos activos, embebe la pregunta con el modelo compartido, busca hasta 50 candidatos en Qdrant y vuelve a validar existencia/actividad contra PostgreSQL; limita las fuentes finales a cinco.
-- La consulta de embedding y la generación de respuesta exigen endpoints ZDR y rechazan proveedores con recopilación de datos. En la respuesta también se requiere que el proveedor admita los parámetros pedidos. Esto restringe retención en los endpoints que procesan inferencia; la petición sigue saliendo a un proveedor externo y no implica aprobación institucional para enviar datos reales.
-- Aplica el umbral enviado por Express. Si quedan menos de tres fuentes, envía el estado `Sin resultados` al callback.
-- Si quedan tres a cinco fuentes, llama al modelo generativo con solo esos cursos y persiste respuesta, explicación, resumen, UUIDs y scores mediante el callback autenticado de Express.
-- Los fallos HTTP y de validación de la ruta principal se convierten en un callback `Error` con código genérico; los detalles de proveedores no se envían al estudiante.
+- Express envía consulta autenticada al webhook de n8n. El workflow consulta el catálogo, crea embedding local con Ollama y busca hasta 50 candidatos en Qdrant.
+- Vuelve a comprobar que las fuentes existan y estén activas en PostgreSQL; aplica el umbral y limita las fuentes a cinco.
+- Con tres o más fuentes llama Ollama con ese contexto y valida JSON con `answer`, `summary` y `explanation`; persiste resultado, fuentes y scores mediante callback autenticado de Express. Con menos de tres, devuelve `Sin resultados`.
+- Las ramas de error hacen callback con un código genérico y no muestran detalles internos al estudiante.
 
-## Activación y configuración
+## Importar y comprobar
 
-1. Copia `.env.example` a `.env` y sustituye todos los valores `CHANGE_ME` por secretos aleatorios. Usa caracteres URL seguros (`A-Z`, `a-z`, `0-9`, `_`, `-`) para la contraseña PostgreSQL, porque Compose la inserta en `DATABASE_URL`.
-2. Baseline configurado en `.env.example`: `baai/bge-m3` para embeddings (1024 dimensiones, multilingüe, contexto 8K) y `meta-llama/llama-3.3-70b-instruct` para respuesta en español con salida JSON. Verifica de nuevo disponibilidad, precio y endpoints elegibles antes de ejecutar; los datos del catálogo y las preguntas se procesan en un proveedor externo. Los workflows fuerzan ZDR y `data_collection=deny`; no envíes consultas estudiantiles reales sin autorización de privacidad institucional. Registra la clave como credencial Header Auth cifrada en n8n; nunca en `.env` o frontend.
-3. No rellenes `RAG_MIN_SIMILARITY` hasta calibrarlo con preguntas pertinentes y fuera de dominio, catálogo autorizado y escala real del modelo/Qdrant.
-4. Ejecuta `docker compose up --build`; crea la cuenta propietaria de n8n, importa ambos JSON y asigna las credenciales.
-5. Ejecuta `index-courses.json` manualmente y comprueba el upsert exitoso en la ejecución y en Qdrant. Confirma que la colección tiene la dimensión del modelo seleccionado.
-6. Activa los workflows en n8n. Activar `answer-query.json` registra su URL de producción; debe coincidir con `N8N_QUERY_WEBHOOK_URL` (`http://n8n:5678/webhook/rutaia-query` dentro de Compose).
-7. Prueba los caminos `Respondida`, `Sin resultados` y `Error` con catálogo y preguntas autorizados antes de una demostración.
+1. En `http://localhost:5678`, crea la cuenta propietaria local e importa los dos JSON de esta carpeta.
+2. Asigna las tres credenciales internas usando los nombres exactos de la tabla.
+3. Mantén los workflows inactivos hasta comprobar `/api/tags` desde el contenedor y verificar que están instalados ambos modelos.
+4. Ejecuta manualmente la indexación; confirma puntos y dimensión en Qdrant.
+5. Activa el workflow de consulta y prueba caminos `Respondida`, `Sin resultados` y `Error` con preguntas sintéticas. Luego integra las calificaciones e historial desde la UI/API.
 
-## Baseline de modelos y privacidad
-
-- Embeddings: [`baai/bge-m3`](https://openrouter.ai/baai/bge-m3), modelo multilingüe con vectores de 1024 dimensiones y contexto de 8K tokens.
-- Generación: [`meta-llama/llama-3.3-70b-instruct`](https://openrouter.ai/meta-llama/llama-3.3-70b-instruct), admite español y salida estructurada.
-- Los tres nodos que envían contenido a OpenRouter fuerzan `provider.zdr=true` y `provider.data_collection="deny"`; la generación además exige que el endpoint acepte los parámetros pedidos. Consulta la [política de enrutamiento](https://openrouter.ai/docs/guides/routing/provider-selection) y la [política de privacidad](https://openrouter.ai/privacy). OpenRouter transmite el texto al proveedor para inferencia; ZDR no convierte la inferencia en local ni sustituye autorización institucional. La política ZDR tiene excepciones de revisión/retención legal para contenido marcado. Los endpoints elegibles, precios y disponibilidad pueden cambiar y se deben verificar con la clave antes de activar.
-- Las variantes gratuitas revisadas (`nvidia/nemotron-3-embed-1b:free` y `nvidia/nemotron-3-super-120b-a12b:free`) aparecen con precio de inferencia $0, pero sus fichas indican que NVIDIA registra el uso para seguridad y mejora de sus productos ([embeddings](https://openrouter.ai/nvidia/nemotron-3-embed-1b:free?view=api), [generación](https://openrouter.ai/nvidia/nemotron-3-super-120b-a12b:free/pricing)). No son un reemplazo automático del baseline: primero hay que confirmar que el endpoint cumple los filtros ZDR y de recopilación de datos. No retires esos filtros para forzar una llamada. El plan gratuito de OpenRouter no incluye topes de gasto por clave; no añadas créditos ni uses IDs de modelos de pago.
-- El JSON fuente contiene estas restricciones. Las copias importadas en la instancia n8n aún no se actualizaron, están inactivas y no se han probado con credenciales. No se ha enviado texto del catálogo ni consultas a OpenRouter.
-
-Compose limita PostgreSQL, Qdrant, n8n y la aplicación a `127.0.0.1`. Es una topología local de desarrollo; no publiques esos puertos directamente en Internet. n8n no guarda payloads de ejecución exitosos ni fallidos, reduce exposición de preguntas, y elimina metadatos antiguos después de siete días.
-
-## Estado de verificación
-
-Los dos workflows se importaron en la instancia local n8n 2.46.4 y se verificaron en su base de datos como inactivos. `cd backend; npm run validate:workflows` valida JSON, conexiones, rutas de reconciliación y compilación de nueve Code nodes. `backend/tests/n8n-code-nodes.test.js` ejecuta cinco pruebas aisladas sobre selección de fuentes, validación de embeddings y catálogo vacío usando contexto simulado. `backend/tests/n8n-client.test.js` prueba configuración, payload y traducción de errores con `fetch` simulado. También se comprobó el borrado por filtro vacío en una colección Qdrant temporal que se retiró al terminar. Esto cubre estructura y parte de la lógica, pero no credenciales, operación del workflow, llamadas externas ni RAG de extremo a extremo. Los IDs de modelo son un baseline documentado; la clave, disponibilidad de proveedores ZDR y ejecución integral siguen pendientes.
+La validación estática `cd backend; npm run validate:workflows` comprueba el JSON, conexiones y sintaxis de Code nodes; `npm test` cubre la lógica aislada con contexto sintético. Ambas son necesarias, pero ninguna reemplaza una ejecución n8n→Ollama→Qdrant→PostgreSQL de extremo a extremo.

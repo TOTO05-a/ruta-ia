@@ -95,6 +95,26 @@ test("workflow RAG ordena por score y limita las fuentes a cinco", () => {
     assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4", "course-3", "course-2"]);
 });
 
+test("workflow RAG valida el JSON estructurado de Ollama antes del callback", () => {
+    const node = codeNode(answerWorkflow, "Validar callback de recomendación");
+    const context = {
+        "Webhook autenticado de consulta": { body: { queryId: "query-json" } },
+        "Filtrar fuentes activas y umbral": { sources: [
+            { courseId: "a", similarity: 0.82 },
+            { courseId: "b", similarity: 0.76 },
+            { courseId: "c", similarity: 0.71 }
+        ] }
+    };
+    const valid = executeCode(node, context, {
+        message: { content: JSON.stringify({ answer: "Respuesta", summary: "Resumen", explanation: "Explicación" }) }
+    });
+    assert.equal(valid[0].status, "Respondida");
+    assert.equal(valid[0].queryId, "query-json");
+    assert.equal(valid[0].sources.length, 3);
+    assert.throws(() => executeCode(node, context, { message: { content: "no es json" } }), /JSON|Unexpected/);
+    assert.throws(() => executeCode(node, context, { message: { content: JSON.stringify({ answer: "Respuesta" }) } }), /Respuesta RAG incompleta/);
+});
+
 test("indexación conserva asociación por índice y valida dimensión y valores finitos", () => {
     const node = codeNode(indexWorkflow, "Validar y preparar puntos Qdrant");
     const courses = [course("course-a", { intecapCareerType: "CTO" }), course("course-b")];
@@ -106,10 +126,7 @@ test("indexación conserva asociación por índice y valida dimensión y valores
         }
     };
     const result = executeCode(node, context, {
-        data: [
-            { index: 1, embedding: [0, 1, 0] },
-            { index: 0, embedding: [1, 0, 0] }
-        ]
+        embeddings: [[1, 0, 0], [0, 1, 0]]
     });
 
     assert.equal(result[0].qdrantUrl, "http://qdrant:6333");
@@ -119,15 +136,9 @@ test("indexación conserva asociación por índice y valida dimensión y valores
     assert.deepEqual(result[0].points.map((point) => point.payload.course_id), ["course-a", "course-b"]);
     assert.deepEqual(result[0].points.map((point) => point.payload.intecap_career_type), ["CTO", null]);
 
-    assert.throws(() => executeCode(node, context, { data: [{ index: 0, embedding: [1, 0, 0] }] }), /cantidad de embeddings inválida/);
-    assert.throws(() => executeCode(node, context, { data: [
-        { index: 0, embedding: [1, 0] },
-        { index: 1, embedding: [0, 1, 0] }
-    ] }), /dimensión o valores válidos/);
-    assert.throws(() => executeCode(node, context, { data: [
-        { index: 0, embedding: [1, Number.NaN, 0] },
-        { index: 1, embedding: [0, 1, 0] }
-    ] }), /dimensión o valores válidos/);
+    assert.throws(() => executeCode(node, context, { embeddings: [[1, 0, 0]] }), /cantidad de embeddings inválida/);
+    assert.throws(() => executeCode(node, context, { embeddings: [[1, 0], [0, 1, 0]] }), /dimensión o valores válidos/);
+    assert.throws(() => executeCode(node, context, { embeddings: [[1, Number.NaN, 0], [0, 1, 0]] }), /dimensión o valores válidos/);
 });
 
 test("indexación vacía conserva el contexto y limpia vectores obsoletos sin ocultar fallos", () => {

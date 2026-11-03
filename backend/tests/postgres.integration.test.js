@@ -20,8 +20,9 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
 
     process.env.DATABASE_URL = testDatabaseUrl;
     process.env.NODE_ENV = "test";
-    process.env.OPENROUTER_EMBEDDING_MODEL = "";
-    process.env.OPENROUTER_CHAT_MODEL = "";
+    process.env.OLLAMA_BASE_URL = "";
+    process.env.OLLAMA_EMBEDDING_MODEL = "";
+    process.env.OLLAMA_CHAT_MODEL = "";
     process.env.RAG_MIN_SIMILARITY = "";
 
     execFileSync(process.execPath, ["scripts/migrate.js"], {

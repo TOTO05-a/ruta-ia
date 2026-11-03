@@ -6,7 +6,7 @@ async function startQuery(payload) {
         error.code = "N8N_NOT_CONFIGURED";
         throw error;
     }
-    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.OPENROUTER_CHAT_MODEL || !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
+    if (!env.OLLAMA_BASE_URL || !env.OLLAMA_EMBEDDING_MODEL || !env.OLLAMA_CHAT_MODEL || !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
         const error = new Error("RAG_CONFIGURATION_MISSING");
         error.code = "RAG_CONFIGURATION_MISSING";
         throw error;
@@ -23,8 +23,9 @@ async function startQuery(payload) {
             body: JSON.stringify({
                 ...payload,
                 callbackUrl: env.N8N_CALLBACK_URL,
-                embeddingModel: env.OPENROUTER_EMBEDDING_MODEL,
-                chatModel: env.OPENROUTER_CHAT_MODEL,
+                embeddingModel: env.OLLAMA_EMBEDDING_MODEL,
+                chatModel: env.OLLAMA_CHAT_MODEL,
+                ollamaBaseUrl: env.OLLAMA_BASE_URL,
                 minSimilarity: env.RAG_MIN_SIMILARITY,
                 qdrantCollection: env.QDRANT_COLLECTION,
                 qdrantUrl: env.QDRANT_URL
