@@ -246,6 +246,20 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         });
         assert.equal(repeatedNoResults.status, 200);
 
+        const errorQueryId = await insertPendingQuery(owner.id, "Query para callback Error");
+        const errorBody = { queryId: errorQueryId, status: "Error", errorCode: "N8N_PROCESSING_ERROR" };
+        const errorCallback = await request("/api/v1/internal/n8n/results", {
+            method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: errorBody
+        });
+        assert.equal(errorCallback.status, 202);
+        const savedError = await (await request(`/api/v1/queries/${errorQueryId}`, { cookie: owner.cookie })).json();
+        assert.equal(savedError.data.status, "Error");
+        assert.equal(savedError.data.errorCode, "N8N_PROCESSING_ERROR");
+        const repeatedError = await request("/api/v1/internal/n8n/results", {
+            method: "POST", headers: { "X-N8N-Callback-Secret": callbackSecret }, body: errorBody
+        });
+        assert.equal(repeatedError.status, 200);
+
         const answeredBody = {
             queryId: answeredQueryId,
             status: "Respondida",
@@ -297,7 +311,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const statsResponse = await request("/api/v1/admin/statistics", { cookie: admin.cookie });
         assert.equal(statsResponse.status, 200);
         const stats = (await statsResponse.json()).data;
-        assert.equal(stats.totalQueries, 3);
+        assert.equal(stats.totalQueries, 4);
         assert.equal(stats.answeredQueries, 1);
         assert.equal(stats.noResultQueries, 1);
         assert.equal(stats.averageRating, 5);
