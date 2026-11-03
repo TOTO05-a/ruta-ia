@@ -2,6 +2,7 @@ const pool = require("../db/pool");
 
 const columns = `id, name, description, category, level,
                  intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours",
+                 source_url AS "sourceUrl",
                  is_active AS "isActive", created_at AS "createdAt", updated_at AS "updatedAt"`;
 
 async function list({ search, category, level, page, limit }, { includeInactive = false } = {}) {
@@ -40,9 +41,9 @@ async function findById(id, { includeInactive = false } = {}) {
 
 async function create(course) {
     const result = await pool.query(
-        `INSERT INTO courses (name, description, category, level, intecap_career_type, duration_hours)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${columns}`,
-        [course.name, course.description, course.category, course.level, course.intecapCareerType ?? null, course.durationHours]
+        `INSERT INTO courses (name, description, category, level, intecap_career_type, duration_hours, source_url)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING ${columns}`,
+        [course.name, course.description, course.category, course.level, course.intecapCareerType ?? null, course.durationHours, course.sourceUrl ?? null]
     );
     return result.rows[0];
 }
@@ -50,7 +51,7 @@ async function create(course) {
 async function update(id, changes) {
     const map = {
         name: "name", description: "description", category: "category", level: "level",
-        intecapCareerType: "intecap_career_type", durationHours: "duration_hours"
+        intecapCareerType: "intecap_career_type", durationHours: "duration_hours", sourceUrl: "source_url"
     };
     const entries = Object.entries(changes).filter(([key]) => map[key]);
     const values = entries.map(([, value]) => value);
@@ -75,7 +76,8 @@ async function setActive(id, isActive) {
 async function listAllActive() {
     const result = await pool.query(
         `SELECT id, name, description, category, level,
-                intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours"
+                intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours",
+                source_url AS "sourceUrl"
          FROM courses WHERE is_active = TRUE ORDER BY id`
     );
     return result.rows;

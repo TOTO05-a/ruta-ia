@@ -11,7 +11,7 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 - Windows 10/11, PowerShell y Docker Desktop con motor Linux.
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
-- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Los 20 registros curados con fichas oficiales están en `database/seeds/001`–`004`; se verificaron en PostgreSQL y mediante búsqueda/detalle API. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
+- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Los 20 registros curados con fichas oficiales están en `database/seeds/001`–`005`; se verificaron en PostgreSQL y mediante búsqueda/detalle API. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
 - Ollama instalado localmente con los modelos `bge-m3` y `qwen2.5:3b` descargados, cuando se vaya a habilitar RAG. El modelo de embeddings debe usarse tanto para indexar como para consultar.
 
 ## Instalación y configuración inicial
@@ -55,9 +55,10 @@ Get-Content -Raw .\database\seeds\001_intecap_programacion_plc.sql | docker comp
 Get-Content -Raw .\database\seeds\002_intecap_analisis_datos_excel_powerbi.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 Get-Content -Raw .\database\seeds\003_intecap_formacion_tecnica.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 Get-Content -Raw .\database\seeds\004_intecap_catalogo_2027.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
+Get-Content -Raw .\database\seeds\005_intecap_source_urls.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 ```
 
-Los cuatro seeds son idempotentes y cargan 20 ofertas INTECAP 2027 con duración y objetivo documentados. Las URLs fuente, horas y requisitos figuran en los comentarios de cada seed. `level` es la clasificación pedagógica de RutaIA según objetivos/requisitos, no un CTO/CTM/CTMS; `intecap_career_type` queda NULL si la ficha no publica esa clasificación. Algunas fichas publican horas de práctica por separado; `duration_hours` conserva las horas de formación y la práctica separada se explica en la descripción. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. RAG requiere además Qdrant, modelos Ollama, workflows sincronizados y calibración del umbral.
+Los cinco seeds son idempotentes: cargan 20 ofertas INTECAP 2027 y asocian cada ficha oficial a `courses.source_url`. Las tarjetas de catálogo y las fuentes RAG enlazan a esa ficha. Las horas y requisitos figuran en los comentarios de los seeds. `level` es la clasificación pedagógica de RutaIA según objetivos/requisitos, no un CTO/CTM/CTMS; `intecap_career_type` queda NULL si la ficha no publica esa clasificación. Algunas fichas publican horas de práctica por separado; `duration_hours` conserva las horas de formación y la práctica separada se explica en la descripción. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. RAG requiere además Qdrant, modelos Ollama, workflows sincronizados y calibración del umbral.
 
 `courses.intecap_career_type` conserva por separado CTO/CTM/CTMS, si la ficha identifica una carrera de esa clasificación. En ofertas modulares como PLC queda `NULL`; `courses.level` continúa expresando dificultad didáctica de RutaIA.
 

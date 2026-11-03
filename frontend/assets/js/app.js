@@ -195,6 +195,8 @@
     const meta = node("div", "source-meta");
     meta.append(node("span", "", `Nivel RutaIA: ${course.level}`), node("span", "", `Duración: ${course.durationHours} horas`));
     if (course.intecapCareerType) meta.append(node("span", "", `Clasificación INTECAP: ${course.intecapCareerType}`));
+    const officialLink = officialSourceLink(course.sourceUrl);
+    if (officialLink) content.append(officialLink);
     content.append(meta);
     $("#detail-dialog").showModal();
   }
@@ -384,7 +386,24 @@
     const similarity = Number(source.similarity);
     if (Number.isFinite(similarity)) meta.append(node("strong", "", `Puntaje vectorial ${similarity.toFixed(3)}`));
     card.append(meta);
+    const officialLink = officialSourceLink(source.sourceUrl);
+    if (officialLink) card.append(officialLink);
     return card;
+  }
+
+  function officialSourceLink(value) {
+    if (typeof value !== "string") return null;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== "https:" || url.hostname !== "cursos.intecap.edu.gt") return null;
+      const link = node("a", "course-open", "Consultar ficha oficial INTECAP ↗");
+      link.href = url.href;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      return link;
+    } catch {
+      return null;
+    }
   }
 
   function ratingControl(recommendationId) {

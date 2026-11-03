@@ -27,6 +27,7 @@ async function getById(id) {
                     'courseId', c.id, 'name', c.name, 'description', c.description,
                     'category', c.category, 'level', c.level,
                     'intecapCareerType', c.intecap_career_type, 'durationHours', c.duration_hours,
+                    'sourceUrl', c.source_url,
                     'similarity', rs.similarity_score, 'position', rs.position
                 ) ORDER BY rs.position) FILTER (WHERE c.id IS NOT NULL), '[]'::jsonb) AS sources
          FROM queries q

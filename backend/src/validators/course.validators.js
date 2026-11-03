@@ -6,6 +6,7 @@ const courseSchema = z.object({
     category: z.string().trim().min(2).max(100),
     level: z.enum(["Básico", "Intermedio", "Avanzado"]),
     intecapCareerType: z.enum(["CTO", "CTM", "CTMS"]).nullable().optional(),
+    sourceUrl: z.union([z.string().url().refine((value) => value.startsWith("https://")), z.null()]).optional(),
     durationHours: z.number().positive().max(100_000)
 }).strict();
 

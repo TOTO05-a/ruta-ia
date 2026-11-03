@@ -566,6 +566,7 @@ paths:
                 category: { type: string, minLength: 2, maxLength: 100 }
                 level: { type: string, enum: [Básico, Intermedio, Avanzado] }
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+                sourceUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
                 durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
         '201':
@@ -632,6 +633,7 @@ paths:
                 category: { type: string, minLength: 2, maxLength: 100 }
                 level: { type: string, enum: [Básico, Intermedio, Avanzado] }
                 intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+                sourceUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
                 durationHours: { type: number, exclusiveMinimum: 0, maximum: 100000 }
       responses:
         '200':
@@ -804,7 +806,7 @@ components:
                   items: { $ref: '#/components/schemas/Student' }
     Course:
       type: object
-      required: [id, name, description, category, level, intecapCareerType, durationHours, isActive, createdAt, updatedAt]
+      required: [id, name, description, category, level, intecapCareerType, durationHours, sourceUrl, isActive, createdAt, updatedAt]
       properties:
         id: { type: string, format: uuid }
         name: { type: string }
@@ -812,6 +814,7 @@ components:
         category: { type: string }
         level: { type: string, enum: [Básico, Intermedio, Avanzado] }
         intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+        sourceUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
         durationHours:
           description: PostgreSQL NUMERIC puede serializarse como string en filas SQL; en objetos JSON agregados se emite como número.
           anyOf:
@@ -849,7 +852,7 @@ components:
       enum: [Pendiente, Respondida, 'Sin resultados', Error]
     QuerySource:
       type: object
-      required: [courseId, name]
+      required: [courseId, name, sourceUrl]
       properties:
         courseId: { type: string, format: uuid }
         name: { type: string }
@@ -857,6 +860,7 @@ components:
         category: { type: string }
         level: { type: string, enum: [Básico, Intermedio, Avanzado] }
         intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+        sourceUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
         durationHours: { type: number }
         similarity: { type: number }
         position: { type: integer, minimum: 1, maximum: 5 }
@@ -952,7 +956,7 @@ components:
               type: array
               items:
                 type: object
-                required: [id, name, description, category, level, intecapCareerType, durationHours]
+                required: [id, name, description, category, level, intecapCareerType, durationHours, sourceUrl]
                 properties:
                   id: { type: string, format: uuid }
                   name: { type: string }
@@ -960,6 +964,7 @@ components:
                   category: { type: string }
                   level: { type: string, enum: [Básico, Intermedio, Avanzado] }
                   intecapCareerType: { type: [string, 'null'], enum: [CTO, CTM, CTMS, 'null'] }
+                  sourceUrl: { type: [string, 'null'], format: uri, pattern: '^https://' }
                   durationHours:
                     anyOf:
                       - { type: number }

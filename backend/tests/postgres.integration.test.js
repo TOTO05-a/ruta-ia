@@ -253,6 +253,22 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const repeatedOfficialCatalogResults = await pool.query(officialCatalogSeed);
         assert.equal(repeatedOfficialCatalogResults.reduce((total, result) => total + result.rowCount, 0), 0, "El catálogo INTECAP completo debe ser idempotente");
 
+        const officialSourcesSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
+            "utf8"
+        );
+        assert.equal((await pool.query(officialSourcesSeed)).rowCount, 20);
+        assert.equal((await pool.query(officialSourcesSeed)).rowCount, 0, "El seed de fuentes debe ser idempotente");
+        const sourceCoverage = await pool.query(
+            "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
+        );
+        assert.deepEqual(sourceCoverage.rows[0], { total: 20, sourced: 20 });
+        const plcCourseWithSource = await request(
+            "/api/v1/courses?search=" + encodeURIComponent("Programación básica de control lógico programable PLC")
+        );
+        assert.equal((await plcCourseWithSource.json()).data.items[0].sourceUrl,
+            "https://cursos.intecap.edu.gt/detalle/902/2027");
+
         const admin = await register("admin");
         const owner = await register("owner");
         const other = await register("other");
