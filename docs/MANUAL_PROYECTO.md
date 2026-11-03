@@ -17,7 +17,7 @@ Estado comprobado en este entorno:
 
 - 3 nov: `docker compose ps` mostró sus cuatro servicios `healthy`; `/health/ready`, n8n `/healthz` y Qdrant `/readyz` respondieron HTTP 200. `docker compose --env-file .env config --quiet` pasó.
 - `/health/ready` devolvió `ready`. Sondas desde contenedores recibieron HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant.
-- 3 nov: `npm test`: 16 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes n8n; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
+- 3 nov: `npm test`: 22 aprobadas, 0 fallidas y 1 integración optativa omitida. Incluye cuatro pruebas aisladas de Code nodes y seis pruebas de mapeo de errores/payload del cliente n8n con servicios simulados; `npm run test:integration`: 1 aprobada contra la base local dedicada `rutaia_test`.
 - `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes con routers/montajes de `app.js`, 10 referencias locales resueltas.
 - El frontend sirve las vistas de auth, inicio/consulta, catálogo, historial, perfil y administración. La carga de categorías recorre páginas; la UI solo declara logout exitoso tras respuesta del servidor.
 - **La recomendación RAG integral no está habilitada:** catálogo activo = 0, colecciones Qdrant = 0, modelos y umbral vacíos en el backend, workflows importados inactivos/no sincronizados y la API de gestión n8n devuelve 401 sin sesión.
@@ -85,6 +85,7 @@ Lee las capas en este orden y muestra siempre la implementación real:
 - `backend/tests/api.test.js`: “health responde sin declarar PostgreSQL listo”, “frontend estático se sirve desde el mismo origen”, “JSON malformado…” y “rutas inexistentes…”.
 - `backend/tests/auth.test.js`: registro/login, hash, validación de cursos/perfil, pregunta vacía, callback con fuentes y rating.
 - `backend/tests/n8n-code-nodes.test.js`: ejecuta con contexto simulado la selección RAG (actividad, score, duplicados y máximo cinco fuentes) y validación de embeddings. No ejecuta n8n ni usa cursos reales.
+- `backend/tests/n8n-client.test.js`: verifica configuración requerida, códigos seguros para timeout/red/HTTP no exitoso y el payload autenticado con `fetch` simulado; no contacta n8n.
 - `backend/tests/postgres.integration.test.js`: API, PostgreSQL, aislamiento, callbacks y ratings sobre la base dedicada `rutaia_test`.
 - `backend/scripts/validate-workflows.js`: verifica JSON, IDs/nombres, aristas y compilación de los ocho Code nodes; ejecutar `npm run validate:workflows` desde `backend/`.
 

@@ -87,7 +87,7 @@ npm run validate:openapi
 npm run validate:workflows
 ```
 
-La suite `npm test` incluye HTTP local y pruebas aisladas de lógica de Code nodes n8n, sin depender de PostgreSQL; la integración de DB aparece omitida en esa suite. La validación OpenAPI parsea YAML, coteja operaciones con routers/montajes de `src/app.js` y resuelve referencias locales. `npm run validate:workflows` revisa JSON, nombres/IDs, conexiones y sintaxis de Code nodes en ambos workflows. Las pruebas de nodos n8n usan fixtures y no sustituyen ejecutar los workflows en n8n con Qdrant y proveedor reales.
+La suite `npm test` incluye HTTP local y pruebas aisladas de lógica de Code nodes y cliente n8n, sin depender de PostgreSQL; la integración de DB aparece omitida en esa suite. La validación OpenAPI parsea YAML, coteja operaciones con routers/montajes de `src/app.js` y resuelve referencias locales. `npm run validate:workflows` revisa JSON, nombres/IDs, conexiones y sintaxis de Code nodes en ambos workflows. Las pruebas RAG usan fixtures/contexto simulado y no sustituyen ejecutar los workflows en n8n con Qdrant y proveedor reales.
 
 La integración contra PostgreSQL real utiliza exclusivamente una base local llamada `rutaia_test`. Levanta Compose y configura en `.env` `RUTAIA_TEST_DATABASE_URL`, usando el usuario/contraseña local y la ruta `/rutaia_test`. Crea la base una sola vez si aún no existe:
 
@@ -122,7 +122,7 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 ## Estado comprobado en este entorno — 3 de noviembre de 2026
 
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
-- `npm test`: 16 aprobadas, 0 fallidas, 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes, 10 refs locales.
+- `npm test`: 22 aprobadas, 0 fallidas, 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes, 10 refs locales. `npm run validate:workflows`: 25 nodos, 30 conexiones y 8 Code nodes compilables.
 - Catálogo actual: **0 cursos**. Qdrant: **0 colecciones**. El mínimo requerido es 20 cursos con fuente institucional autorizada; no se fabrican cursos.
 - Backend en Compose: modelos y umbral RAG están sin configurar. La API de gestión de workflows n8n responde `401 Unauthorized` sin sesión; sus copias importadas no se actualizaron ni probaron con credenciales.
 - Por ello, registro/login, catálogo vacío, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere fuente autorizada, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.

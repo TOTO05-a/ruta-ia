@@ -6,7 +6,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 | Verificación | Comando/procedimiento | Resultado actual |
 | --- | --- | --- |
-| Suite unitaria, HTTP local y lógica RAG aislada | `cd backend; npm test` | **Probado en esta sesión:** 16 pasan, 0 fallan; 1 integración optativa se omite. Incluye fixtures aislados para selección de cursos activos/score/máximo de fuentes y validación/orden de embeddings en `backend/tests/n8n-code-nodes.test.js`; no ejecuta los workflows ni llama servicios externos |
+| Suite unitaria, HTTP local y lógica RAG aislada | `cd backend; npm test` | **Probado en esta sesión:** 22 pasan, 0 fallan; 1 integración optativa se omite. Incluye cuatro pruebas de Code nodes con contexto simulado y seis pruebas de mapeo de errores/payload del cliente n8n con `fetch` simulado; no ejecuta el workflow real ni llama servicios externos |
 | Integración repetible PostgreSQL/API | `cd backend; npm run test:integration` contra `rutaia_test` | **Probado en esta sesión:** 1/1 pasa con migración ya aplicada; el runner limpia sus fixtures al terminar |
 | Sintaxis JavaScript backend | `node --check` sobre todos los archivos JS versionados/no ignorados de `backend/` | **Probado en esta revisión:** 51 archivos pasan |
 | Contrato OpenAPI | `cd backend; npm run validate:openapi` | **Probado en esta sesión:** YAML parseado; las 28 operaciones coinciden con declaraciones de routers y montajes leídos desde `app.js`; 10 referencias locales resueltas. Es una comprobación del proyecto, no un validador oficial completo de OpenAPI |
@@ -42,7 +42,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | API-05 | IDs inexistentes | Estudiantes, cursos y consultas inexistentes devuelven 404 normalizado | **Probado con PostgreSQL:** estudiante/curso/consulta inexistentes devuelven 404 con códigos de dominio; UUID inválido devuelve 400 `VALIDATION_ERROR` |
 | API-06 | Calificación | Enteros 1–5; comentario opcional; una calificación por recomendación | **Probado con PostgreSQL:** rating 5 devuelve 201; el duplicado devuelve 409; datos temporales eliminados |
 | API-07 | Estadísticas | Comparar total, respondidas, sin resultados, promedio y curso más recomendado contra SQL conocido | **Probado con PostgreSQL:** dataset sintético conocido coincide en total, respondidas, sin resultados, promedio y recomendaciones por curso; datos eliminados |
-| API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado, 404 genérico, IDs inválidos y validaciones (400) probados; fallos DB/proveedor/timeout pendientes |
+| API-08 | Errores | JSON inválido, validación, proveedor caído, timeout y errores no exponen stack ni secretos | JSON malformado, 404 genérico, IDs inválidos y validaciones (400) probados. Cliente n8n prueba config faltante, timeout simulado, red caída y HTTP 401 simulado con códigos seguros; fallos reales DB/proveedor/timeout siguen pendientes |
 
 ## Qdrant, embeddings y RAG
 
