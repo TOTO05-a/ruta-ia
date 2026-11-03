@@ -30,6 +30,10 @@ Los nodos internos conservan estas credenciales Header Auth; crea cada una en n8
 
 No hay credencial para Ollama: la API local no exige clave por defecto. Las credenciales de integración se guardan cifradas por n8n y no se incluyen en el repositorio.
 
+### Asignación en los nodos
+
+Abre cada nodo, selecciona la credencial existente en **Credential to connect with** y guarda el workflow. Usa la credencial de sincronización en `Leer configuración de indexación`, `Leer catálogo PostgreSQL` y `Leer catálogo activo PostgreSQL`; usa callback en `Guardar recomendación en Express`, `Guardar estado sin resultados` y `Guardar estado de error`; el webhook `Webhook autenticado de consulta` requiere la credencial bearer. En `Crear embedding de pregunta` y `Generar respuesta grounded`, configura **Authentication: None**: ambos llaman directamente a Ollama local.
+
 ## Flujo de indexación
 
 - Manual y cada seis horas: lee configuración y cursos activos por endpoints internos autenticados de Express/PostgreSQL.
@@ -47,7 +51,7 @@ No hay credencial para Ollama: la API local no exige clave por defecto. Las cred
 ## Importar y comprobar
 
 1. En `http://localhost:5678`, crea la cuenta propietaria local e importa los dos JSON de esta carpeta.
-2. Asigna las tres credenciales internas usando los nombres exactos de la tabla.
+2. Crea la credencial webhook si aún no existe y asigna las tres credenciales internas según la tabla de nodos. No reimportes los workflows después; la importación puede reemplazar asignaciones ya guardadas.
 3. Mantén los workflows inactivos hasta comprobar `/api/tags` desde el contenedor y verificar que están instalados ambos modelos.
 4. Ejecuta manualmente la indexación; confirma puntos y dimensión en Qdrant.
 5. Activa el workflow de consulta y prueba caminos `Respondida`, `Sin resultados` y `Error` con preguntas sintéticas. Luego integra las calificaciones e historial desde la UI/API.

@@ -67,7 +67,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | N8N-02 | `Sin resultados` | Menos de 3 fuentes autorizadas bajo umbral; persiste estado sin recomendación | Callback/persistencia probados con consulta sintética; rama del workflow y umbral todavía sin prueba integral |
 | N8N-03 | `Error` | Fallo de llamada/validación de proveedor genera callback con código seguro y sin detalles sensibles | Contrato API/DB probado con callback Error sintético e idempotencia; rama de error n8n no ejecutada |
 | N8N-04 | Callback repetido y fuente activa | No crea recomendaciones duplicadas; rechaza referencias a cursos inactivos y mantiene resultado terminal | **Probado con PostgreSQL:** repetir `Respondida` devuelve 200 y conserva una recomendación/tres fuentes; repetir `Sin resultados`, `Error` y callback inválido por curso inactivo también es idempotente |
-| N8N-05 | Credenciales | Tres credenciales Header Auth para webhook, sync y callback; no hay clave de modelo | n8n no contiene las tres credenciales requeridas; el propietario debe guardarlas y asignarlas desde la interfaz. No se requiere clave externa de modelo |
+| N8N-05 | Credenciales | Tres credenciales Header Auth para webhook, sync y callback; no hay clave de modelo | Sync y callback ya existen, pero los nodos aún apuntan a IDs antiguos. Falta crear/asignar bearer, reasignar sync/callback en seis nodos y quitar la auth OpenRouter obsoleta de los dos nodos Ollama. No se requiere clave externa de modelo |
 
 ## Pruebas académicas de entrada
 
@@ -81,7 +81,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 1. Catálogo INTECAP de 20 cursos ya cargado y verificado por seeds/API; preservar fuentes y campos al resembrar en instalaciones limpias.
 2. Compose arrancado sin alterar contenedores ajenos; migraciones versionadas aplicadas.
-3. Los workflows ya están sincronizados e inactivos; falta que el propietario configure las tres credenciales internas en n8n. Ollama local no requiere clave externa.
+3. Los workflows ya están sincronizados e inactivos; falta corregir las asignaciones Header Auth y quitar autenticación de los nodos Ollama. Ollama local no requiere clave externa.
 4. Indexar los 20 cursos en Qdrant; comprobar dimensión, cantidad, payload, upsert/reconciliación y filtro de activos.
 5. Confirmar en n8n el candidato `0.50` con casos etiquetados; probar Respondida/Sin resultados/Error y comparar fuentes/scores con PostgreSQL/Qdrant.
 6. Frontend revisado en navegador y probado contra backend integrado.
