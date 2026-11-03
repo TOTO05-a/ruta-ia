@@ -280,6 +280,11 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         }
 
         const ratingUrl = `/api/v1/recommendations/${savedAnswer.data.recommendationId}/rating`;
+        const otherStudentRating = await request(ratingUrl, {
+            method: "POST", cookie: other.cookie, csrf: other.csrfToken, body: { score: 1, comment: "No pertenece a esta recomendación" }
+        });
+        assert.equal(otherStudentRating.status, 404);
+        assert.equal((await otherStudentRating.json()).error.code, "RECOMMENDATION_NOT_FOUND");
         const rating = await request(ratingUrl, {
             method: "POST", cookie: owner.cookie, csrf: owner.csrfToken, body: { score: 5, comment: "Integración" }
         });
