@@ -39,7 +39,6 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
     });
     const baseUrl = `http://127.0.0.1:${server.address().port}`;
     const studentIds = [];
-    const courseIds = [];
     const queryIds = [];
     const suffix = crypto.randomUUID();
     let cleanupError;
@@ -103,7 +102,9 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             );
             await client.query("DELETE FROM recommendations WHERE query_id = ANY($1::uuid[])", [queryIds]);
             await client.query("DELETE FROM queries WHERE id = ANY($1::uuid[])", [queryIds]);
-            await client.query("DELETE FROM courses WHERE id = ANY($1::uuid[])", [courseIds]);
+            // The integration database is asserted empty before the test starts;
+            // deleting the full catalog here also cleans rows created by SQL seeds.
+            await client.query("DELETE FROM courses");
             await client.query("DELETE FROM students WHERE id = ANY($1::uuid[])", [studentIds]);
             await client.query("COMMIT");
         } catch (error) {
@@ -135,7 +136,6 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(officialCourse.level, "Básico");
         assert.equal(officialCourse.intecapCareerType, null, "Una oferta modular no se convierte a una clasificación de carrera");
         assert.equal(Number(officialCourse.durationHours), 100);
-        courseIds.push(officialCourse.id);
 
         const repeatedSeedRun = await pool.query(officialCourseSeed);
         assert.equal(repeatedSeedRun.rowCount, 0, "Repetir el seed no debe duplicar el curso");
@@ -163,7 +163,6 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(analysisDataResult.rows[0].level, "Avanzado");
         assert.equal(analysisDataResult.rows[0].intecapCareerType, null);
         assert.equal(Number(analysisDataResult.rows[0].durationHours), 100);
-        courseIds.push(analysisDataResult.rows[0].id);
         assert.equal((await pool.query(analysisDataSeed)).rowCount, 0, "El segundo seed también debe ser idempotente");
         const publicAnalysisData = await request(
             `/api/v1/courses?search=${encodeURIComponent("Análisis de datos con Excel y Power BI")}`
@@ -172,6 +171,39 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const analysisCatalog = await publicAnalysisData.json();
         assert.equal(analysisCatalog.data.total, 1);
         assert.equal(analysisCatalog.data.items[0].id, analysisDataResult.rows[0].id);
+
+        const technicalTrainingSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/003_intecap_formacion_tecnica.sql"),
+            "utf8"
+        );
+        const technicalSeedResults = await pool.query(technicalTrainingSeed);
+        assert.equal(technicalSeedResults.reduce((total, result) => total + result.rowCount, 0), 2);
+        const technicalCourses = await pool.query(
+            `SELECT id, name, level, intecap_career_type AS "intecapCareerType", duration_hours AS "durationHours"
+             FROM courses WHERE lower(name) IN (lower($1), lower($2)) ORDER BY name`,
+            [
+                "Instalación de paneles fotovoltaicos",
+                "Mantenimiento del sistema de encendido y alimentación de combustible de la motocicleta"
+            ]
+        );
+        assert.equal(technicalCourses.rowCount, 2);
+        const solarCourse = technicalCourses.rows.find((course) => course.name === "Instalación de paneles fotovoltaicos");
+        const motorcycleCourse = technicalCourses.rows.find((course) => course.name.startsWith("Mantenimiento del sistema de encendido"));
+        assert.equal(solarCourse.level, "Intermedio");
+        assert.equal(solarCourse.intecapCareerType, null);
+        assert.equal(Number(solarCourse.durationHours), 140);
+        assert.equal(motorcycleCourse.level, "Básico");
+        assert.equal(motorcycleCourse.intecapCareerType, null);
+        assert.equal(Number(motorcycleCourse.durationHours), 80);
+        const repeatedTechnicalSeedResults = await pool.query(technicalTrainingSeed);
+        assert.equal(repeatedTechnicalSeedResults.reduce((total, result) => total + result.rowCount, 0), 0, "El seed técnico debe ser idempotente");
+        for (const course of [solarCourse, motorcycleCourse]) {
+            const publicCourse = await request(`/api/v1/courses?search=${encodeURIComponent(course.name)}`);
+            assert.equal(publicCourse.status, 200);
+            const catalogResult = await publicCourse.json();
+            assert.equal(catalogResult.data.total, 1);
+            assert.equal(catalogResult.data.items[0].id, course.id);
+        }
 
         const admin = await register("admin");
         const owner = await register("owner");
@@ -280,7 +312,6 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
             assert.equal(response.status, 201);
             const result = await response.json();
             courses.push(result.data);
-            courseIds.push(result.data.id);
             assert.equal(result.data.intecapCareerType, intecapCareerType);
         }
 
@@ -390,7 +421,6 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
              VALUES ($1, $2, $3, $4, $5) RETURNING id`,
             [`RutaIA Integration ${suffix} constraint`, "Fixture de prueba de constraint SQL.", `Integration-${suffix}`, "Básico", 1]
         );
-        courseIds.push(extraCourse.rows[0].id);
         for (const score of ["NaN", "Infinity", "-Infinity"]) {
             await assert.rejects(
                 pool.query(

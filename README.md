@@ -45,14 +45,15 @@ docker compose ps
 
 Compose levanta PostgreSQL, Qdrant, n8n y Express. La API aplica las migraciones al arrancar. En el `.env` actual de esta PC, la app está en `http://localhost:3001`; n8n en `http://localhost:5678`; PostgreSQL en `localhost:5432`; Qdrant en `http://localhost:6333`. Los puertos publicados están limitados a loopback.
 
-Para cargar el primer registro institucional autenticado, ejecuta el seed idempotente de PLC después del arranque:
+Para cargar el catálogo oficial actualmente curado, aplica estos seeds idempotentes después del arranque:
 
 ```powershell
 Get-Content -Raw .\database\seeds\001_intecap_programacion_plc.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 Get-Content -Raw .\database\seeds\002_intecap_analisis_datos_excel_powerbi.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
+Get-Content -Raw .\database\seeds\003_intecap_formacion_tecnica.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 ```
 
-Los seeds son idempotentes. El PLC tiene 100 horas y nivel básico explícitos en su ficha. El curso de análisis de datos tiene nivel Excel avanzado en el currículo oficial, 100 horas sumadas de sus dos módulos, y una oferta 2027 con objetivos/requisitos publicados. La categoría es la taxonomía temática de RutaIA. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. Dos registros aún no cumplen el mínimo académico de 20 ni habilitan por sí solos RAG.
+Los seeds son idempotentes. Hay cuatro cursos institucionales: PLC (100 h), análisis Excel/Power BI (100 h), paneles fotovoltaicos (140 h) y mantenimiento del sistema de motocicleta (80 h). Para los dos últimos, el nivel es una clasificación pedagógica de RutaIA sustentada en prerrequisitos/objetivos de sus fichas; no es clasificación oficial INTECAP. `intecap_career_type` sigue separado y queda NULL cuando CTO/CTM/CTMS no aparece. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. Cuatro registros aún no cumplen el mínimo académico de 20 ni habilitan por sí solos RAG.
 
 `courses.intecap_career_type` conserva por separado CTO/CTM/CTMS, si la ficha identifica una carrera de esa clasificación. En ofertas modulares como PLC queda `NULL`; `courses.level` continúa expresando dificultad didáctica de RutaIA.
 
@@ -134,9 +135,9 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
 - `npm test`: 22 aprobadas, 0 fallidas, 1 integración optativa omitida. `npm run test:integration`: 1 aprobada contra `rutaia_test`. `npm run validate:openapi`: 25 paths, 28 operaciones coincidentes, 10 refs locales. `npm run validate:workflows`: 25 nodos, 30 conexiones y 8 Code nodes compilables.
-- Catálogo actual: **2 cursos INTECAP** cargados desde seeds idempotentes bajo `database/seeds/`; PLC (100 h, Básico) y Análisis de datos con Excel y Power BI (100 h, Avanzado). El segundo combina su oferta oficial 2027 con el currículo de INTECAP que publica nivel avanzado y 60+40 horas. Qdrant: **0 colecciones**. Faltan al menos 18 cursos completos para el mínimo; no se inventan descripciones ni duraciones.
+- Catálogo actual: **4 cursos INTECAP** cargados desde seeds idempotentes bajo `database/seeds/`; PLC (100 h), Excel/Power BI (100 h), paneles fotovoltaicos (140 h) y mantenimiento de sistema de motocicleta (80 h). Los niveles adicionales se clasifican en RutaIA según objetivos/requisitos explícitos y permanecen separados de CTO/CTM/CTMS; ver [manual](docs/MANUAL_PROYECTO.md) para las fichas. Qdrant: **0 colecciones**. Faltan al menos 16 cursos completos para el mínimo.
 - Backend en Compose: modelos y umbral RAG están sin configurar. La API de gestión de workflows n8n responde `401 Unauthorized` sin sesión; sus copias importadas no se actualizaron ni probaron con credenciales.
-- Por ello, registro/login, catálogo con un registro oficial, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere completar el catálogo INTECAP, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
+- Por ello, registro/login, catálogo con cuatro cursos oficiales, endpoints, persistencia y callback sintético están implementados/probados en sus alcances indicados; la generación y recomendación RAG real, sus fuentes y calificaciones del resultado real siguen sin verificarse. Se requiere completar el catálogo INTECAP, acceso propietario n8n, clave OpenRouter ZDR aprobada y calibración.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.
 
 ## Continuidad
