@@ -283,6 +283,36 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(repeatedTicCatalogResults.reduce((total, result) => total + result.rowCount, 0), 0,
             "El seed TIC debe ser idempotente");
 
+        const ticExtensionSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/007_intecap_tic_catalog_extension.sql"),
+            "utf8"
+        );
+        const ticExtensionSeedResults = await pool.query(ticExtensionSeed);
+        assert.equal(ticExtensionSeedResults.reduce((total, result) => total + result.rowCount, 0), 3);
+        const expectedTicExtensions = [
+            ["Desarrollo de aplicaciones en Java y conexión a bases de datos", 170,
+                "https://cursos.intecap.edu.gt/detalle/1906/2026"],
+            ["Analista de datos", 650, "https://cursos.intecap.edu.gt/detalle/1660/2027"],
+            ["Administrador de red y seguridad de telecomunicaciones", 680,
+                "https://cursos.intecap.edu.gt/detalle/1214/2027"]
+        ];
+        for (const [name, durationHours, sourceUrl] of expectedTicExtensions) {
+            const courseResult = await pool.query(
+                `SELECT id, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(courseResult.rowCount, 1, `${name}: curso TIC presente una sola vez`);
+            assert.equal(Number(courseResult.rows[0].durationHours), durationHours,
+                `${name}: horas respaldadas por fuente`);
+            assert.equal(courseResult.rows[0].sourceUrl, sourceUrl, `${name}: ficha institucional enlazada`);
+            const publicCourse = await request(`/api/v1/courses/${courseResult.rows[0].id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedTicExtensionResults = await pool.query(ticExtensionSeed);
+        assert.equal(repeatedTicExtensionResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "La extensión TIC debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -292,7 +322,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 24, sourced: 24 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 27, sourced: 27 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );

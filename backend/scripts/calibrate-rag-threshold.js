@@ -29,6 +29,16 @@ const cases = [
     { expected: null, query: "Quiero comprar una computadora portátil económica." },
     { expected: "Energía renovable", query: "¿Cómo se hace una instalación de paneles solares en casa?" }
 ];
+const academicQueries = [
+    "Quiero aprender a crear páginas web.",
+    "Necesito aprender Java para trabajar con Spring Boot.",
+    "Me interesa analizar datos y construir dashboards.",
+    "Quiero automatizar procesos empresariales.",
+    "¿Qué puedo estudiar para trabajar con inteligencia artificial?",
+    "Quiero aprender a proteger aplicaciones web.",
+    "Necesito desplegar aplicaciones usando contenedores."
+];
+const minSimilarity = Number(process.env.RAG_MIN_SIMILARITY || 0.535);
 
 async function getJson(url, options) {
     const response = await fetch(url, options);
@@ -57,6 +67,12 @@ function cosine(a, b) {
     return dot / (Math.sqrt(aa) * Math.sqrt(bb));
 }
 
+function courseEmbeddingText(course) {
+    // Keep this format byte-for-byte aligned with "Preparar textos de cursos"
+    // in automation/n8n/index-courses.json so calibration matches Qdrant.
+    return `Curso: ${course.name}\nDescripción: ${course.description}\nCategoría: ${course.category}\nNivel RutaIA: ${course.level}\nClasificación INTECAP: ${course.intecapCareerType ?? "No indicada"}\nDuración: ${course.durationHours} horas`;
+}
+
 async function main() {
     const catalog = await getJson(catalogUrl);
     const courses = Array.isArray(catalog.data) ? catalog.data : catalog.data?.items;
@@ -66,7 +82,7 @@ async function main() {
     for (const course of courses) {
         courseVectors.push({
             course,
-            vector: await embed(`${course.name}. ${course.description || ""}. Categoría: ${course.category || ""}`)
+            vector: await embed(courseEmbeddingText(course))
         });
     }
     const records = [];
@@ -91,6 +107,28 @@ async function main() {
     const positives = records.filter((r) => r.expected && r.thirdRelevantScore !== null);
     const maxOodThird = Math.max(...negatives.map((r) => r.thirdScore));
     const minRelevantThird = positives.length ? Math.min(...positives.map((r) => r.thirdRelevantScore)) : null;
+    const academicCoverage = [];
+    for (const query of academicQueries) {
+        const queryVector = await embed(query);
+        const scored = courseVectors.map(({ course, vector }) => {
+            if (vector.length !== queryVector.length) throw new Error("La dimensión de embedding del curso y consulta no coincide");
+            return { course, score: cosine(queryVector, vector) };
+        }).sort((a, b) => b.score - a.score);
+        const topFive = scored.slice(0, 5).map(({ course, score }) => ({
+            courseId: course.id,
+            name: course.name,
+            category: course.category,
+            score: Number(score.toFixed(4)),
+            aboveThreshold: score >= minSimilarity
+        }));
+        academicCoverage.push({
+            query,
+            aboveThresholdCount: topFive.filter((result) => result.aboveThreshold).length,
+            minimumSourcesForAnswer: 3,
+            sufficientSources: topFive.filter((result) => result.aboveThreshold).length >= 3,
+            topFive
+        });
+    }
     console.log(JSON.stringify({
         model, dimension: courseVectors[0].vector.length, courseCount: courses.length,
         caseCount: records.length, coveredPositiveCategories: positives.map((r) => r.expected),
@@ -98,6 +136,8 @@ async function main() {
         maxOutOfDomainThirdScore: Number(maxOodThird.toFixed(4)),
         minPositiveThirdRelevantScore: minRelevantThird === null ? null : Number(minRelevantThird.toFixed(4)),
         candidateThresholdWindow: minRelevantThird === null ? null : [Number(maxOodThird.toFixed(4)), Number(minRelevantThird.toFixed(4))],
+        configuredMinimumSimilarity: minSimilarity,
+        academicQueryCoverage: academicCoverage,
         cases: records
     }, null, 2));
 }
