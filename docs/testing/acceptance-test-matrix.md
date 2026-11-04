@@ -39,7 +39,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 
 ## Cobertura actual de las consultas académicas obligatorias
 
-Se generó cada embedding con `bge-m3` local; el calibrador replica el texto exacto del indexador y mide el catálogo activo de 32 cursos. Con 22 casos etiquetados, el máximo tercer score fuera de dominio fue `0.4569` y el mínimo tercer score positivo relevante `0.5740`, ventana `0.4569–0.5740`; se conserva el umbral `.535`. Las siete preguntas académicas obtuvieron 1, 1, 2, 1, 3, 1 y 0 resultados sobre el umbral. Solo IA tiene tres fuentes; la E2E actual confirmó que la respuesta puede completarse con esas tres ofertas. La medición de similitud no invoca al LLM ni sustituye la E2E.
+Se generó cada embedding con `bge-m3` local; el calibrador replica el texto exacto del indexador y mide el catálogo activo de 32 cursos. En la ejecución fresca del 4 nov, con 22 casos etiquetados, el máximo tercer score fuera de dominio fue `0.5292` y el mínimo tercer score positivo relevante `0.5396`, ventana `0.5292–0.5396`; se conserva `.535`, con margen estrecho. Esta ejecución supersede las cifras históricas `0.4569–0.5740`, cuya diferencia no puede atribuirse sin el snapshot usado entonces. Las siete preguntas académicas obtuvieron 1, 1, 2, 1, 3, 1 y 0 resultados sobre el umbral. Solo IA tiene tres fuentes; la E2E actual confirmó que la respuesta puede completarse con esas tres ofertas. La medición de similitud no invoca al LLM ni sustituye la E2E.
 
 | Pregunta | Mejor resultado Qdrant | Sobre umbral | Resultado que tendría el flujo |
 | --- | --- | ---: | --- |
