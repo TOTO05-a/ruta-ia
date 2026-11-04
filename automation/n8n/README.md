@@ -56,4 +56,6 @@ Abre cada nodo, selecciona la credencial existente en **Credential to connect wi
 4. Ejecuta manualmente la indexación; confirma puntos y dimensión en Qdrant.
 5. Activa el workflow de consulta y prueba caminos `Respondida`, `Sin resultados` y `Error` con preguntas sintéticas. Luego integra las calificaciones e historial desde la UI/API.
 
+Después de aplicar nuevos seeds, abre `RutaIA - Indexar cursos activos` en el editor y usa **Execute Workflow** para sincronizar sin activar el disparador periódico. Confirma que el conteo de puntos en `rutaia_courses` coincide con los cursos activos. `n8n execute --id` no puede ejecutar este flujo porque sus disparadores son Manual/Schedule y esa CLI requiere un nodo Execute Workflow Trigger; no agregues un trigger solo para una sincronización puntual.
+
 La validación estática `cd backend; npm run validate:workflows` comprueba el JSON, conexiones y sintaxis de Code nodes; `npm test` cubre la lógica aislada con contexto sintético. Ambas son necesarias, pero ninguna reemplaza una ejecución n8n→Ollama→Qdrant→PostgreSQL de extremo a extremo.

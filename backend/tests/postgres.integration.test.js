@@ -313,6 +313,37 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(repeatedTicExtensionResults.reduce((total, result) => total + result.rowCount, 0), 0,
             "La extensión TIC debe ser idempotente");
 
+        const industrialAutomationSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/008_intecap_automatizacion_industrial.sql"),
+            "utf8"
+        );
+        const industrialAutomationResults = await pool.query(industrialAutomationSeed);
+        assert.equal(industrialAutomationResults.reduce((total, result) => total + result.rowCount, 0), 2);
+        const expectedIndustrialCourses = [
+            ["Automatización Industrial", 360],
+            ["Instrumentista Industrial", 540]
+        ];
+        for (const [name, durationHours] of expectedIndustrialCourses) {
+            const result = await pool.query(
+                `SELECT id, description, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(result.rowCount, 1, `${name}: curso institucional presente una sola vez`);
+            assert.equal(Number(result.rows[0].durationHours), durationHours, `${name}: horas publicadas`);
+            assert.equal(result.rows[0].sourceUrl,
+                "https://www.intecap.edu.gt/centros/centrobajaverapaz/industrial/",
+                `${name}: fuente oficial enlazada`);
+            if (name === "Instrumentista Industrial") {
+                assert.match(result.rows[0].description, /300 horas de práctica por separado/);
+            }
+            const publicCourse = await request(`/api/v1/courses/${result.rows[0].id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedIndustrialAutomationResults = await pool.query(industrialAutomationSeed);
+        assert.equal(repeatedIndustrialAutomationResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "El seed de automatización industrial debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -322,7 +353,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 27, sourced: 27 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 29, sourced: 29 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );
