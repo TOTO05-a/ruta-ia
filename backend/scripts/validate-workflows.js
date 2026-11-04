@@ -71,6 +71,12 @@ for (const file of files) {
             "la generación debe usar Ollama local");
         assert.ok(chatNode.parameters.jsonBody.includes("additionalProperties: false") && chatNode.parameters.jsonBody.includes("required: ['answer', 'summary', 'explanation']"),
             "Ollama debe recibir el schema JSON requerido para la respuesta");
+        assert.ok(chatNode.parameters.jsonBody.includes("num_predict: 192") &&
+            chatNode.parameters.jsonBody.includes("answer máximo 55 palabras, summary máximo 18 y explanation máximo 25"),
+            "la respuesta local debe mantenerse breve para evitar exceder el tiempo de generación y truncar JSON");
+        const filterNode = workflow.nodes.find((node) => node.name === "Filtrar fuentes activas y umbral");
+        assert.match(filterNode.parameters.jsCode, /sort\(\(a,b\) => b\.similarity-a\.similarity\)\.slice\(0,3\)/,
+            "el contexto RAG debe conservar solo las tres fuentes elegibles mejor clasificadas");
     }
 
     totalNodes += workflow.nodes.length;

@@ -45,7 +45,7 @@ Abre cada nodo, selecciona la credencial existente en **Credential to connect wi
 
 - Express envía consulta autenticada al webhook de n8n. El workflow consulta el catálogo, crea embedding local con Ollama y busca hasta 50 candidatos en Qdrant.
 - Vuelve a comprobar que las fuentes existan y estén activas en PostgreSQL; aplica el umbral y limita las fuentes a cinco.
-- Con tres o más fuentes llama Ollama con ese contexto y valida JSON con `answer`, `summary` y `explanation`; persiste resultado, fuentes y scores mediante callback autenticado de Express. Con menos de tres, devuelve `Sin resultados`.
+- Con tres o más fuentes llama Ollama con ese contexto, limita cada campo de salida y valida JSON con `answer`, `summary` y `explanation`; persiste resultado, fuentes y scores mediante callback autenticado de Express. Con menos de tres, devuelve `Sin resultados`. La generación usa un máximo de 192 tokens para mantener breves las respuestas y evitar agotar el tiempo límite local de Ollama.
 - Las ramas de error hacen callback con un código genérico y no muestran detalles internos al estudiante.
 
 ## Importar y comprobar

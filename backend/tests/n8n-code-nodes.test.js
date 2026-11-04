@@ -44,7 +44,8 @@ function hit(courseId, score) {
 test("workflow RAG limita la generación local a una salida JSON manejable", () => {
     const node = answerWorkflow.nodes.find((candidate) => candidate.name === "Generar respuesta grounded");
     assert.ok(node, "Existe el nodo de generación grounded");
-    assert.match(node.parameters.jsonBody, /options: \{ temperature: 0\.2, num_predict: 512 \}/);
+    assert.match(node.parameters.jsonBody, /options: \{ temperature: 0\.2, num_predict: 192 \}/);
+    assert.match(node.parameters.jsonBody, /answer máximo 55 palabras, summary máximo 18 y explanation máximo 25/);
 });
 
 test("workflow RAG prepara el embedding con la configuración enviada por Express", () => {
@@ -115,7 +116,7 @@ test("workflow RAG devuelve Sin resultados con menos de tres fuentes elegibles",
     assert.deepEqual(result, [{ queryId: "query-2", status: "Sin resultados" }]);
 });
 
-test("workflow RAG ordena por score y limita las fuentes a cinco", () => {
+test("workflow RAG ordena por score y conserva las tres fuentes más relevantes", () => {
     const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
     const courses = Array.from({ length: 7 }, (_, index) => course(`course-${index}`));
     const points = courses.map((item, index) => hit(item.id, 0.7 + index / 100));
@@ -124,8 +125,8 @@ test("workflow RAG ordena por score y limita las fuentes a cinco", () => {
         "Leer catálogo activo PostgreSQL": { data: { items: courses } }
     }, { result: { points } });
 
-    assert.equal(result[0].sources.length, 5);
-    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4", "course-3", "course-2"]);
+    assert.equal(result[0].sources.length, 3);
+    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4"]);
 });
 
 test("workflow RAG valida el JSON estructurado de Ollama antes del callback", () => {
