@@ -236,7 +236,7 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 ## 8. Problemas pendientes confirmados
 
 1. **Frontend:** la lógica tiene cobertura de API/sintaxis; falta revisar visualmente vistas autenticadas en escritorio y móvil. La herramienta de escritorio se detuvo antes de capturar porque no pudo validar la URL de Chrome; no se confirmó ningún ajuste faltante en Work settings.
-2. **Sincronía de cursos:** la reconciliación al desactivar/reactivar un curso se probó (20→19→20); la consulta contrasta Qdrant con cursos activos en PostgreSQL. La sincronización actual es 32/32; la idempotencia 32→32 aún requiere una segunda ejecución manual.
+2. **Sincronía de cursos:** la reconciliación al desactivar/reactivar un curso se probó (20→19→20); la consulta contrasta Qdrant con cursos activos en PostgreSQL. El usuario informó repetir la indexación con 32 cursos; el 4 nov los conteos se verificaron por API (32 activos/32 puntos). No se inspeccionó el ID de la ejecución de repetición en n8n.
 3. **Cobertura académica RAG:** IA obtuvo tres fuentes y pasó E2E; cocina termina `Sin resultados`. Web, Java/Spring, dashboards, automatización empresarial, seguridad y contenedores todavía no reúnen tres fuentes. Ampliar catálogo solo con cursos y duración respaldados por fuentes institucionales.
 4. **Contrato/API:** el validador confirma YAML, referencias, operaciones y presencia de schemas, no valida automáticamente cada payload HTTP real contra JSON Schema. Ampliar la validación si se requiere evidencia de contrato ejecutable.
 
@@ -244,7 +244,7 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
 2. Los workflows están sincronizados por sus IDs existentes. El de consulta está activo; el indexador está inactivo. Las credenciales están asignadas y Ollama usa `Authentication: None`. No reimportes los JSON.
-3. La indexación actual coincide 32/32; la idempotencia 32→32 requiere repetir manualmente el workflow. La reconciliación 20→19→20 ya se probó. Ampliar la cobertura académica con ofertas oficiales verificables sin relajar el filtro.
+3. La indexación actual coincide 32/32; la repetición 32→32 fue reportada por el usuario y se verificó el conteo final, aunque no el registro de ejecución n8n. La reconciliación 20→19→20 ya se probó. Ampliar la cobertura académica con ofertas oficiales verificables sin relajar el filtro.
 4. Completa revisión del frontend en escritorio y móvil, incluyendo registro, login, catálogo/filtros, consulta, fuentes, historial, perfil, calificación y logout/error.
 5. Si amplías el contrato OpenAPI, añade verificación de payloads HTTP contra schemas; luego vuelve a correr las validaciones. Revisa cambios y secretos y conserva commits localmente. No hacer push sin instrucción explícita.
 
