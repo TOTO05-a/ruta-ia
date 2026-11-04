@@ -67,8 +67,14 @@ for (const file of files) {
         const chatNode = workflow.nodes.find((node) => node.name === "Generar respuesta grounded");
         assert.equal(embedNode.parameters.url, "={{ $json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
             "la pregunta debe embebirse con Ollama local");
-        assert.equal(chatNode.parameters.url, "={{ $('Webhook autenticado de consulta').first().json.body.ollamaBaseUrl.replace(/\\/$/, '') + '/api/chat' }}",
-            "la generación debe usar Ollama local");
+        assert.equal(chatNode.parameters.url, "http://backend:3000/api/v1/internal/ai/chat",
+            "la generación debe pasar por el proxy autenticado de Express");
+        assert.equal(chatNode.parameters.authentication, "genericCredentialType",
+            "la generación debe autenticarse ante el proxy interno");
+        assert.equal(chatNode.credentials?.httpHeaderAuth?.id, "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+            "la generación debe reutilizar el secreto de sincronización guardado en n8n");
+        assert.ok(!chatNode.parameters.jsonBody.includes("model: $json.chatModel"),
+            "el modelo elegido debe quedar controlado por el backend y no por el workflow");
         assert.ok(chatNode.parameters.jsonBody.includes("additionalProperties: false") && chatNode.parameters.jsonBody.includes("required: ['answer', 'summary', 'explanation']"),
             "Ollama debe recibir el schema JSON requerido para la respuesta");
         assert.ok(chatNode.parameters.jsonBody.includes("num_predict: 192") &&

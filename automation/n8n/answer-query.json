@@ -124,11 +124,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Webhook autenticado de consulta').first().json.body.ollamaBaseUrl.replace(/\\/$/, '') + '/api/chat' }}",
+        "url": "http://backend:3000/api/v1/internal/ai/chat",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.chatModel, stream: false, format: { type: 'object', properties: { answer: { type: 'string' }, summary: { type: 'string' }, explanation: { type: 'string' } }, required: ['answer', 'summary', 'explanation'], additionalProperties: false }, options: { temperature: 0.2, num_predict: 192 }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Responde en español de forma concisa: answer máximo 55 palabras, summary máximo 18 y explanation máximo 25. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta, dilo claramente. Devuelve los tres campos solicitados en JSON.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
+        "jsonBody": "={{ { format: { type: 'object', properties: { answer: { type: 'string' }, summary: { type: 'string' }, explanation: { type: 'string' } }, required: ['answer', 'summary', 'explanation'], additionalProperties: false }, options: { temperature: 0.2, num_predict: 192 }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Responde en español de forma concisa: answer máximo 55 palabras, summary máximo 18 y explanation máximo 25. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta, dilo claramente. Devuelve los tres campos solicitados en JSON.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b5e4f091-38b5-49c0-afda-47edcaecb85e",
@@ -136,6 +138,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [2200, 240],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      },
       "onError": "continueErrorOutput"
     },
     {

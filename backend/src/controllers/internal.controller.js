@@ -1,5 +1,6 @@
 const repository = require("../repositories/course.repository");
 const env = require("../config/env");
+const aiChat = require("../integrations/ai/chat");
 
 async function activeCourses(req, res) {
     const items = await repository.listAllActive();
@@ -26,4 +27,9 @@ async function indexingConfig(req, res) {
     });
 }
 
-module.exports = { activeCourses, indexingConfig };
+async function generateChat(req, res) {
+    const result = await aiChat.generate(req.body);
+    return res.json(result);
+}
+
+module.exports = { activeCourses, indexingConfig, generateChat };

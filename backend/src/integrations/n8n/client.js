@@ -6,7 +6,8 @@ async function startQuery(payload) {
         error.code = "N8N_NOT_CONFIGURED";
         throw error;
     }
-    if (!env.OLLAMA_BASE_URL || !env.OLLAMA_EMBEDDING_MODEL || !env.OLLAMA_CHAT_MODEL || !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
+    if (!env.OLLAMA_BASE_URL || !env.OLLAMA_EMBEDDING_MODEL ||
+        (env.AI_PROVIDER === "ollama" && !env.OLLAMA_CHAT_MODEL) || !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
         const error = new Error("RAG_CONFIGURATION_MISSING");
         error.code = "RAG_CONFIGURATION_MISSING";
         throw error;

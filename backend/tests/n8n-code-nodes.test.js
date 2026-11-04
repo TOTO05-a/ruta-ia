@@ -41,9 +41,10 @@ function hit(courseId, score) {
     return { payload: { course_id: courseId }, score };
 }
 
-test("workflow RAG limita la generación local a una salida JSON manejable", () => {
+test("workflow RAG mantiene generación JSON breve a través del proxy de Express", () => {
     const node = answerWorkflow.nodes.find((candidate) => candidate.name === "Generar respuesta grounded");
     assert.ok(node, "Existe el nodo de generación grounded");
+    assert.equal(node.parameters.url, "http://backend:3000/api/v1/internal/ai/chat");
     assert.match(node.parameters.jsonBody, /options: \{ temperature: 0\.2, num_predict: 192 \}/);
     assert.match(node.parameters.jsonBody, /answer máximo 55 palabras, summary máximo 18 y explanation máximo 25/);
 });
@@ -129,7 +130,7 @@ test("workflow RAG ordena por score y conserva las tres fuentes más relevantes"
     assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4"]);
 });
 
-test("workflow RAG valida el JSON estructurado de Ollama antes del callback", () => {
+test("workflow RAG valida el JSON normalizado antes del callback", () => {
     const node = codeNode(answerWorkflow, "Validar callback de recomendación");
     const context = {
         "Webhook autenticado de consulta": { body: { queryId: "query-json" } },

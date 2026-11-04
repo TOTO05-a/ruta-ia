@@ -12,7 +12,7 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
 - Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Hay 32 registros curados en `database/seeds/001`–`009`; la comprobación actual confirmó 32 UUID coincidentes entre PostgreSQL y Qdrant. Las horas de los tres cursos IA del seed 009 se calcularon desde sus calendarios oficiales y están descritas como horas programadas. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
-- Ollama instalado localmente con los modelos `bge-m3` y `qwen2.5:3b` descargados, cuando se vaya a habilitar RAG. El modelo de embeddings debe usarse tanto para indexar como para consultar.
+- Ollama instalado localmente con `bge-m3` y, si se usa la opción local de generación, `qwen2.5:3b`. Las embeddings continúan locales con Ollama en ambas opciones.
 
 ## Instalación y configuración inicial
 
@@ -30,10 +30,23 @@ Edita `.env` localmente. No lo subas a Git ni compartas sus valores. Configura:
 - `APP_PORT`: puerto local de la aplicación; por defecto 3000. En esta PC se usa 3001 porque 3000 estaba ocupado.
 - `FRONTEND_URL`: origen del navegador; por ejemplo `http://localhost:3001` si cambias `APP_PORT` a 3001.
 - `OLLAMA_BASE_URL`: desde Docker Compose usa `http://host.docker.internal:11434` para alcanzar Ollama en Windows.
-- `OLLAMA_EMBEDDING_MODEL` y `OLLAMA_CHAT_MODEL`: por defecto `bge-m3` y `qwen2.5:3b`. Descárgalos en Ollama con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
+- `OLLAMA_EMBEDDING_MODEL` y `OLLAMA_CHAT_MODEL`: por defecto `bge-m3` y `qwen2.5:3b`. El modelo de embeddings siempre se necesita; descarga el de chat solo si `AI_PROVIDER=ollama`.
+- `AI_PROVIDER`: `ollama` (predeterminado, local) o `openrouter` (solo generación de texto; embeddings de Ollama y búsqueda en el Qdrant local).
+- `OPENROUTER_API_KEY` y `OPENROUTER_CHAT_MODEL`: para OpenRouter, guarda la clave únicamente en `.env` y deja el modelo como `openrouter/free` o elige un ID terminado en `:free`. El backend rechaza IDs que no sean gratuitos y mantiene la clave fuera de n8n, del navegador y del workflow. Para no usar una API externa, conserva `AI_PROVIDER=ollama`.
+- `AI_CHAT_TIMEOUT_MS`: tiempo máximo para la llamada al modelo, por defecto 120 segundos; es configurable hasta 180 segundos para hardware más lento.
 - `RAG_MIN_SIMILARITY`: entorno local `0.535`. La calibración BGE-M3 actual cubre 22 casos y mide los cursos con el mismo texto que usa n8n para indexarlos. La ventana global observada entre el mayor tercer score fuera de dominio y el menor tercer score positivo es `0.4569–0.5740`; `.535` queda dentro de esa ventana. Consulta `docs/testing/acceptance-test-matrix.md`; recalibra al cambiar catálogo o modelo.
 
-El proveedor implementado y verificado es Ollama local. Actualmente no hay selector OpenRouter ni basta con añadir una clave para habilitarlo; no uses un proveedor remoto para la presentación de mañana. Mantén la API key fuera de `.env.example`, del repositorio, de logs y de n8n execution data. Cualquier integración OpenRouter requiere implementación y revisión independiente de precio y tratamiento de datos antes de usarse.
+OpenRouter es una opción conectada al backend; no se necesita para arrancar el proyecto. La lista de modelos y límites gratuitos puede cambiar: el backend solo permite el alias `openrouter/free` o IDs que terminen en `:free`, pero esa restricción no garantiza disponibilidad permanente del proveedor. Los modelos gratuitos son limitados por cuota y los textos enviados salen de la computadora hacia el proveedor elegido; usa preguntas sintéticas durante pruebas. Las páginas de OpenRouter indican que `openrouter/free` enruta a modelos gratuitos y que las variantes gratuitas tienen límites de uso ([modelos gratuitos](https://openrouter.ai/collections/free-models/), [router gratuito](https://openrouter.ai/openrouter/free)). No introduzcas información privada en consultas remotas. Ollama local sigue siendo el valor predeterminado y funciona sin cuenta ni API key.
+
+Para usarlo, edita solo tu `.env` local (no compartas la clave ni la pegues en n8n):
+
+```dotenv
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=pega_aqui_tu_clave_local
+OPENROUTER_CHAT_MODEL=openrouter/free
+```
+
+Guarda el archivo y ejecuta `docker compose up -d backend` para que Compose actualice el entorno del contenedor. Para volver al proveedor local, cambia `AI_PROVIDER=ollama`; `bge-m3` sigue siendo necesario en ambos casos, mientras que `qwen2.5:3b` solo se necesita para generación local. Primero actualiza el nodo de n8n siguiendo la guía vinculada abajo.
 
 ### Instalación desde cero en Linux
 
@@ -96,9 +109,9 @@ docker compose down       # elimina contenedores/red, conserva datos
 
 No uses `docker compose down -v` para la presentación: borra los datos persistentes de PostgreSQL, Qdrant y n8n. Compose y la resolución `host-gateway` están configurados para Linux, pero en esta sesión solo se verificó el motor Linux de Docker Desktop en Windows; aún falta ejecutar el instructivo en un host Linux real.
 
-El flujo RAG usa Ollama local y no requiere una clave ni credenciales externas de modelos. El endpoint Ollama debe ser accesible desde los contenedores de Compose; revisa [automation/n8n/README.md](automation/n8n/README.md) para configurar y comprobarlo.
+El flujo RAG usa Ollama local por defecto. Con `AI_PROVIDER=openrouter`, n8n manda la generación al endpoint interno autenticado de Express, que aplica la opción de proveedor y añade la clave desde el entorno del backend; n8n no recibe la clave. La indexación y las embeddings de consulta siguen usando Ollama. Revisa [automation/n8n/README.md](automation/n8n/README.md) para importar el workflow actualizado.
 
-En Windows, antes de iniciar Compose, inicia Ollama Desktop o ejecuta `ollama serve` si el servidor no está activo. Descarga los modelos una vez con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
+En Windows, antes de iniciar Compose, inicia Ollama Desktop o ejecuta `ollama serve` si el servidor no está activo. Descarga `bge-m3` y, si usarás generación local, `qwen2.5:3b`.
 
 ## Iniciar con Docker Compose
 
@@ -163,7 +176,7 @@ No ejecutes `down -v` si necesitas conservar PostgreSQL, Qdrant o datos de n8n. 
 - La API usa `postgres` para la base relacional. `GET /health/ready` comprueba esa conexión.
 - Backend y n8n se conectan por DNS interno Compose (`backend:3000`, `n8n:5678`); n8n consulta cursos activos/configuración a Express, consulta Qdrant y envía resultados a callbacks autenticados.
 - Qdrant debe tener la colección `rutaia_courses` (o la indicada por `QDRANT_COLLECTION`) tras indexar cursos. `GET http://localhost:6333/collections` permite inspeccionarla.
-- n8n presenta su interfaz en `http://localhost:5678`. Los workflows ya están importados: no los reimportes mientras asignas credenciales. Asigna las credenciales internas como indica [la guía n8n](automation/n8n/README.md); configura los dos nodos Ollama con **Authentication: None**. Ejecuta primero la indexación manual y verifica el índice antes de activar consulta RAG.
+- n8n presenta su interfaz en `http://localhost:5678`. Al instalar el workflow actualizado, asigna la credencial de sincronización también al nodo `Generar respuesta grounded`; solo el nodo de embeddings llama Ollama directamente. La versión activa que ya está instalada no cambia al editar archivos locales: para usar el selector de proveedor, actualiza ese nodo en n8n según [la guía](automation/n8n/README.md). La versión actual conserva Ollama como predeterminado.
 - `docker compose ps` saludable y una respuesta sintética de callback **no** prueban el RAG completo. Consulta configuración y pruebas de los workflows en [automation/n8n/README.md](automation/n8n/README.md).
 
 ## Pruebas y validaciones
@@ -217,6 +230,8 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 
 **Actualización de esta continuación:** `009_intecap_inteligencia_artificial.sql` quedó aplicado y el workflow de indexación se ejecutó manualmente. PostgreSQL tiene 32 cursos activos y Qdrant 32 puntos; comparación completa confirmó 0 UUID faltantes y 0 sobrantes. Tras agregar `host.docker.internal:host-gateway` a backend y n8n, `docker compose config --quiet` pasó; ambos contenedores se recrearon y los cuatro servicios quedaron `healthy`. n8n alcanzó Ollama con HTTP 200 y detectó `bge-m3:latest` y `qwen2.5:3b`. La recalibración en backend con 32 cursos/22 casos mantuvo el umbral `0.535` (ventana negativa/positiva `0.4569–0.5740`); la consulta “¿Qué puedo estudiar para trabajar con inteligencia artificial?” obtuvo tres fuentes IA sobre el umbral. La E2E completa con esa consulta terminó `Respondida`, guardó tres fuentes oficiales, apareció en historial (200) y aceptó rating (201); la cuenta y registros sintéticos se limpiaron. Estas son pruebas de contenedores Linux sobre Docker Desktop en Windows, no de host Linux nativo.
 
+**Actualización de proveedor y estabilidad:** se agregó `AI_PROVIDER=ollama|openrouter`, proxy interno autenticado, restricción de modelos remotos a `openrouter/free` o sufijo `:free`, y se documentó cómo actualizar el nodo de generación ya guardado en n8n. El backend se reconstruyó y `/health/ready` respondió `ready`. `npm test` pasó 33 pruebas, ninguna falló y una integración optativa se omitió; OpenAPI pasó con 26 paths/29 operaciones/100 refs; workflows pasó con 28 nodos/33 conexiones/9 Code nodes; Compose validó. El proxy local produjo JSON real correcto con Ollama al limitar a 64 tokens; una generación de 192 tokens excedió 120 segundos. OpenRouter no se probó con una API key real, y el workflow n8n activo aún requiere actualizar manualmente su nodo. Esto tampoco es una prueba de host Linux nativo.
+
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
 - 3 nov: tras migrar RAG a Ollama, `docker compose up --build -d` reconstruyó solo backend y los cuatro servicios quedaron saludables. `n8n` recibió HTTP 200 en `host.docker.internal:11434/api/tags`; se instalaron localmente `bge-m3` y `qwen2.5:3b`.
 - 3 nov: se actualizaron por sus IDs existentes los dos workflows n8n (14 nodos cada uno); en aquella revisión ambos seguían inactivos y no había duplicados. Una prueba temporal leyó 20 cursos, creó embeddings BGE‑M3 de 1024 dimensiones, indexó/buscó en Qdrant, recibió cinco fuentes y obtuvo respuesta JSON válida de Qwen; borró la colección temporal. Después se activó el workflow de consulta para una prueba local; el de indexación sigue inactivo.
@@ -227,7 +242,7 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 - **E2E previa al seed 009:** registro (201), login (200), catálogo (29), consulta (202) y resultado `Respondida` en 65 s con tres fuentes INTECAP; historial (200) y calificación (201). La consulta de IA posterior al seed 009 terminó `Respondida` con las tres fichas oficiales IA, historial (200) y rating (201). En ambas pruebas se limpiaron cuentas y registros sintéticos. Cocina italiana había terminado `Sin resultados` en una E2E previa.
 - **Corrección de timeout RAG:** el workflow local generó hasta 768 tokens y la llamada al modelo agotó el límite HTTP de 300 s. Se acotó la salida a 192 tokens y a tres campos breves. La misma consulta E2E ahora termina en 65 s. Una prueba aislada de Qwen generó JSON válido con 49 tokens en 21 s. El filtro pasa al modelo solo las tres fuentes activas mejor clasificadas.
 - **Cobertura restante:** con 32 cursos, solo la consulta de IA alcanza tres fuentes dentro de las siete preguntas académicas medidas. Java/web, dashboards, seguridad, automatización empresarial y contenedores necesitan más cursos institucionales pertinentes. La oferta de automatización industrial no equivale a automatización administrativa. Tampoco se verificó una ficha Docker/Kubernetes con duración oficial. No reemplazar faltantes con cursos inventados ni equiparar automáticamente cloud/Linux a contenedores.
-- **Validación final de código:** `npm test` 26 aprobadas, 0 fallidas y 1 prueba de integración optativa omitida; `npm run test:integration` 1/1; `npm run validate:openapi` 25 paths/28 operaciones/95 refs; `npm run validate:workflows` 28 nodos/33 conexiones/9 Code nodes; `git diff --check` sin errores.
+- **Validación previa a esta revisión:** `npm test` 26 aprobadas, 0 fallidas y 1 prueba de integración optativa omitida; `npm run test:integration` 1/1; OpenAPI 25 paths/28 operaciones/95 refs; workflows 28 nodos/33 conexiones/9 Code nodes. El resultado actualizado de proveedor está descrito arriba.
 - El indexador n8n también se ejecutó con un curso institucional temporalmente inactivo: Qdrant pasó de 20 a 19 puntos y retiró ese vector; tras reactivar el curso y repetir el flujo volvió a 20 puntos y recuperó el UUID. Se verificó que el curso quedó activo.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.
 

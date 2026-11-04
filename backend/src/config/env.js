@@ -2,6 +2,10 @@ const { z } = require("zod");
 
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    AI_PROVIDER: z.enum(["ollama", "openrouter"]).default("ollama"),
+    OPENROUTER_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().optional()),
+    OPENROUTER_CHAT_MODEL: z.string().default("openrouter/free"),
+    AI_CHAT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180_000).default(120_000),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     DATABASE_URL: z.string().url().optional(),
     FRONTEND_URL: z.string().default("http://localhost:3000"),
@@ -26,6 +30,14 @@ const envSchema = z.object({
     QDRANT_URL: z.string().url().optional(),
     QDRANT_COLLECTION: z.string().min(1).default("rutaia_courses")
 }).superRefine((value, ctx) => {
+    if (value.AI_PROVIDER === "openrouter") {
+        if (!value.OPENROUTER_API_KEY) {
+            ctx.addIssue({ code: "custom", path: ["OPENROUTER_API_KEY"], message: "es obligatorio al seleccionar OpenRouter" });
+        }
+        if (value.OPENROUTER_CHAT_MODEL !== "openrouter/free" && !/:free$/.test(value.OPENROUTER_CHAT_MODEL)) {
+            ctx.addIssue({ code: "custom", path: ["OPENROUTER_CHAT_MODEL"], message: "solo se permiten openrouter/free o IDs terminados en :free para evitar modelos con costo" });
+        }
+    }
     if (value.NODE_ENV === "production" && !value.SESSION_SECRET) {
         ctx.addIssue({ code: "custom", path: ["SESSION_SECRET"], message: "es obligatorio en producción" });
     }
