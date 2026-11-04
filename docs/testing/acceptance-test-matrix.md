@@ -51,7 +51,7 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 | ID | Caso | Criterio de aceptación | Estado/evidencia |
 | --- | --- | --- | --- |
 | RAG-01 | Indexación | Modelo igual al usado en consulta; dimensión y números finitos; UUID estable; upsert repetido no duplica | **Workflow real probado:** indexó catálogo PostgreSQL de 20 cursos en `rutaia_courses` Cosine, dimensión 1024. Dos ejecuciones n8n finalizaron `success`; la colección mantuvo 20 puntos tras repetir, con UUIDs y payload de curso. Falta probar cambios de catálogo por desactivación/reactivación |
-| RAG-02 | Sincronía catálogo | Crear/editar/reactivar se refleja en índice; reconciliación retira puntos obsoletos y consulta filtra relacionalmente | Workflow de indexación real ejecutado; upsert/reconciliación terminó `success`. La segunda corrida mantuvo 20 UUIDs. Falta cambiar el estado de un curso y comprobar retiro/reactivación en n8n/Qdrant |
+| RAG-02 | Sincronía catálogo | Crear/editar/reactivar se refleja en índice; reconciliación retira puntos obsoletos y consulta filtra relacionalmente | **Probado con el indexador n8n real:** catálogo/índice inicial 20. Al desactivar temporalmente `Instalación de paneles fotovoltaicos`, el workflow terminó correctamente, Qdrant bajó a 19 puntos y el UUID del curso desapareció. Al reactivarlo y ejecutar otra vez, volvió a 20 puntos y reapareció el UUID. El curso quedó activo y se verificó el estado final |
 | RAG-03 | Desarrollo web | Recomendar solo cursos pertinentes, activos y explicados con su fuente | **Probado E2E con `0.535`:** gastronomía finalizó Respondida con cuatro fuentes oficiales, historial y rating HTTP 201; una corrida anterior agotó 300 s, la repetición pasó. Datos sintéticos limpiados |
 | RAG-04 | Java/Spring Boot como aprendizaje | Puede recomendar cursos del catálogo relacionados; no cambia el backend Express | Caso etiquetado e integral pendiente; la ruta sigue usando Express por excepción docente aprobada |
 | RAG-05 | Datos/dashboard | Recomendar cursos pertinentes del catálogo | Una consulta sintética de análisis de datos recuperó primero el curso de Excel y Power BI; no se ha validado la respuesta completa ni fuentes contra casos etiquetados |
@@ -76,14 +76,14 @@ Esta matriz convierte la rúbrica, los casos académicos y los criterios del Reg
 - Estudiante inexistente: `GET /api/v1/students/{id}` y su historial devuelven 404, incluso si solicita admin. Historial sin sesión devuelve 401; historial de un estudiante existente puede consultarse con rol admin. Probado en integración PostgreSQL.
 - Usuario intenta leer otra consulta y otro historial: ambos devuelven 404; probado con dos cuentas temporales.
 - Consulta válida: la API crea y persiste `Pendiente`; las pruebas E2E terminaron en `Respondida` (gastronomía) con cuatro fuentes y en `Sin resultados` (cocina italiana), y ambas transiciones quedaron verificadas en el flujo principal. La recomendación se calificó (201) y apareció en historial.
-- Desactivar curso después de indexarlo: el filtro relacional impide recomendar cursos inactivos; pendiente verificar además que el workflow de reconciliación retire/restaure su vector tras desactivar/reactivar.
+- Desactivar curso después de indexarlo: probado con `Instalación de paneles fotovoltaicos`; el filtro relacional impide recomendarlo mientras está inactivo y el indexador quitó su vector. Al reactivar, el indexador restauró el punto. Estado final verificado como activo, con 20 cursos/20 vectores.
 
 ## Puertas para marcar RutaIA como terminada
 
 1. Catálogo INTECAP de 20 cursos ya cargado y verificado por seeds/API; preservar fuentes y campos al resembrar en instalaciones limpias.
 2. Compose arrancado sin alterar contenedores ajenos; migraciones versionadas aplicadas.
 3. Los workflows están sincronizados; credenciales y autenticación None de Ollama verificadas. La consulta E2E ya cubrió Respondida/Sin resultados; la rama Error está cubierta mediante pruebas de callback/errores seguros, aunque queda pendiente demostrarla con una falla real controlada del workflow.
-4. Indexación de los 20 cursos en Qdrant comprobada dos veces; falta prueba explícita de desactivar/reactivar y reconciliación/filtro de activos.
+4. Indexación, idempotencia y desactivación/reactivación verificadas en Qdrant: 20 → 19 sin vector del curso → 20 con vector restaurado; DB quedó con el curso activo.
 5. Evaluar en flujo real el resto de preguntas académicas etiquetadas y medir grounding; documentar similitudes y fuentes devueltas por cada caso.
 6. Frontend revisado en navegador y probado contra backend integrado: pendiente inspección interactiva autenticada de escritorio/móvil y recorrido completo de UI.
 7. Revisar rúbrica criterio por criterio contra evidencias finales y preparar artefactos de presentación que falten.
