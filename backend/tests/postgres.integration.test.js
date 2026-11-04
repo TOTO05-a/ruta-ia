@@ -376,6 +376,37 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(repeatedArtificialIntelligenceResults.reduce((total, result) => total + result.rowCount, 0), 0,
             "El seed de IA debe ser idempotente");
 
+        const cybersecurityAndPowerBiSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/010_intecap_ciberseguridad_powerbi.sql"),
+            "utf8"
+        );
+        const cybersecurityAndPowerBiResults = await pool.query(cybersecurityAndPowerBiSeed);
+        assert.equal(cybersecurityAndPowerBiResults.reduce((total, result) => total + result.rowCount, 0), 3);
+        const expectedCybersecurityAndPowerBiCourses = [
+            ["Power BI intermedio", "Intermedio", 16, "https://cursos.intecap.edu.gt/detalle/45525/2026"],
+            ["Fortinet: FortiGate Administrator", "Avanzado", 68, "https://cursos.intecap.edu.gt/detalle/45419/2026"],
+            ["Fortinet: fundamentos de ciberseguridad, nube y firewalls de próxima generación", "Básico", 50,
+                "https://cursos.intecap.edu.gt/detalle/40370/2026"]
+        ];
+        for (const [name, level, durationHours, sourceUrl] of expectedCybersecurityAndPowerBiCourses) {
+            const result = await pool.query(
+                `SELECT id, description, level, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(result.rowCount, 1, `${name}: curso institucional presente una sola vez`);
+            assert.equal(result.rows[0].level, level);
+            assert.equal(Number(result.rows[0].durationHours), durationHours);
+            assert.equal(result.rows[0].sourceUrl, sourceUrl);
+            assert.match(result.rows[0].description,
+                /Duración (?:programada )?calculada (?:desde el calendario oficial|del horario publicado)/);
+            const publicCourse = await request(`/api/v1/courses/${result.rows[0].id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedCybersecurityAndPowerBiResults = await pool.query(cybersecurityAndPowerBiSeed);
+        assert.equal(repeatedCybersecurityAndPowerBiResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "El seed de ciberseguridad y Power BI debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -385,7 +416,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 32, sourced: 32 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 35, sourced: 35 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );
