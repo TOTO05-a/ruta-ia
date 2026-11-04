@@ -8,10 +8,10 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 
 ## Requisitos
 
-- Windows 10/11, PowerShell y Docker Desktop con motor Linux.
+- Windows 10/11 con Docker Desktop (motor Linux) o una distribución Linux compatible con Docker Engine y Docker Compose v2.
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
-- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Hay 29 registros curados con fichas oficiales en `database/seeds/001`–`008`; la comprobación actual confirmó sus 29 UUID en Qdrant. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
+- Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Hay 32 registros curados en `database/seeds/001`–`009`; la comprobación actual confirmó 32 UUID coincidentes entre PostgreSQL y Qdrant. Las horas de los tres cursos IA del seed 009 se calcularon desde sus calendarios oficiales y están descritas como horas programadas. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
 - Ollama instalado localmente con los modelos `bge-m3` y `qwen2.5:3b` descargados, cuando se vaya a habilitar RAG. El modelo de embeddings debe usarse tanto para indexar como para consultar.
 
 ## Instalación y configuración inicial
@@ -31,11 +31,74 @@ Edita `.env` localmente. No lo subas a Git ni compartas sus valores. Configura:
 - `FRONTEND_URL`: origen del navegador; por ejemplo `http://localhost:3001` si cambias `APP_PORT` a 3001.
 - `OLLAMA_BASE_URL`: desde Docker Compose usa `http://host.docker.internal:11434` para alcanzar Ollama en Windows.
 - `OLLAMA_EMBEDDING_MODEL` y `OLLAMA_CHAT_MODEL`: por defecto `bge-m3` y `qwen2.5:3b`. Descárgalos en Ollama con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
-- `RAG_MIN_SIMILARITY`: entorno local `0.535`. La calibración BGE-M3 cubre 21 consultas y mide los cursos con el mismo texto que usa n8n para indexarlos. La ventana observada es `0.5292–0.5396`; se conserva `0.535`. Las siete preguntas académicas obligatorias se prueban con el calibrador y sus puntajes también se contrastaron contra Qdrant. Consulta `docs/testing/acceptance-test-matrix.md`; recalibra al cambiar catálogo o modelo.
+- `RAG_MIN_SIMILARITY`: entorno local `0.535`. La calibración BGE-M3 actual cubre 22 casos y mide los cursos con el mismo texto que usa n8n para indexarlos. La ventana global observada entre el mayor tercer score fuera de dominio y el menor tercer score positivo es `0.4569–0.5740`; `.535` queda dentro de esa ventana. Consulta `docs/testing/acceptance-test-matrix.md`; recalibra al cambiar catálogo o modelo.
+
+El proveedor implementado y verificado es Ollama local. Actualmente no hay selector OpenRouter ni basta con añadir una clave para habilitarlo; no uses un proveedor remoto para la presentación de mañana. Mantén la API key fuera de `.env.example`, del repositorio, de logs y de n8n execution data. Cualquier integración OpenRouter requiere implementación y revisión independiente de precio y tratamiento de datos antes de usarse.
+
+### Instalación desde cero en Linux
+
+Requisitos: Git, Docker Engine con el complemento Docker Compose v2, `curl`, RAM y almacenamiento suficientes para Docker y ambos modelos. El tiempo de respuesta de Ollama depende del hardware disponible. Los comandos siguientes usan Bash desde la raíz del repositorio.
+
+```bash
+cp .env.example .env
+chmod 600 .env
+```
+
+Edita `.env` con los secretos locales requeridos arriba. Para una instalación nueva, reemplaza todos los `CHANGE_ME` y conserva la contraseña de PostgreSQL URL-safe. No compartas ni hagas commit de `.env`.
+
+Instala Ollama según sus [instrucciones oficiales para Linux](https://ollama.com/download/linux), descarga los modelos y configura el servicio para que los contenedores puedan alcanzarlo en el host:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+sudo systemctl edit ollama
+```
+
+En el editor de `systemctl edit`, agrega:
+
+```ini
+[Service]
+Environment="OLLAMA_HOST=0.0.0.0:11434"
+```
+
+Después:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart ollama
+ollama pull bge-m3
+ollama pull qwen2.5:3b
+curl http://127.0.0.1:11434/api/tags
+```
+
+Compose mapea `host.docker.internal` al host mediante `host-gateway` para backend y n8n. La API de Ollama se expone en la red local del host; no abras el puerto 11434 a Internet ni a redes públicas. Comprueba también la respuesta desde n8n después del arranque. Si `systemctl` no está disponible en la distribución, configura el servicio Ollama equivalente para escuchar en `0.0.0.0:11434` antes de iniciar Compose.
+
+Arranca y comprueba servicios:
+
+```bash
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+curl --fail http://localhost:${APP_PORT:-3000}/health/ready
+curl --fail http://localhost:6333/readyz
+curl --fail http://localhost:5678/healthz
+docker compose exec n8n node -e "fetch('http://host.docker.internal:11434/api/tags').then(async r=>{console.log(r.status);process.exit(r.ok?0:1)}).catch(e=>{console.error(e.message);process.exit(1)})"
+```
+
+Aplica, en orden, los nueve seeds listados abajo con `docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1 < database/seeds/001_intecap_programacion_plc.sql` y repite con los archivos 002–009. El usuario predeterminado es `rutaia_user`; si se personalizó `POSTGRES_USER`, úsalo en `psql`. En una instalación n8n nueva, importa los dos JSON de `automation/n8n/` y crea/asigna las tres credenciales descritas en `automation/n8n/README.md`. Luego abre `RutaIA - Indexar cursos activos` y pulsa **Execute Workflow** una vez; es una ejecución manual de indexación, no actives el workflow. Confirma que los UUID de cursos activos coincidan con Qdrant. Configura y activa el workflow de consulta para hacer recomendaciones. Abre `http://localhost:${APP_PORT:-3000}`.
+
+Para detener y reanudar en Linux:
+
+```bash
+docker compose stop       # conserva contenedores y volúmenes
+docker compose start
+docker compose down       # elimina contenedores/red, conserva datos
+```
+
+No uses `docker compose down -v` para la presentación: borra los datos persistentes de PostgreSQL, Qdrant y n8n. Compose y la resolución `host-gateway` están configurados para Linux, pero en esta sesión solo se verificó el motor Linux de Docker Desktop en Windows; aún falta ejecutar el instructivo en un host Linux real.
 
 El flujo RAG usa Ollama local y no requiere una clave ni credenciales externas de modelos. El endpoint Ollama debe ser accesible desde los contenedores de Compose; revisa [automation/n8n/README.md](automation/n8n/README.md) para configurar y comprobarlo.
 
-Antes de iniciar Compose, inicia Ollama Desktop o abre otra PowerShell y ejecuta `ollama serve` si el servidor no está activo. Descarga los modelos una vez con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
+En Windows, antes de iniciar Compose, inicia Ollama Desktop o ejecuta `ollama serve` si el servidor no está activo. Descarga los modelos una vez con `ollama pull bge-m3` y `ollama pull qwen2.5:3b`.
 
 ## Iniciar con Docker Compose
 
@@ -59,9 +122,10 @@ Get-Content -Raw .\database\seeds\005_intecap_source_urls.sql | docker compose e
 Get-Content -Raw .\database\seeds\006_intecap_tic_catalog_2027.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 Get-Content -Raw .\database\seeds\007_intecap_tic_catalog_extension.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 Get-Content -Raw .\database\seeds\008_intecap_automatizacion_industrial.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
+Get-Content -Raw .\database\seeds\009_intecap_inteligencia_artificial.sql | docker compose exec -T postgres psql -U rutaia_user -d rutaia -v ON_ERROR_STOP=1
 ```
 
-Los ocho seeds son idempotentes: cargan 29 ofertas INTECAP y asocian fichas oficiales a `courses.source_url`. Los seeds 006–008 suman nueve ofertas TIC/automatización con horas respaldadas en páginas y publicaciones oficiales. El seed 008 agrega Automatización Industrial (360 h) e Instrumentista Industrial (540 h de formación más 300 h de práctica separada), según la [especialidad industrial de INTECAP Baja Verapaz](https://www.intecap.edu.gt/centros/centrobajaverapaz/industrial/). Después de aplicar un seed, ejecuta el workflow de indexación de n8n y confirma que el conteo de Qdrant coincide con los cursos activos. Las tarjetas de catálogo y las fuentes RAG enlazan a la fuente institucional. `level` es la clasificación pedagógica de RutaIA según objetivos/requisitos, no un CTO/CTM/CTMS; `intecap_career_type` queda NULL si la ficha no publica esa clasificación. Algunas fichas publican horas de práctica por separado; `duration_hours` conserva las horas de formación y la práctica separada se explica en la descripción. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. RAG requiere además Qdrant, modelos Ollama, workflows sincronizados y calibración del umbral.
+Los nueve seeds son idempotentes. Los seeds 001–008 cargan 29 ofertas y el 009 agrega tres cursos oficiales de IA, para 32 en total. El seed 009 identifica explícitamente las horas como calculadas desde el horario de la ficha (no horas curriculares publicadas) y no descuenta pausas no especificadas; sus enlaces oficiales son 46350, 46366 y 47794. Los seeds 006–008 suman nueve ofertas TIC/automatización con horas respaldadas en páginas y publicaciones oficiales. El seed 008 agrega Automatización Industrial (360 h) e Instrumentista Industrial (540 h de formación más 300 h de práctica separada), según la [especialidad industrial de INTECAP Baja Verapaz](https://www.intecap.edu.gt/centros/centrobajaverapaz/industrial/). Después de aplicar un seed, ejecuta el workflow de indexación de n8n y confirma que el conteo de Qdrant coincide con los cursos activos. Las tarjetas de catálogo y las fuentes RAG enlazan a la fuente institucional. `level` es la clasificación pedagógica de RutaIA según objetivos/requisitos, no un CTO/CTM/CTMS; `intecap_career_type` queda NULL si la ficha no publica esa clasificación. Algunas fichas publican horas de práctica por separado; `duration_hours` conserva las horas de formación y la práctica separada se explica en la descripción. Si cambiaste `POSTGRES_USER` o el nombre de base, ajusta `-U`/`-d`. RAG requiere además Qdrant, modelos Ollama, workflows sincronizados y calibración del umbral.
 
 `courses.intecap_career_type` conserva por separado CTO/CTM/CTMS, si la ficha identifica una carrera de esa clasificación. En ofertas modulares como PLC queda `NULL`; `courses.level` continúa expresando dificultad didáctica de RutaIA.
 
@@ -75,6 +139,12 @@ Invoke-RestMethod http://localhost:6333/readyz
 ```
 
 En una instalación que use el puerto predeterminado, reemplaza `3001` por `3000`. `/health/ready` verifica la conexión PostgreSQL. `docker compose ps` debe mostrar los cuatro servicios de RutaIA como `healthy`. No uses `docker compose down -v`: borraría los volúmenes persistentes.
+
+### Direcciones de los servicios y páginas JSON
+
+- **Qdrant** expone una API REST en `http://localhost:6333`; abrir la raíz puede mostrar una respuesta JSON de bienvenida. El panel visual está en [`http://localhost:6333/dashboard`](http://localhost:6333/dashboard). El endpoint `/readyz` es una sonda JSON de disponibilidad, no una pantalla de gestión. La UI oficial de Qdrant local usa esa ruta `/dashboard` ([documentación Qdrant](https://qdrant.tech/documentation/web-ui/)).
+- **PostgreSQL** escucha en el puerto `5432` con el protocolo cliente/servidor propio de PostgreSQL, no HTTP. Por eso abrir `http://localhost:5432` en Chrome no muestra un sitio y puede indicar que la página no responde. Conéctate con `docker compose exec postgres psql -U rutaia_user -d rutaia` o usa un cliente como pgAdmin/DBeaver. El protocolo es TCP y el puerto 5432 es el valor convencional ([documentación PostgreSQL](https://www.postgresql.org/docs/current/protocol.html)).
+- **Aplicación** `http://localhost:3000` (o el `APP_PORT` de `.env`) y **n8n** `http://localhost:5678` sí son interfaces web.
 
 ## Detener y reanudar
 
@@ -111,7 +181,7 @@ npm run calibrate:rag
 
 La suite `npm test` incluye HTTP local y pruebas aisladas de lógica de Code nodes y cliente n8n, sin depender de PostgreSQL; la integración de DB aparece omitida en esa suite. La validación OpenAPI parsea YAML, coteja operaciones con routers/montajes de `src/app.js`, resuelve referencias locales y exige esquemas para cada respuesta exitosa 200/201/202. `npm run validate:workflows` revisa JSON, nombres/IDs, conexiones y sintaxis de Code nodes en ambos workflows. Las pruebas RAG usan fixtures/contexto simulado y no sustituyen ejecutar los workflows en n8n con Qdrant y proveedor reales.
 
-`npm run calibrate:rag` consulta el catálogo público local y embeddings Ollama (sin escribir en Qdrant ni enviar datos a proveedores externos). Con BGE-M3 (1024 dimensiones), la calibración del catálogo de 29 cursos confirmó 21 casos etiquetados, tercer score máximo OOD `0.5292` y tercer score positivo mínimo `0.5396`; se conserva `0.535`. Páginas web obtiene 1 fuente sobre el umbral; Java/Spring 1; dashboards 2; automatización empresarial 1 (Automatización Industrial, pertinente a procesos industriales y no equivalente a automatización administrativa); IA 0; seguridad web 1; contenedores 0. Ninguna de las siete preguntas obtiene las tres fuentes que exige el flujo.
+`npm run calibrate:rag` consulta el catálogo público local y embeddings Ollama (sin escribir en Qdrant ni enviar datos a proveedores externos). Última medición: BGE-M3 (1024 dimensiones), 32 cursos y 22 casos; tercer score máximo OOD `0.4569`, tercer score positivo mínimo `0.5740`; se conserva `0.535`. En las siete consultas académicas: páginas web 1 fuente sobre el umbral; Java/Spring 1; dashboards 2; automatización empresarial 1 (Automatización Industrial, pertinente a procesos industriales y no equivalente a automatización administrativa); IA 3; seguridad web 1; contenedores 0. IA puede responder con las tres ofertas añadidas; las otras áreas indicadas siguen terminando `Sin resultados` por insuficiencia de fuentes.
 
 La integración contra PostgreSQL real utiliza exclusivamente una base local llamada `rutaia_test`. Levanta Compose y configura en `.env` `RUTAIA_TEST_DATABASE_URL`, usando el usuario/contraseña local y la ruta `/rutaia_test`. Crea la base una sola vez si aún no existe:
 
@@ -145,17 +215,18 @@ El navegador habla solo con Express. Las mutaciones de sesión necesitan cookie 
 
 ## Estado comprobado en este entorno — 3 de noviembre de 2026
 
+**Actualización de esta continuación:** `009_intecap_inteligencia_artificial.sql` quedó aplicado y el workflow de indexación se ejecutó manualmente. PostgreSQL tiene 32 cursos activos y Qdrant 32 puntos; comparación completa confirmó 0 UUID faltantes y 0 sobrantes. Tras agregar `host.docker.internal:host-gateway` a backend y n8n, `docker compose config --quiet` pasó; ambos contenedores se recrearon y los cuatro servicios quedaron `healthy`. n8n alcanzó Ollama con HTTP 200 y detectó `bge-m3:latest` y `qwen2.5:3b`. La recalibración en backend con 32 cursos/22 casos mantuvo el umbral `0.535` (ventana negativa/positiva `0.4569–0.5740`); la consulta “¿Qué puedo estudiar para trabajar con inteligencia artificial?” obtuvo tres fuentes IA sobre el umbral. La E2E completa con esa consulta terminó `Respondida`, guardó tres fuentes oficiales, apareció en historial (200) y aceptó rating (201); la cuenta y registros sintéticos se limpiaron. Estas son pruebas de contenedores Linux sobre Docker Desktop en Windows, no de host Linux nativo.
+
 - `docker compose --env-file .env config --quiet` y `docker compose up --build -d` pasaron. Los cuatro servicios quedaron `healthy`. Desde los contenedores se comprobaron respuestas HTTP 200 backend→n8n, backend→Qdrant, n8n→backend y n8n→Qdrant; PostgreSQL está listo para la API.
 - 3 nov: tras migrar RAG a Ollama, `docker compose up --build -d` reconstruyó solo backend y los cuatro servicios quedaron saludables. `n8n` recibió HTTP 200 en `host.docker.internal:11434/api/tags`; se instalaron localmente `bge-m3` y `qwen2.5:3b`.
 - 3 nov: se actualizaron por sus IDs existentes los dos workflows n8n (14 nodos cada uno); en aquella revisión ambos seguían inactivos y no había duplicados. Una prueba temporal leyó 20 cursos, creó embeddings BGE‑M3 de 1024 dimensiones, indexó/buscó en Qdrant, recibió cinco fuentes y obtuvo respuesta JSON válida de Qwen; borró la colección temporal. Después se activó el workflow de consulta para una prueba local; el de indexación sigue inactivo.
 - Verificación previa a seed 008 (3 nov): `npm test` 26 aprobadas, 0 fallidas y 1 integración optativa omitida; `npm run test:integration` 1 aprobada contra `rutaia_test`, con seeds 001–007; OpenAPI validó 25 paths/28 operaciones/95 refs; workflows validó 28 nodos, 33 conexiones y 9 Code nodes.
 - Verificación anterior al seed 008: `npm test` 26 aprobadas, 0 fallidas y 1 integración optativa omitida; `npm run test:integration` 1 aprobada contra `rutaia_test`; OpenAPI validó 25 paths/28 operaciones/95 refs; workflows validó 28 nodos, 33 conexiones y 9 Code nodes.
-- Catálogo previo: 27 cursos INTECAP. El seed 008 añade Automatización Industrial (360 h) e Instrumentista Industrial (540 h formación + 300 h práctica) con fuente oficial; PostgreSQL ya aplicó el seed y la API ofrece 29 cursos. La integración prueba el seed 008, sus duraciones, URLs, detalles e idempotencia.
-- **Sincronización actual verificada:** el workflow de indexación se ejecutó desde n8n. PostgreSQL tiene 29 cursos activos y Qdrant `rutaia_courses` tiene 29 puntos únicos; se compararon todos los UUID y no hay cursos activos sin vector ni puntos huérfanos. El indexador permanece inactivo después de la ejecución manual; el workflow de consulta sigue activo.
-- La nueva calibración BGE-M3 (21 casos, 29 cursos, umbral `0.535`) da cobertura obligatoria: páginas web 1; Java/Spring 1; dashboards 2; automatización empresarial 1; IA 0; seguridad web 1; contenedores 0. La fuente añadida de automatización es industrial y no satisface por sí sola la consulta empresarial. Ninguna pregunta alcanza tres fuentes relevantes.
-- **E2E actual posterior al seed 008 y al ajuste RAG:** registro (201), login (200), catálogo (29), consulta (202) y resultado `Respondida` en 65 s con las tres fuentes INTECAP mejor clasificadas; historial (200), calificación (201), pregunta vacía rechazada y estudiante inexistente (404). La cuenta, sesión, consulta, recomendación, fuentes y rating temporales se limpiaron. Cocina italiana había terminado `Sin resultados` en una E2E previa.
+- **Snapshot anterior (antes del seed 009):** el catálogo tenía 29 cursos y 29 puntos sincronizados. Se conserva como evidencia histórica de esa ejecución; el estado actual aparece en la actualización de esta sección.
+- La recalibración actual BGE-M3 (22 casos, 32 cursos, umbral `0.535`) mantiene el filtro de pertinencia. IA obtiene 3 fuentes oficiales; páginas web 1; Java/Spring 1; dashboards 2; automatización empresarial 1 fuente industrial (no equivalente a automatización administrativa); seguridad web 1; contenedores 0. No se bajó el umbral para forzar resultados.
+- **E2E previa al seed 009:** registro (201), login (200), catálogo (29), consulta (202) y resultado `Respondida` en 65 s con tres fuentes INTECAP; historial (200) y calificación (201). La consulta de IA posterior al seed 009 terminó `Respondida` con las tres fichas oficiales IA, historial (200) y rating (201). En ambas pruebas se limpiaron cuentas y registros sintéticos. Cocina italiana había terminado `Sin resultados` en una E2E previa.
 - **Corrección de timeout RAG:** el workflow local generó hasta 768 tokens y la llamada al modelo agotó el límite HTTP de 300 s. Se acotó la salida a 192 tokens y a tres campos breves. La misma consulta E2E ahora termina en 65 s. Una prueba aislada de Qwen generó JSON válido con 49 tokens en 21 s. El filtro pasa al modelo solo las tres fuentes activas mejor clasificadas.
-- **Cobertura restante:** la calibración con 29 cursos no llega a tres fuentes relevantes para varias consultas académicas. INTECAP publica [Inteligencia Artificial y Ciencia de Datos](https://cursos.intecap.edu.gt/detalle/45808/2026) asincrónico sin total de horas y [Herramientas de IA para la productividad](https://cursos.intecap.edu.gt/detalle/4362/2027) con duración de tres meses, pero sin total de horas; el modelo actual exige `duration_hours`, así que no se asignaron horas estimadas. Tampoco se verificó una ficha INTECAP de Docker/Kubernetes con horas. No reemplazar estos datos faltantes con cursos inventados ni equiparar automáticamente cloud/Linux a contenedores.
+- **Cobertura restante:** con 32 cursos, solo la consulta de IA alcanza tres fuentes dentro de las siete preguntas académicas medidas. Java/web, dashboards, seguridad, automatización empresarial y contenedores necesitan más cursos institucionales pertinentes. La oferta de automatización industrial no equivale a automatización administrativa. Tampoco se verificó una ficha Docker/Kubernetes con duración oficial. No reemplazar faltantes con cursos inventados ni equiparar automáticamente cloud/Linux a contenedores.
 - **Validación final de código:** `npm test` 26 aprobadas, 0 fallidas y 1 prueba de integración optativa omitida; `npm run test:integration` 1/1; `npm run validate:openapi` 25 paths/28 operaciones/95 refs; `npm run validate:workflows` 28 nodos/33 conexiones/9 Code nodes; `git diff --check` sin errores.
 - El indexador n8n también se ejecutó con un curso institucional temporalmente inactivo: Qdrant pasó de 20 a 19 puntos y retiró ese vector; tras reactivar el curso y repetir el flujo volvió a 20 puntos y recuperó el UUID. Se verificó que el curso quedó activo.
 - El flujo Git local usa `trabajo` (desarrollo), `dev` (integración) y `main` (estable). Revisa `git status` antes de continuar.

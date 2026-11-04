@@ -4,7 +4,7 @@ Los archivos `index-courses.json` y `answer-query.json` son workflows exportable
 
 ## Requisitos y conexión Ollama
 
-1. Instala/inicia Ollama en Windows y descarga los modelos configurados en `.env`:
+1. Instala/inicia Ollama en Windows o Linux y descarga los modelos configurados en `.env`:
 
    ```powershell
    ollama pull bge-m3
@@ -12,7 +12,7 @@ Los archivos `index-courses.json` y `answer-query.json` son workflows exportable
    ollama list
    ```
 
-2. Ollama debe escuchar en una interfaz alcanzable desde Docker Desktop, porque dentro de los contenedores `localhost` es el propio contenedor. La configuración por defecto es `OLLAMA_BASE_URL=http://host.docker.internal:11434`. Comprueba la API local con `Invoke-RestMethod http://localhost:11434/api/tags` y desde el contenedor n8n con una petición a `http://host.docker.internal:11434/api/tags`. Si la segunda falla, corrige el enlace de red de Ollama/Windows Firewall según tu configuración; no publiques el puerto en Internet.
+2. Ollama debe escuchar en una interfaz alcanzable desde Docker, porque dentro de los contenedores `localhost` es el propio contenedor. La configuración por defecto es `OLLAMA_BASE_URL=http://host.docker.internal:11434`. `docker-compose.yml` asigna `host.docker.internal:host-gateway` tanto a backend como a n8n; Docker resuelve `host-gateway` hacia el host en Linux. En Linux configura el servicio Ollama con `OLLAMA_HOST=0.0.0.0:11434`; en Windows usa Ollama Desktop y las reglas locales necesarias. Comprueba la API local con `curl http://127.0.0.1:11434/api/tags` (o `Invoke-RestMethod` en PowerShell) y desde el contenedor n8n con una petición a `http://host.docker.internal:11434/api/tags`. No publiques el puerto en Internet.
 3. Configura `OLLAMA_EMBEDDING_MODEL=bge-m3` y `OLLAMA_CHAT_MODEL=qwen2.5:3b`. Usa el mismo modelo de embeddings para indexar y consultar. Qdrant creará la colección con la dimensión devuelta por Ollama; cambiar modelo puede requerir una colección nueva y reindexación.
 4. Calibra `RAG_MIN_SIMILARITY` con preguntas pertinentes y fuera de dominio antes de activar la consulta.
 

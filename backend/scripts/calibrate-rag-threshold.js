@@ -15,6 +15,7 @@ const cases = [
     { expected: "Informática", query: "Me interesa informática, computación y soporte técnico." },
     { expected: "PLC", query: "Quiero aprender automatización industrial y programación de PLC." },
     { expected: "Datos", query: "Busco cursos de análisis de datos y bases de datos." },
+    { expected: "Inteligencia artificial", query: "¿Qué puedo estudiar para trabajar con inteligencia artificial?" },
     { expected: null, query: "¿Qué requisitos necesito para estudiar medicina en la universidad?" },
     { expected: null, query: "Recomiéndame una receta de pastel de chocolate." },
     { expected: null, query: "Quiero aprender cocina italiana." },
