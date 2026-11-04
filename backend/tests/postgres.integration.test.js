@@ -344,6 +344,38 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(repeatedIndustrialAutomationResults.reduce((total, result) => total + result.rowCount, 0), 0,
             "El seed de automatización industrial debe ser idempotente");
 
+        const artificialIntelligenceSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/009_intecap_inteligencia_artificial.sql"),
+            "utf8"
+        );
+        const artificialIntelligenceResults = await pool.query(artificialIntelligenceSeed);
+        assert.equal(artificialIntelligenceResults.reduce((total, result) => total + result.rowCount, 0), 3);
+        const expectedArtificialIntelligenceCourses = [
+            ["Interacción y multimedia con IA", "Básico", 51,
+                "https://cursos.intecap.edu.gt/detalle/46350/2026"],
+            ["Administración de Excel intermedio con herramientas de IA", "Intermedio", 30,
+                "https://cursos.intecap.edu.gt/detalle/46366/2026"],
+            ["Inteligencia artificial aplicada a marketing digital para emprendedores", "Básico", 22.5,
+                "https://cursos.intecap.edu.gt/detalle/47794/2026"]
+        ];
+        for (const [name, level, durationHours, sourceUrl] of expectedArtificialIntelligenceCourses) {
+            const result = await pool.query(
+                `SELECT id, description, level, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(result.rowCount, 1, `${name}: curso institucional presente una sola vez`);
+            assert.equal(result.rows[0].level, level, `${name}: nivel publicado`);
+            assert.equal(Number(result.rows[0].durationHours), durationHours, `${name}: horas calculadas del horario oficial`);
+            assert.equal(result.rows[0].sourceUrl, sourceUrl, `${name}: ficha oficial enlazada`);
+            assert.match(result.rows[0].description, /Duración calculada desde el calendario oficial/);
+            const publicCourse = await request(`/api/v1/courses/${result.rows[0].id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedArtificialIntelligenceResults = await pool.query(artificialIntelligenceSeed);
+        assert.equal(repeatedArtificialIntelligenceResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "El seed de IA debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -353,7 +385,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 29, sourced: 29 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 32, sourced: 32 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );
