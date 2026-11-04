@@ -19,6 +19,8 @@ Estado comprobado en este entorno (3 de noviembre de 2026, hora de Guatemala):
 
 En la revisión posterior se añadió un proxy interno autenticado de generación, se reconstruyó solo el servicio backend y `/health/ready` respondió `ready`. `npm test`: 33 pasan, cero fallan, una integración optativa omitida. OpenAPI: 26 paths, 29 operaciones y 100 refs; workflows: 28 nodos, 33 conexiones y 9 Code nodes válidos; `docker compose config --quiet` pasó. Una llamada real sintética al proxy local devolvió JSON correcto con 64 tokens; el intento de generación con 192 tokens excedió 120 s. No se hizo una llamada real a OpenRouter. La instancia n8n activa sigue usando la versión anterior hasta que se actualice su nodo de generación con los pasos de `automation/n8n/README.md`.
 
+**4 de noviembre — verificación Linux y seguridad:** el mismo `npm ci`, `npm test`, `npm run validate:openapi`, `npm run validate:workflows` y `npm audit` pasó en un contenedor temporal Node `v22.23.4`; el repositorio se montó como solo lectura y las instalaciones fueron a tmpfs. `npm audit` quedó en 0 vulnerabilidades tras actualizar `js-yaml` y retirar `nodemon`; el script de desarrollo ahora usa `node --watch`. La imagen de producción se reconstruyó: `npm ci --omit=dev` reportó 0 vulnerabilidades, el backend se reemplazó y `/health/ready` respondió `ready`. Son pruebas Linux en contenedores sobre Windows, no una instalación nativa en Linux.
+
 **Proveedor IA vigente:** el backend ahora selecciona `ollama` u `openrouter` desde `.env`; OpenRouter solo permite `openrouter/free` o un ID acabado en `:free`. La clave se entrega al backend por entorno y no se envía a n8n. Se ejecutaron pruebas unitarias con respuestas simuladas de ambos formatos, pero no una solicitud real a OpenRouter porque no se configuró una clave. El n8n activo del equipo todavía refleja la versión directa a Ollama; hay que actualizar el nodo de generación para que llame `/api/v1/internal/ai/chat` y asignarle la credencial de sincronización antes de cambiar a `AI_PROVIDER=openrouter`. Por tanto, el modo Ollama sigue siendo la ruta comprobada para la demostración actual.
 
 - **Snapshot anterior a seed 009:** Docker Compose mostraba backend, n8n, PostgreSQL y Qdrant saludables. PostgreSQL y la API tenían 29 cursos activos; Qdrant tenía 29 puntos con 29 UUID únicos, sin puntos faltantes ni huérfanos. El workflow de consulta estaba activo; el indexador permanecía inactivo tras su ejecución manual.
@@ -202,10 +204,11 @@ npm ci
 npm test
 npm run validate:openapi
 npm run validate:workflows
+npm audit
 npm run calibrate:rag
 ```
 
-En la verificación del 3 de noviembre de 2026, `npm test` pasó 26 pruebas, ninguna falló y una integración opcional se omitió; `npm run test:integration` pasó 1/1 contra la base local dedicada `rutaia_test`, incluyendo el rechazo de callback con una fuente inactiva. Para Postgres/API real:
+En la última verificación, `npm test` pasó 33 pruebas, ninguna falló y una integración opcional se omitió; `npm run test:integration` pasó 1/1 contra `rutaia_test`; `npm audit` reportó 0 vulnerabilidades. La suite también pasó dentro del contenedor `node:22-alpine`. Para Postgres/API real:
 
 1. Inicia Compose.
 2. Configura `RUTAIA_TEST_DATABASE_URL` en `.env` con `localhost`/`127.0.0.1`, usuario local y nombre final `/rutaia_test`, por ejemplo `postgresql://rutaia_user:<contraseña-url-safe>@localhost:5432/rutaia_test`.
