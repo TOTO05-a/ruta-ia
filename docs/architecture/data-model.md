@@ -71,4 +71,4 @@ erDiagram
 - La puntuación se almacena sin asumir una escala universal. La integración debe validar que sea finita y documentar la métrica Qdrant seleccionada.
 - La calificación es única por recomendación, de acuerdo con la decisión aprobada.
 - La capa de servicio debe comprobar que la calificación y sus consultas pertenezcan al estudiante autenticado.
-- El catálogo contiene 20 cursos INTECAP respaldados por fichas oficiales y cargados con cuatro seeds idempotentes (`database/seeds/001`–`004`); PostgreSQL y las pruebas de búsqueda/detalle API verificaron el mínimo académico. No se inventan registros ni atributos sin respaldo de fuente.
+- El catálogo actual contiene 24 cursos INTECAP respaldados por fichas oficiales y cargados con seis seeds idempotentes (`database/seeds/001`–`006`). La prueba de integración verifica los 24 enlaces, la idempotencia del seed TIC y los cuatro registros del seed 006. No se inventan cursos ni atributos sin respaldo de fuente; la taxonomía pedagógica `level` de RutaIA se distingue de CTO/CTM/CTMS.

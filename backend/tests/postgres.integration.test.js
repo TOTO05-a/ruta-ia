@@ -253,6 +253,36 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const repeatedOfficialCatalogResults = await pool.query(officialCatalogSeed);
         assert.equal(repeatedOfficialCatalogResults.reduce((total, result) => total + result.rowCount, 0), 0, "El catálogo INTECAP completo debe ser idempotente");
 
+        const ticCatalogSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/006_intecap_tic_catalog_2027.sql"),
+            "utf8"
+        );
+        const ticCatalogSeedResults = await pool.query(ticCatalogSeed);
+        assert.equal(ticCatalogSeedResults.reduce((total, result) => total + result.rowCount, 0), 4);
+        const expectedTicCourses = [
+            ["Desarrollador de aplicaciones para Java y Android", "Intermedio", 730, "https://cursos.intecap.edu.gt/detalle/820/2027"],
+            ["Desarrollador Full Stack", "Avanzado", 650, "https://cursos.intecap.edu.gt/detalle/1351/2027"],
+            ["Administrador de ciberseguridad", "Avanzado", 560, "https://cursos.intecap.edu.gt/detalle/1054/2027"],
+            ["Desarrollo web con PHP y MySQL", "Básico", 300, "https://cursos.intecap.edu.gt/detalle/11415/2026"]
+        ];
+        for (const [name, level, durationHours, sourceUrl] of expectedTicCourses) {
+            const courseResult = await pool.query(
+                `SELECT id, name, level, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(courseResult.rowCount, 1, `${name}: curso TIC presente una sola vez`);
+            const course = courseResult.rows[0];
+            assert.equal(course.level, level, `${name}: nivel pedagógico de RutaIA`);
+            assert.equal(Number(course.durationHours), durationHours, `${name}: horas respaldadas por fuente`);
+            assert.equal(course.sourceUrl, sourceUrl, `${name}: ficha institucional enlazada`);
+            const publicCourse = await request(`/api/v1/courses/${course.id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedTicCatalogResults = await pool.query(ticCatalogSeed);
+        assert.equal(repeatedTicCatalogResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "El seed TIC debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -262,7 +292,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 20, sourced: 20 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 24, sourced: 24 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );
