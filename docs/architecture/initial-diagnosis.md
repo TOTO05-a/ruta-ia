@@ -29,7 +29,7 @@ Fecha: 2026-11-02
 - Qdrant está saludable, pero no contiene colecciones. No hay credenciales de n8n configuradas y las variables `OPENROUTER_EMBEDDING_MODEL`, `OPENROUTER_CHAT_MODEL` y `RAG_MIN_SIMILARITY` están vacías en el backend activo. No se han enviado cursos ni consultas a OpenRouter.
 - Ollama local tiene `qwen2.5:3b`. Una inferencia sintética devolvió JSON; n8n llega al servicio del host, pero el modelo responde 501 al endpoint de embeddings. Para una ruta completamente local haría falta un modelo de embeddings y autorización docente para sustituir OpenRouter; no se descargaron modelos.
 - La interfaz respondió desde `http://localhost:3001`, pero no se completó una inspección visual en navegador en esta sesión. La herramienta de control se detuvo porque no pudo determinar con confianza la URL actual.
-- Esta sesión no dispone de herramientas conectadas de Notion; no se actualizaron las páginas del espacio.
+- Plugin Management muestra Notion instalado y habilitado para el usuario, pero esta sesión no expone operaciones de búsqueda/lectura/escritura de páginas; no se actualizaron las páginas del espacio.
 
 ## Plan por ramas
 
@@ -72,7 +72,7 @@ El total es 71 puntos. Los porcentajes mostrados suman 100.2% por redondeo indiv
 - Docker Compose: los cuatro servicios RutaIA están saludables; health checks locales y comunicación backend→n8n/Qdrant verificados.
 - Workflows: JSON local validado. Los workflows en n8n están inactivos; el indexador importado está desactualizado (11 nodos frente a 14 en el archivo local).
 - Qdrant responde y está vacío; OpenRouter y RAG integral **no probados**. Faltan credencial, autorización de costo/privacidad, activar/ejecutar workflows y calibrar umbral.
-- Navegador y Notion: pendientes por falta de inspección visual verificable y de conexión Notion en esta sesión.
+- Navegador: pendiente por la comprobación de política que impide verificar la URL de Chrome. Notion: plugin instalado/habilitado, pero sin herramientas de páginas disponibles en esta sesión.
 
 ## Excepción académica aprobada
 
