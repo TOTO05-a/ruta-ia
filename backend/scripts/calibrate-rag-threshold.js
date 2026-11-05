@@ -3,9 +3,10 @@
 
 require("dotenv").config({ path: require("node:path").resolve(__dirname, "../../.env") });
 
-const baseUrl = (process.env.OLLAMA_BASE_URL || "http://localhost:11434").replace(/\/$/, "");
-const model = process.env.OLLAMA_EMBEDDING_MODEL || "bge-m3";
-const catalogUrl = process.env.CATALOG_URL || `http://localhost:${process.env.APP_PORT || 3000}/api/v1/courses?limit=100&page=1`;
+const apiBaseUrl = (process.env.RUTAIA_API_URL || `http://localhost:${process.env.APP_PORT || 3001}/api/v1`).replace(/\/$/, "");
+const model = process.env.OPENROUTER_EMBEDDING_MODEL || "nvidia/nemotron-3.5-embed-1b:free";
+const catalogUrl = process.env.CATALOG_URL || `${apiBaseUrl}/courses?limit=100&page=1`;
+const syncSecret = process.env.N8N_COURSE_SYNC_SECRET || "";
 const cases = [
     { expected: "Mecánica automotriz", query: "Busco aprender mecánica automotriz y reparación de motores de vehículos." },
     { expected: "Motocicletas", query: "Quiero estudiar mantenimiento y reparación de motocicletas." },
@@ -47,17 +48,49 @@ async function getJson(url, options) {
     return response.json();
 }
 
-async function embed(text) {
-    const result = await getJson(`${baseUrl}/api/embed`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ model, input: text })
-    });
-    const vector = result.embeddings?.[0];
-    if (!Array.isArray(vector) || vector.length === 0 || vector.some((n) => !Number.isFinite(n))) {
-        throw new Error("Ollama devolvió un embedding inválido");
+async function embed(inputs) {
+    if (!syncSecret) throw new Error("N8N_COURSE_SYNC_SECRET es obligatorio para solicitar embeddings al proxy local");
+    if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 100) {
+        throw new Error("El lote de calibración debe contener entre 1 y 100 textos");
     }
-    return vector;
+    const vectors = [];
+    for (let start = 0; start < inputs.length; start += 2) {
+        const batch = inputs.slice(start, start + 2);
+        let response;
+        let responseErrorCode;
+        for (let attempt = 0; attempt < 3; attempt += 1) {
+            response = await fetch(`${apiBaseUrl}/internal/ai/embeddings`, {
+                method: "POST",
+                headers: { "content-type": "application/json", "x-n8n-sync-secret": syncSecret },
+                body: JSON.stringify({ input: batch }),
+                signal: AbortSignal.timeout(Number(process.env.AI_CALIBRATION_TIMEOUT_MS || 900_000))
+            });
+            if (response.ok) break;
+            try {
+                responseErrorCode = (await response.json())?.error?.code;
+            } catch {
+                responseErrorCode = undefined;
+            }
+            if (responseErrorCode === "AI_PROVIDER_RATE_LIMITED" || response.status !== 502 || attempt === 2) break;
+            await new Promise((resolve) => setTimeout(resolve, 1500 * (2 ** attempt)));
+        }
+        if (!response.ok) {
+            if (responseErrorCode === "AI_PROVIDER_RATE_LIMITED") {
+                throw new Error("OpenRouter limitó las solicitudes; espera antes de reintentar la calibración");
+            }
+            throw new Error(`El proxy de embeddings respondió HTTP ${response.status} para las entradas ${start + 1}-${start + batch.length}`);
+        }
+        const result = await response.json();
+        const batchVectors = result.embeddings;
+        const dimension = batchVectors?.[0]?.length;
+        if (!Array.isArray(batchVectors) || batchVectors.length !== batch.length ||
+            !Number.isInteger(dimension) || dimension < 1 ||
+            batchVectors.some((vector) => !Array.isArray(vector) || vector.length !== dimension || vector.some((n) => !Number.isFinite(n)))) {
+            throw new Error(`OpenRouter devolvió embeddings inválidos para las entradas ${start + 1}-${start + batch.length}`);
+        }
+        vectors.push(...batchVectors);
+    }
+    return vectors;
 }
 
 function cosine(a, b) {
@@ -79,16 +112,19 @@ async function main() {
     const courses = Array.isArray(catalog.data) ? catalog.data : catalog.data?.items;
     if (!Array.isArray(courses)) throw new Error("La API de catálogo no devolvió data.items");
     if (courses.length < 3) throw new Error(`Se requieren al menos 3 cursos activos; catálogo recibido: ${courses.length}`);
-    const courseVectors = [];
-    for (const course of courses) {
-        courseVectors.push({
-            course,
-            vector: await embed(courseEmbeddingText(course))
-        });
-    }
+    const inputs = [
+        ...courses.map(courseEmbeddingText),
+        ...cases.map(({ query }) => query),
+        ...academicQueries
+    ];
+    if (inputs.length > 100) throw new Error("El catálogo y los casos exceden el límite de 100 textos por lote");
+    const embeddings = await embed(inputs);
+    if (embeddings.length !== inputs.length) throw new Error("La cantidad de embeddings devuelta no coincide con las entradas");
+    const courseVectors = courses.map((course, index) => ({ course, vector: embeddings[index] }));
+    let embeddingIndex = courses.length;
     const records = [];
     for (const testCase of cases) {
-        const queryVector = await embed(testCase.query);
+        const queryVector = embeddings[embeddingIndex++];
         const scored = courseVectors.map(({ course, vector }) => {
             if (vector.length !== queryVector.length) throw new Error("La dimensión de embedding del curso y consulta no coincide");
             return { course, score: cosine(queryVector, vector) };
@@ -110,7 +146,7 @@ async function main() {
     const minRelevantThird = positives.length ? Math.min(...positives.map((r) => r.thirdRelevantScore)) : null;
     const academicCoverage = [];
     for (const query of academicQueries) {
-        const queryVector = await embed(query);
+        const queryVector = embeddings[embeddingIndex++];
         const scored = courseVectors.map(({ course, vector }) => {
             if (vector.length !== queryVector.length) throw new Error("La dimensión de embedding del curso y consulta no coincide");
             return { course, score: cosine(queryVector, vector) };

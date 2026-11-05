@@ -38,7 +38,7 @@ app.use(cors({
     },
     credentials: true,
     methods: ["GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "X-CSRF-Token"]
+    allowedHeaders: ["Content-Type", "X-CSRF-Token", "Authorization"]
 }));
 
 app.use(express.json({ limit: "1mb", strict: true }));

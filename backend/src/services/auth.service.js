@@ -2,6 +2,8 @@ const pool = require("../db/pool");
 const ApiError = require("../utils/api-error");
 const { hashPassword, verifyPassword } = require("./password.service");
 const { createSession, destroySession } = require("./session.service");
+const jwtService = require("./jwt.service");
+const env = require("../config/env");
 
 function publicStudent(row) {
     return {
@@ -40,7 +42,7 @@ async function register(input) {
     }
 }
 
-async function login(input) {
+async function authenticate(input) {
     const result = await pool.query(
         `SELECT id, full_name, email, experience_level, interest_area, role, password_hash
          FROM students WHERE lower(email) = lower($1)`,
@@ -49,8 +51,23 @@ async function login(input) {
     const student = result.rows[0];
     const valid = student && await verifyPassword(input.password, student.password_hash);
     if (!valid) throw new ApiError(401, "INVALID_CREDENTIALS", "Correo o contraseña incorrectos");
+    return student;
+}
+
+async function login(input) {
+    const student = await authenticate(input);
     const session = await createSession(student.id);
     return { student: publicStudent(student), session };
+}
+
+async function loginWithJwt(input) {
+    if (!env.JWT_SECRET) {
+        throw new ApiError(503, "JWT_NOT_CONFIGURED", "La autenticación Bearer no está configurada");
+    }
+    const student = await authenticate(input);
+    const session = await createSession(student.id);
+    const access = jwtService.sign(student, session);
+    return { student: publicStudent(student), ...access };
 }
 
 async function logout(sessionId) {
@@ -63,4 +80,4 @@ async function getCsrf(sessionId) {
     return result.rows[0].csrf_token;
 }
 
-module.exports = { register, login, logout, getCsrf };
+module.exports = { register, login, loginWithJwt, logout, getCsrf };

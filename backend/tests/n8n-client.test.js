@@ -10,11 +10,10 @@ const configuredValues = {
     N8N_CALLBACK_URL: "http://backend.test/api/v1/internal/n8n/results",
     N8N_CALLBACK_SECRET: "y".repeat(32),
     N8N_TIMEOUT_MS: 1000,
-    OLLAMA_BASE_URL: "http://ollama.test:11434",
-    OLLAMA_EMBEDDING_MODEL: "test-embedding-model",
-    OLLAMA_CHAT_MODEL: "test-chat-model",
+    OPENROUTER_API_KEY: "test-openrouter-key",
+    OPENROUTER_EMBEDDING_MODEL: "nvidia/nemotron-3.5-embed-1b:free",
     QDRANT_URL: "http://qdrant.test:6333",
-    QDRANT_COLLECTION: "rutaia-test-courses",
+    QDRANT_COLLECTION: "rutaia_courses_openrouter_2048",
     RAG_MIN_SIMILARITY: 0.7
 };
 
@@ -44,6 +43,14 @@ test("n8n client rejects missing RAG configuration before making a request", asy
     let called = false;
     await withMockedFetch(async () => { called = true; }, { RAG_MIN_SIMILARITY: undefined }, async () => {
         await assert.rejects(startQuery({ queryId: "query-2" }), (error) => error.code === "RAG_CONFIGURATION_MISSING");
+    });
+    assert.equal(called, false);
+});
+
+test("n8n client rejects the legacy Qdrant collection before making a request", async () => {
+    let called = false;
+    await withMockedFetch(async () => { called = true; }, { QDRANT_COLLECTION: "rutaia_courses" }, async () => {
+        await assert.rejects(startQuery({ queryId: "query-legacy" }), (error) => error.code === "RAG_COLLECTION_NOT_CONFIGURED");
     });
     assert.equal(called, false);
 });
@@ -96,9 +103,7 @@ test("n8n client sends the authenticated minimal query and server-owned configur
         queryId: "query-6",
         question: "Pregunta de prueba",
         callbackUrl: configuredValues.N8N_CALLBACK_URL,
-        embeddingModel: configuredValues.OLLAMA_EMBEDDING_MODEL,
-        chatModel: configuredValues.OLLAMA_CHAT_MODEL,
-        ollamaBaseUrl: configuredValues.OLLAMA_BASE_URL,
+        embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
         minSimilarity: configuredValues.RAG_MIN_SIMILARITY,
         qdrantCollection: configuredValues.QDRANT_COLLECTION,
         qdrantUrl: configuredValues.QDRANT_URL

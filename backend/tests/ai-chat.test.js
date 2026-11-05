@@ -5,10 +5,10 @@ const env = require("../src/config/env");
 const { generate } = require("../src/integrations/ai/chat");
 
 async function withProvider(overrides, fetchMock, action) {
-    const keys = ["AI_PROVIDER", "AI_CHAT_TIMEOUT_MS", "OPENROUTER_API_KEY", "OPENROUTER_CHAT_MODEL", "OLLAMA_BASE_URL", "OLLAMA_CHAT_MODEL"];
+    const keys = ["AI_PROVIDER", "AI_CHAT_TIMEOUT_MS", "OPENROUTER_API_KEY", "OPENROUTER_CHAT_MODEL"];
     const prior = Object.fromEntries(keys.map((key) => [key, env[key]]));
     const priorFetch = global.fetch;
-    Object.assign(env, { AI_CHAT_TIMEOUT_MS: 1000, OLLAMA_BASE_URL: "http://ollama.test:11434", OLLAMA_CHAT_MODEL: "qwen2.5:3b", ...overrides });
+    Object.assign(env, { AI_CHAT_TIMEOUT_MS: 1000, ...overrides });
     global.fetch = fetchMock;
     try { return await action(); }
     finally { Object.assign(env, prior); global.fetch = priorFetch; }
@@ -41,26 +41,9 @@ test("OpenRouter usa solo el router gratuito y normaliza la respuesta sin expone
     assert.equal(Object.hasOwn(body, "api_key"), false);
 });
 
-test("Ollama permanece como alternativa local con el formato nativo", async () => {
-    let request;
-    await withProvider({ AI_PROVIDER: "ollama" }, async (url, options) => {
-        request = { url, options };
-        return { ok: true, json: async () => ({ message: { content: JSON.stringify({ answer: "Respuesta local", summary: "Resumen", explanation: "Fuentes" }) } }) };
-    }, async () => {
-        const result = await generate(validBody);
-        assert.match(result.message.content, /Respuesta local/);
-    });
-
-    assert.equal(request.url, "http://ollama.test:11434/api/chat");
-    const body = JSON.parse(request.options.body);
-    assert.equal(body.model, "qwen2.5:3b");
-    assert.deepEqual(body.format, validBody.format);
-    assert.equal(request.options.headers.authorization, undefined);
-});
-
 test("proxy rechaza mensajes malformados antes de contactar al proveedor", async () => {
     let called = false;
-    await withProvider({ AI_PROVIDER: "ollama" }, async () => { called = true; }, async () => {
+    await withProvider({ AI_PROVIDER: "openrouter" }, async () => { called = true; }, async () => {
         await assert.rejects(generate({ messages: [{ role: "developer", content: "x" }] }), (error) => error.code === "AI_CHAT_INVALID_INPUT");
     });
     assert.equal(called, false);
@@ -74,5 +57,26 @@ test("el error del proveedor no filtra detalles ni claves", async () => {
                 assert.doesNotMatch(error.message, /secret-test-key|denied/);
                 return true;
             });
+        });
+});
+
+test("proxy identifica el límite de solicitudes sin exponer el cuerpo del proveedor", async () => {
+    await withProvider({ OPENROUTER_API_KEY: "secret-test-key", OPENROUTER_CHAT_MODEL: "openrouter/free" },
+        async () => ({ ok: false, status: 429, text: async () => "daily free request limit exceeded" }), async () => {
+            await assert.rejects(generate(validBody), (error) => {
+                assert.equal(error.code, "AI_PROVIDER_RATE_LIMITED");
+                assert.doesNotMatch(error.message, /daily free request limit|secret-test-key/);
+                return true;
+            });
+        });
+});
+
+test("proxy rechaza respuestas JSON estructuradas truncadas por límite de salida", async () => {
+    await withProvider({ OPENROUTER_API_KEY: "secret-test-key", OPENROUTER_CHAT_MODEL: "openrouter/free" },
+        async () => ({
+            ok: true,
+            json: async () => ({ choices: [{ finish_reason: "length", message: { content: "{\"answer\":" } }] })
+        }), async () => {
+            await assert.rejects(generate(validBody), (error) => error.code === "AI_PROVIDER_INCOMPLETE_RESPONSE");
         });
 });

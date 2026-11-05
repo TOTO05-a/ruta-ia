@@ -10,14 +10,6 @@
       "position": [240, 280]
     },
     {
-      "parameters": {"rule": {"interval": [{"field": "hours", "hoursInterval": 6}]}},
-      "id": "90b50739-e421-4baa-a251-2613fdbe0e59",
-      "name": "Reconciliar cada 6 horas",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [240, 460]
-    },
-    {
       "parameters": {
         "url": "http://backend:3000/api/v1/internal/rag/index-config",
         "authentication": "genericCredentialType",
@@ -52,7 +44,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nreturn [{ json: { ...config, courses, emptyCatalog: courses.length === 0, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
+        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nif (config.collection !== 'rutaia_courses_openrouter_2048') throw new Error('Destino de indexación no permitido');\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nreturn [{ json: { ...config, courses, emptyCatalog: courses.length === 0, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
       },
       "id": "a84a0764-7316-4d2b-9a93-2d123416fe51",
       "name": "Preparar textos de cursos",
@@ -105,23 +97,28 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $('Preparar textos de cursos').first().json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
+        "url": "={{ $('Preparar textos de cursos').first().json.embeddingUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.embeddingModel, input: $json.inputs } }}",
+        "jsonBody": "={{ { input: $json.inputs } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "d79b216c-b4c8-4899-ad32-31786fd409fb",
-      "name": "Generar embeddings Ollama",
+      "name": "Generar embeddings vía Express",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1220, 360]
+      "position": [1220, 360],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      }
     },
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.embeddings ?? result.body?.embeddings;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('Ollama devolvió una cantidad de embeddings inválida');\nconst dimension = vectors[0]?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nfor (const vector of vectors) if (!Array.isArray(vector) || vector.length !== dimension || vector.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: vectors[i], payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
+        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.embeddings ?? result.body?.embeddings;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('OpenRouter devolvió una cantidad de embeddings inválida');\nconst dimension = vectors[0]?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nif (cfg.collection !== 'rutaia_courses_openrouter_2048' || dimension !== 2048) throw new Error('Destino de indexación no permitido');\nfor (const vector of vectors) if (!Array.isArray(vector) || vector.length !== dimension || vector.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: vectors[i], payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
       },
       "id": "5e9f4b52-ec46-4a5b-9be5-4227c50fc291",
       "name": "Validar y preparar puntos Qdrant",
@@ -191,13 +188,12 @@
   ],
   "connections": {
     "Ejecución manual": {"main": [[{"node": "Leer configuración de indexación", "type": "main", "index": 0}]]},
-    "Reconciliar cada 6 horas": {"main": [[{"node": "Leer configuración de indexación", "type": "main", "index": 0}]]},
     "Leer configuración de indexación": {"main": [[{"node": "Leer catálogo PostgreSQL", "type": "main", "index": 0}]]},
     "Leer catálogo PostgreSQL": {"main": [[{"node": "Preparar textos de cursos", "type": "main", "index": 0}]]},
     "Preparar textos de cursos": {"main": [[{"node": "¿Hay cursos activos para indexar?", "type": "main", "index": 0}]]},
-    "¿Hay cursos activos para indexar?": {"main": [[{"node": "Generar embeddings Ollama", "type": "main", "index": 0}], [{"node": "Eliminar vectores de catálogo vacío", "type": "main", "index": 0}]]},
+    "¿Hay cursos activos para indexar?": {"main": [[{"node": "Generar embeddings vía Express", "type": "main", "index": 0}], [{"node": "Eliminar vectores de catálogo vacío", "type": "main", "index": 0}]]},
     "Eliminar vectores de catálogo vacío": {"main": [[{"node": "Validar limpieza del catálogo vacío", "type": "main", "index": 0}]]},
-    "Generar embeddings Ollama": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
+    "Generar embeddings vía Express": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
     "Validar y preparar puntos Qdrant": {"main": [[{"node": "Crear colección si falta", "type": "main", "index": 0}]]},
     "Crear colección si falta": {"main": [[{"node": "Upsert idempotente en Qdrant", "type": "main", "index": 0}]]},
     "Upsert idempotente en Qdrant": {"main": [[{"node": "Preparar filtro de vectores obsoletos", "type": "main", "index": 0}]]},

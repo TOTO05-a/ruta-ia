@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const workflowDirectory = path.resolve(__dirname, "../../automation/n8n");
-const files = ["index-courses.json", "answer-query.json"];
+const files = ["index-courses.json", "sync-course-events.json", "answer-query.json"];
 let totalNodes = 0;
 let totalEdges = 0;
 let totalCodeNodes = 0;
@@ -49,24 +49,54 @@ for (const file of files) {
 
     if (file === "index-courses.json") {
         const routes = workflow.connections ?? {};
+        assert.ok(!workflow.nodes.some((node) => node.name === "Reconciliar cada 6 horas"),
+            "la indexación completa debe quedar manual y no re-embebir el catálogo periódicamente");
         assert.equal(routes["Preparar textos de cursos"]?.main?.[0]?.[0]?.node, "¿Hay cursos activos para indexar?",
             "el catálogo debe decidir la ruta de indexación o limpieza");
-        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[0]?.[0]?.node, "Generar embeddings Ollama",
+        assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[0]?.[0]?.node, "Generar embeddings vía Express",
             "los cursos disponibles deben continuar por embeddings");
-        const embeddings = workflow.nodes.find((node) => node.name === "Generar embeddings Ollama");
-        assert.equal(embeddings.parameters.url, "={{ $('Preparar textos de cursos').first().json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
-            "la indexación debe usar Ollama local");
+        const embeddings = workflow.nodes.find((node) => node.name === "Generar embeddings vía Express");
+        assert.equal(embeddings.parameters.url, "={{ $('Preparar textos de cursos').first().json.embeddingUrl }}",
+            "la indexación debe usar el proxy autenticado de Express");
+        assert.equal(embeddings.parameters.authentication, "genericCredentialType",
+            "las solicitudes de embeddings deben autenticarse ante Express");
+        assert.equal(embeddings.credentials?.httpHeaderAuth?.id, "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+            "los embeddings deben reutilizar el secreto de sincronización guardado en n8n");
         assert.equal(routes["¿Hay cursos activos para indexar?"]?.main?.[1]?.[0]?.node, "Eliminar vectores de catálogo vacío",
             "un catálogo vacío debe limpiar Qdrant sin llamar al proveedor de embeddings");
         assert.equal(routes["Eliminar vectores de catálogo vacío"]?.main?.[0]?.[0]?.node, "Validar limpieza del catálogo vacío",
             "la limpieza debe distinguir colección inexistente de fallos reales de Qdrant");
     }
 
+    if (file === "sync-course-events.json") {
+        const nodes = new Map(workflow.nodes.map((node) => [node.name, node]));
+        assert.ok(nodes.has("Revisar eventos pendientes"), "la sincronización incremental requiere su trigger opcional");
+        assert.ok(nodes.has("Reclamar un evento") && nodes.has("Confirmar evento procesado"),
+            "la sincronización incremental debe reclamar y confirmar eventos durables");
+        assert.ok(!JSON.stringify(workflow).includes("rutaia_courses\""),
+            "la automatización no debe apuntar a la colección antigua de 1024 dimensiones");
+        assert.ok(JSON.stringify(workflow).includes("rutaia_courses_openrouter_2048"),
+            "la automatización debe limitar su destino a la colección nueva");
+        assert.equal(nodes.get("Leer configuración incremental").parameters.url,
+            "http://backend:3000/api/v1/internal/courses/sync-config");
+        assert.equal(nodes.get("Reclamar un evento").parameters.url,
+            "http://backend:3000/api/v1/internal/courses/sync-events/claim");
+        assert.equal(nodes.get("Confirmar evento procesado").parameters.url,
+            "http://backend:3000/api/v1/internal/courses/sync-events/ack");
+        assert.equal(nodes.get("Embebir curso cambiado").credentials?.httpHeaderAuth?.id,
+            "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+            "los embeddings incrementales deben usar la credencial de sincronización");
+    }
+
     if (file === "answer-query.json") {
         const embedNode = workflow.nodes.find((node) => node.name === "Crear embedding de pregunta");
         const chatNode = workflow.nodes.find((node) => node.name === "Generar respuesta grounded");
-        assert.equal(embedNode.parameters.url, "={{ $json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
-            "la pregunta debe embebirse con Ollama local");
+        assert.equal(embedNode.parameters.url, "={{ $json.embeddingUrl }}",
+            "la pregunta debe embebirse mediante el proxy autenticado de Express");
+        assert.equal(embedNode.parameters.authentication, "genericCredentialType",
+            "las solicitudes de embeddings deben autenticarse ante Express");
+        assert.equal(embedNode.credentials?.httpHeaderAuth?.id, "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+            "los embeddings deben reutilizar el secreto de sincronización guardado en n8n");
         assert.equal(chatNode.parameters.url, "http://backend:3000/api/v1/internal/ai/chat",
             "la generación debe pasar por el proxy autenticado de Express");
         assert.equal(chatNode.parameters.authentication, "genericCredentialType",
@@ -76,10 +106,18 @@ for (const file of files) {
         assert.ok(!chatNode.parameters.jsonBody.includes("model: $json.chatModel"),
             "el modelo elegido debe quedar controlado por el backend y no por el workflow");
         assert.ok(chatNode.parameters.jsonBody.includes("additionalProperties: false") && chatNode.parameters.jsonBody.includes("required: ['answer', 'summary', 'explanation']"),
-            "Ollama debe recibir el schema JSON requerido para la respuesta");
+            "la solicitud de generación debe conservar el schema JSON requerido para la respuesta");
         assert.ok(chatNode.parameters.jsonBody.includes("num_predict: 192") &&
             chatNode.parameters.jsonBody.includes("answer máximo 55 palabras, summary máximo 18 y explanation máximo 25"),
-            "la respuesta local debe mantenerse breve para evitar exceder el tiempo de generación y truncar JSON");
+            "la respuesta debe mantenerse breve para reducir timeouts y evitar truncar JSON");
+        assert.ok(chatNode.parameters.jsonBody.includes("Solo las fuentes Qdrant recuperadas para la consulta actual son autoritativas") &&
+            chatNode.parameters.jsonBody.includes("conversationHistory: $json.conversationHistory || []"),
+            "la memoria conversacional no debe sustituir las fuentes Qdrant actuales");
+        const qdrantNode = workflow.nodes.find((node) => node.name === "Buscar cinco cursos en Qdrant");
+        assert.ok(qdrantNode.parameters.jsonBody.includes("key: 'category'") &&
+            qdrantNode.parameters.jsonBody.includes("key: 'level'") &&
+            qdrantNode.parameters.jsonBody.includes(": {})"),
+            "los filtros opcionales de categoría y nivel deben omitirse cuando no se especifican");
         const filterNode = workflow.nodes.find((node) => node.name === "Filtrar fuentes activas y umbral");
         assert.match(filterNode.parameters.jsCode, /sort\(\(a,b\) => b\.similarity-a\.similarity\)\.slice\(0,3\)/,
             "el contexto RAG debe conservar solo las tres fuentes elegibles mejor clasificadas");

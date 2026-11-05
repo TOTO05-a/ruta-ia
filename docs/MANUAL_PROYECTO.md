@@ -1,13 +1,17 @@
 # Manual de continuidad de RutaIA
 
-**Actualizado:** 3 de noviembre de 2026
+**Actualizado:** 5 de noviembre de 2026
 **Propósito:** permitir que otra sesión retome el proyecto sin inferir estado, inventar cursos ni exponer secretos.
 
 ## 1. Qué es y qué está funcionando
 
 La presentación académica editable y el guion de sustentación están en [docs/entrega/RutaIA_presentacion_final.pptx](entrega/RutaIA_presentacion_final.pptx).
 
-RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegador usa la API Express; PostgreSQL conserva cuentas, cursos, consultas y calificaciones; n8n coordina la indexación y el flujo RAG; Qdrant recupera candidatos vectoriales; Ollama genera embeddings localmente y puede generar texto. El profesor autorizó la excepción de Node.js/Express. Si el estudiante configura `AI_PROVIDER=openrouter`, el backend puede usar un modelo gratuito para la generación de texto; esa alternativa envía la pregunta y contexto al proveedor externo. El predeterminado sigue siendo Ollama.
+RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegador usa la API Express; PostgreSQL conserva cuentas, cursos, consultas y calificaciones; n8n coordina la indexación y el flujo RAG; Qdrant recupera candidatos vectoriales; OpenRouter es el proveedor acordado para embeddings y generación mediante proxies del backend. El profesor autorizó la excepción de Node.js/Express.
+
+**Estado comprobado (5 nov 2026):** `npm test` pasa con 63 aprobadas, 0 fallidas y 1 integración opcional omitida; `npm run test:integration` pasa 1/1. OpenAPI valida 32 rutas, 35 operaciones y 120 referencias; los workflows versionados validan 40 nodos y 45 conexiones. OpenRouter confirmó previamente embeddings de 2048 dimensiones; una petición sintética al proxy el 5 nov devolvió 502 `AI_PROVIDER_RATE_LIMITED`, así que no se hicieron más llamadas. La generación completa y la calibración siguen sin validarse. Qdrant conserva `rutaia_courses` (1024 dimensiones, 38 puntos); la nueva `rutaia_courses_openrouter_2048` no existe y no se escribieron puntos. La consulta de cuota informó plan gratuito, uso cero y límite `-1/10s`, pero no mostró el saldo diario gratuito. La migración 005 figura aplicada en la base principal y en `rutaia_test`.
+
+**Implementaciones locales (5 nov):** se añadieron JWT Bearer opcional (sin cambiar la sesión-cookie predeterminada), filtros vectoriales por categoría/nivel, memoria limitada a las tres respuestas más recientes del mismo estudiante, exportación CSV protegida por propietario y sincronización incremental con outbox PostgreSQL. Las pruebas unitarias cubren estos contratos. La migración 005 figura aplicada en `rutaia` y `rutaia_test`; el workflow incremental y los workflows OpenRouter siguen inactivos y la instancia n8n no se modificó. Compose valida con JWT opcional. Consulta e indexación rechazan cualquier colección distinta de `rutaia_courses_openrouter_2048`.
 
 **Autoría:** desarrollo individual del estudiante propietario del proyecto. No atribuir tareas, decisiones ni contribuciones a integrantes inexistentes. El enunciado conserva sus requisitos, aunque describa equipos.
 
@@ -15,15 +19,15 @@ RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegado
 
 Estado comprobado en este entorno (3 de noviembre de 2026, hora de Guatemala):
 
-**Última actualización de continuidad (4 nov 2026):** Compose conserva los cuatro servicios RutaIA saludables y `http://localhost:3001/health/ready` responde `ready`. Se aplicó seed 011: hay 37 cursos cargados por seeds y 38 activos en la base local; 37 tienen fuente HTTPS y uno administrado desde la app no tiene `source_url`. Qdrant tiene 38 puntos con UUID idénticos, sin faltantes ni huérfanos. El indexador se ejecutó manualmente con CLI/broker 5680 y permanece inactivo, modalidad aprobada por el profesor. La calibración BGE-M3 (38 cursos, 22 casos) mantiene `.535` y la ventana `0.5292–0.5396`; la cobertura es 1,1,2,1,3,3,0. Las ofertas nuevas de Java y Power BI no elevaron Java/Spring ni dashboards al mínimo de tres fuentes; la respuesta de ciberseguridad general no prueba formación específica en seguridad web. `npm test` pasa 33/33 con una integración opcional omitida; `npm run test:integration` pasa 1/1; OpenAPI y workflows pasan. Se revisaron las vistas de Inicio, Catálogo, Historial, Perfil y las vistas admin; no hubo errores de consola durante esa navegación. Esto no sustituye una inspección móvil ni un E2E nuevo. Las pruebas Docker son contenedores Linux sobre Windows; falta validar Docker Engine en Linux nativo.
+**Estado local (4 nov):** Compose tiene los cuatro servicios saludables y `/health/ready`, n8n `/healthz` y Qdrant `/readyz` responden HTTP 200. PostgreSQL tiene 38 cursos activos (37 con fuente HTTPS), Qdrant conserva los 38 puntos de la colección BGE-M3 de 1024 dimensiones y no se modificó esa colección. La instancia n8n guardada tiene activa la consulta RAG con Ollama y el indexador inactivo con Ollama; los JSON versionados actuales usan OpenRouter, pero aún no se importaron a la instancia. El nuevo modelo devolvió inicialmente dimensión 2048; después sus solicitudes quedaron limitadas por HTTP 429. La calibración y una respuesta completa de chat siguen pendientes. Los contenedores Linux corren sobre Docker Desktop en Windows; no se ha probado un host Linux nativo en este ciclo.
 
-**Mínimos de datos del enunciado:** hay 3 cuentas con rol Estudiante de 10 y 2 calificaciones de 5; hay 10 preguntas distintas, 38 cursos activos (37 con fuente), 17 categorías y 3 niveles. El usuario confirmó que estudiantes y calificaciones deben ser reales; no crear cuentas ni ratings sintéticos para cumplir la rúbrica.
+**Mínimos de datos del PDF oficial:** hay 3 cuentas con rol Estudiante de 10 y 2 calificaciones de 5; hay 10 preguntas distintas, 38 cursos activos (37 con fuente), 17 categorías y 3 niveles. Faltan 7 estudiantes y 3 calificaciones de personas y valoraciones reales; no crear cuentas ni ratings sintéticos para cumplir la rúbrica.
 
 En la revisión posterior se añadió un proxy interno autenticado de generación, se reconstruyó solo el servicio backend y `/health/ready` respondió `ready`. `npm test`: 33 pasan, cero fallan, una integración optativa omitida. OpenAPI: 26 paths, 29 operaciones y 100 refs; workflows: 28 nodos, 33 conexiones y 9 Code nodes válidos; `docker compose config --quiet` pasó. Una llamada real sintética al proxy local devolvió JSON correcto con 64 tokens; el intento de generación con 192 tokens excedió 120 s. No se hizo una llamada real a OpenRouter. La instancia n8n activa sigue usando la versión anterior hasta que se actualice su nodo de generación con los pasos de `automation/n8n/README.md`.
 
 **4 de noviembre — verificación Linux y seguridad:** el mismo `npm ci`, `npm test`, `npm run validate:openapi`, `npm run validate:workflows` y `npm audit` pasó en un contenedor temporal Node `v22.23.4`; el repositorio se montó como solo lectura y las instalaciones fueron a tmpfs. `npm audit` quedó en 0 vulnerabilidades tras actualizar `js-yaml` y retirar `nodemon`; el script de desarrollo ahora usa `node --watch`. La imagen de producción se reconstruyó: `npm ci --omit=dev` reportó 0 vulnerabilidades, el backend se reemplazó y `/health/ready` respondió `ready`. Son pruebas Linux en contenedores sobre Windows, no una instalación nativa en Linux.
 
-**Proveedor IA vigente:** el backend ahora selecciona `ollama` u `openrouter` desde `.env`; OpenRouter solo permite `openrouter/free` o un ID acabado en `:free`. La clave se entrega al backend por entorno y no se envía a n8n. Se ejecutaron pruebas unitarias con respuestas simuladas de ambos formatos, pero no una solicitud real a OpenRouter porque no se configuró una clave. El n8n activo del equipo todavía refleja la versión directa a Ollama; hay que actualizar el nodo de generación para que llame `/api/v1/internal/ai/chat` y asignarle la credencial de sincronización antes de cambiar a `AI_PROVIDER=openrouter`. Por tanto, el modo Ollama sigue siendo la ruta comprobada para la demostración actual.
+**Estado de n8n:** la exportación de solo lectura de la instancia confirmó dos workflows de 14 nodos: `RutaIA - Responder consultas RAG` está activa y usa Ollama/Qdrant; `RutaIA - Indexar cursos activos` está inactiva y usa Ollama/Qdrant. Los JSON versionados están configurados para los proxies OpenRouter, pero aún no se importaron en la instancia. La evidencia histórica con Ollama no valida la migración actual.
 
 - **Snapshot anterior a seed 009:** Docker Compose mostraba backend, n8n, PostgreSQL y Qdrant saludables. PostgreSQL y la API tenían 29 cursos activos; Qdrant tenía 29 puntos con 29 UUID únicos, sin puntos faltantes ni huérfanos. El workflow de consulta estaba activo; el indexador permanecía inactivo tras su ejecución manual.
 - **RAG E2E vigente:** la consulta de IA terminó `Respondida` con tres cursos INTECAP oficiales; historial 200 y calificación 201. Se verificaron pregunta vacía (400) e historial de UUID inexistente (404) en pruebas anteriores. Los datos sintéticos se eliminaron al final.
@@ -67,16 +71,14 @@ flowchart LR
   API -->|webhook autenticado| N8N[n8n workflows]
   N8N -->|cursos activos y callback con secretos| API
   N8N -->|vectores y búsqueda| Q[(Qdrant)]
-  N8N -->|HTTP local /api/embed| O[Ollama en el host]
-  N8N -->|HTTP interno autenticado| API
-  API -->|AI_PROVIDER=ollama| O
-  API -->|AI_PROVIDER=openrouter| OR[OpenRouter gratuito]
+  N8N -->|embeddings y chat por endpoints autenticados| API
+  API -->|modelos gratuitos| OR[OpenRouter]
   N8N -->|metadatos propios| PG
 ```
 
 En Compose, los nombres DNS internos son `backend`, `postgres`, `qdrant` y `n8n`. El browser usa los puertos publicados en loopback: aplicación `APP_PORT` (3001 en esta PC; 3000 por defecto), PostgreSQL 5432, Qdrant 6333 y n8n 5678. No se deben publicar esos puertos directamente a Internet.
 
-El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar. Cookie de sesión HttpOnly más `X-CSRF-Token` protegen las mutaciones. El browser no llama Qdrant, n8n ni Ollama directamente. n8n usa `host.docker.internal:11434` para alcanzar Ollama; la generación pasa por Express para mantener la clave externa fuera de n8n. Verifica que los servicios requeridos sean accesibles desde sus contenedores antes de activar workflows.
+El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar. Cookie de sesión HttpOnly más `X-CSRF-Token` protegen las mutaciones. El browser no llama Qdrant, n8n ni OpenRouter directamente. n8n usa endpoints internos autenticados de Express para embeddings y generación; solo el backend lee la clave OpenRouter.
 
 ## 3. Mapa del repositorio
 
@@ -86,10 +88,11 @@ El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar.
 - `backend/src/controllers/`, `services/`, `repositories/`, `validators/`: HTTP, dominio, SQL y esquemas Zod.
 - `backend/src/integrations/n8n/`: invocación de webhook desde Express.
 - `backend/scripts/`: migración, promoción admin, runner de integración y validador OpenAPI.
-- `database/migrations/001_initial_schema.sql`–`004_course_source_url.sql`: esquema, restricción finita para scores, clasificación INTECAP nullable separada del nivel RutaIA y URL oficial de cada curso, aplicados por el migrador versionado.
+- `database/migrations/001_initial_schema.sql`–`005_course_qdrant_sync_outbox.sql`: esquema, restricciones para scores, clasificación INTECAP, URL oficial y outbox incremental de cursos, aplicados por el migrador versionado.
 - `database/docker-init/001-n8n-schema.sql`: preparación del esquema PostgreSQL de n8n.
 - `automation/n8n/index-courses.json`: indexación/reconciliación de cursos activos.
 - `automation/n8n/answer-query.json`: consulta, recuperación, selección de fuentes, generación y callback.
+- `automation/n8n/sync-course-events.json`: workflow incremental de eventos de cursos, inactivo hasta configurar y validar OpenRouter/Qdrant.
 - `docs/api/openapi.yaml`: contrato de API.
 - `docs/architecture/`, `docs/testing/`: modelo, contexto, diagnóstico y evidencia.
 
@@ -138,22 +141,21 @@ Copia `.env.example` a `.env` en la raíz. `.env` es local/ignorado y nunca se d
 | `DATABASE_URL` | PostgreSQL de la API en ejecución local; Compose la construye con host `postgres`. |
 | `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT` | Cuenta y puerto local de PostgreSQL. Contraseña URL-safe para la URL construida por Compose. |
 | `SESSION_SECRET`, `SESSION_TTL_HOURS` | Firma/secreto de sesiones y duración. Secreto aleatorio de al menos 32 caracteres. |
+| `JWT_SECRET`, `JWT_TTL_SECONDS` | JWT Bearer opcional para clientes que no usan cookie; secreto aleatorio propio de al menos 32 caracteres, distinto de `SESSION_SECRET`. Sin él, la sesión-cookie sigue disponible y `/api/v1/auth/token` responde 503. |
 | `FRONTEND_URL`, `APP_PORT` | Origen permitido por CORS y puerto publicado de la app. Si se usa 3001, pon `FRONTEND_URL=http://localhost:3001`. |
-| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección en ejecución local; Compose usa `http://qdrant:6333`. `rutaia_courses` es Cosine, 1024 dimensiones; contiene 38 puntos con UUID iguales a los cursos activos de PostgreSQL. |
+| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección activa; Compose usa `http://qdrant:6333` y apunta a `rutaia_courses_openrouter_2048` (2048 dimensiones). El backend y el workflow completo fallan cerrados ante cualquier otro destino; la colección previa `rutaia_courses` (Cosine, 1024 dimensiones, 38 puntos) se conserva intacta. |
 | `N8N_QUERY_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET` | Webhook que Express llama y su autenticación bearer. Compose usa `http://n8n:5678/webhook/rutaia-query`. |
 | `N8N_CALLBACK_URL`, `N8N_CALLBACK_SECRET` | Callback interno que n8n invoca en Express y su secreto. Compose usa `http://backend:3000/api/v1/internal/n8n/results`. |
 | `N8N_COURSE_SYNC_SECRET` | Protege las consultas internas de cursos/configuración para n8n. |
 | `N8N_TIMEOUT_MS` | Timeout de petición desde Express hacia n8n. |
 | `N8N_PORT`, `N8N_HOST`, `N8N_ENCRYPTION_KEY`, `GENERIC_TIMEZONE` | Interfaz y cifrado de credenciales n8n; fija una clave aleatoria de al menos 32 caracteres y no la cambies después de guardar credenciales. |
-| `OLLAMA_BASE_URL` | Base URL para inferencia local; en Compose, `http://host.docker.internal:11434`. Backend y n8n reciben el mapping `host-gateway`; en Linux, Ollama debe escuchar en `0.0.0.0:11434`. |
-| `OLLAMA_EMBEDDING_MODEL`, `OLLAMA_CHAT_MODEL` | IDs de modelos locales. Por defecto, `bge-m3` y `qwen2.5:3b`; descarga con `ollama pull`. Mantén el modelo de embeddings constante para indexación y consulta. |
-| `AI_PROVIDER` | Proveedor de generación: `ollama` (local y predeterminado) u `openrouter`. Las embeddings siguen en Ollama. |
-| `OPENROUTER_API_KEY`, `OPENROUTER_CHAT_MODEL` | Solo al usar OpenRouter. Clave privada en `.env`; el backend limita modelo al alias `openrouter/free` o a IDs terminados en `:free`. No se envía la clave a n8n. |
-| `AI_CHAT_TIMEOUT_MS` | Límite de espera para generación; predeterminado 120 segundos, configurable hasta 180 segundos. |
-| `RAG_MIN_SIMILARITY` | Umbral Qdrant. En el entorno local: `0.535`, calibrado con BGE-M3 y sondeos del flujo real. Repite `npm run calibrate:rag` tras cambiar catálogo/modelo.
+| `OPENROUTER_API_KEY` | Clave privada necesaria para llamadas RAG. Solo el backend la lee; no se copia a n8n. |
+| `OPENROUTER_CHAT_MODEL`, `OPENROUTER_EMBEDDING_MODEL` | Modelos gratuitos predeterminados `openrouter/free` y `nvidia/nemotron-3.5-embed-1b:free`; el backend limita los IDs a variantes gratuitas. |
+| `AI_CHAT_TIMEOUT_MS`, `AI_EMBEDDING_TIMEOUT_MS` | Límite de espera para generación y embeddings; predeterminados 120 y 60 segundos. |
+| `RAG_MIN_SIMILARITY` | Umbral Qdrant. El valor histórico `0.535` se calibró con BGE-M3 y no debe reutilizarse sin recalibrar el nuevo modelo. |
 | `RUTAIA_TEST_DATABASE_URL` | Solo runner de integración; loopback y base `/rutaia_test`. Nunca una base con información de uso real. |
 
-Ollama se ejecuta localmente y no requiere clave ni cuenta. Las credenciales n8n autorizan webhooks internos entre backend y n8n. OpenRouter es opcional y transmite la pregunta/contexto al proveedor externo; usa preguntas sintéticas y verifica que el modelo gratuito siga disponible antes de depender de él.
+OpenRouter es el proveedor acordado para embeddings y generación. Los textos salen del entorno local hacia el proveedor; usa preguntas sintéticas. La dimensión del modelo de embeddings aún debe comprobarse frente a la colección existente de 1024 dimensiones antes de escribir en Qdrant.
 
 Secretos distintos para sesión, cifrado n8n, webhook, callback y sincronización. Para el password PostgreSQL usa letras, números, `_` y `-` para que la URL construida no se rompa.
 
@@ -221,19 +223,19 @@ El runner valida host/nombre de DB antes de conectarse. La suite migra la base d
 
 `npm run validate:openapi` valida YAML, referencias locales y operaciones en comparación con declaraciones de routers/montajes que lee de `backend/src/app.js`; no sustituye una revisión semántica completa de cada esquema de request y response.
 
-`npm run calibrate:rag` requiere la API en `http://localhost:3001` (o `CATALOG_URL`) y Ollama local. Embebe el catálogo actual y los casos calibrados con BGE-M3. El texto enviado para cada curso coincide con el workflow de indexación. Calibración posterior al seed 011: 38 cursos y 22 casos, máximo tercer score OOD `0.5292`, mínimo tercer score positivo relevante `0.5396`, ventana `0.5292–0.5396`; se mantiene `.535`, con margen estrecho. Las siete consultas académicas tienen 1,1,2,1,3,3,0 resultados sobre el umbral. La oferta Java nueva puntúa `0.5302`, bajo el umbral; Power BI básico no sube dashboards de 2/3. Ciberseguridad general obtiene tres fuentes, sin equivaler a seguridad específica de aplicaciones web. Automatización empresarial encuentra una oferta industrial, no administrativa.
+La calibración histórica `npm run calibrate:rag` se hizo con Ollama/BGE-M3, 38 cursos y 22 casos; observó la ventana `0.5292–0.5396` y usó `.535`. Esas mediciones no son aplicables al nuevo modelo. El calibrador actual requiere `N8N_COURSE_SYNC_SECRET` local y no escribe en Qdrant; agrupa los 67 textos en lotes de dos en el proxy y recurre a solicitudes individuales si el proveedor rechaza un lote. El modelo gratuito permite como máximo 50 solicitudes por día UTC; una reindexación de 38 cursos requiere otras 19 llamadas en lotes exitosos. Planifica calibración y reindexación en días UTC distintos para conservar margen. El cupo actual está agotado; una solicitud sintética confirmó embeddings de 2048 dimensiones. No reindexes ni actives workflows hasta completar calibración, validar generación y actualizar n8n.
 
 ## 7. Flujo principal y qué falta probar
 
 1. **Registro/inicio:** Express valida los campos, guarda hash de contraseña, crea sesión y cookie HttpOnly, devuelve CSRF. Auth, logout y perfil tienen cobertura API/DB; la UI de cierre conserva sesión si el servidor falla.
  2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas y muestra enlace a la ficha oficial INTECAP cuando `sourceUrl` apunta al dominio institucional HTTPS. `level` conserva dificultad didáctica RutaIA y `intecapCareerType` conserva CTO/CTM/CTMS por separado; ofertas modulares sin tipo de carrera usan `NULL`. Los seeds 001–011 cargan 37 cursos con fuente HTTPS; la base local tiene 38 cursos activos, uno administrado desde la app sin fuente enlazada. La integración cubre los seeds oficiales, horas documentadas, URLs, detalle e idempotencia.
 3. **Consulta:** estudiante autenticado envía pregunta con CSRF. Express crea registro y llama el webhook autenticado de n8n.
-   - La UI consulta el estado cada 2 segundos hasta 180 segundos antes de dejar un mensaje de espera y permitir revisar el historial. El E2E RAG reciente tardó 65 segundos con Qwen 2.5 3B local; la duración depende del equipo.
-4. **RAG ejecutado:** n8n genera el embedding con Ollama, consulta candidatos en Qdrant, revalida cursos activos en PostgreSQL, aplica umbral y pasa las tres fuentes elegibles mejor clasificadas a generación (mínimo de tres). La prueba E2E local cubrió `Sin resultados` (cocina italiana) y `Respondida` (automatización industrial/PLC); esta última persistió tres fuentes oficiales, historial y calificación 201. Las cuentas de prueba se eliminaron.
+   - La UI consulta el estado cada 2 segundos hasta 180 segundos antes de dejar un mensaje de espera y permitir revisar el historial.
+4. **RAG ejecutado:** la arquitectura llama a Express para obtener embeddings, consulta candidatos en Qdrant, revalida cursos activos en PostgreSQL, aplica umbral y pasa las fuentes elegibles a generación. La evidencia E2E documentada corresponde a la implementación anterior con Ollama; OpenRouter aún no está validado de extremo a extremo y no se debe afirmar que RAG funciona en esta migración.
 5. **Historial:** cada estudiante solo puede consultar sus consultas y resultados. La integración API/DB prueba historial propio, aislamiento entre cuentas, admin, 401 sin sesión y 404 para estudiante inexistente.
 6. **Calificación:** la UI ofrece rating 1–5 para una recomendación; el backend persiste una sola por recomendación. En la prueba E2E de gastronomía el rating devolvió HTTP 201 y se limpió junto con los datos temporales.
 
-Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persistencia, pero no sustituyen la prueba integral. Una ejecución anterior a Ollama falló por HTTP 401 de OpenRouter y un modelo de embedding desactualizado. El workflow activo usa ahora `/api/embed` y `/api/chat` de Ollama, conserva las credenciales de webhook, sincronización y callback y limita la generación a 192 tokens. El timeout anterior de 300 s se observó y corrigió; la E2E positiva actual pasó en 65 s, y la negativa de cocina en 5 s. La evidencia está en la matriz de aceptación.
+Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persistencia, pero no sustituyen la prueba integral. Los workflows versionados llaman a los proxies internos autenticados de Express; la instancia n8n activa no se modificó durante esta migración. La E2E anterior con Ollama y el timeout de generación son evidencia histórica, no una prueba de OpenRouter. No actives los workflows ni reindexes hasta validar dimensión y calibrar el umbral con el nuevo modelo.
 
 ## 8. Problemas pendientes confirmados
 
@@ -246,7 +248,7 @@ Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persisten
 ## 9. Cómo continuar en la próxima sesión
 
 1. Mantén el trabajo en `trabajo`; revisa `git status`, commit y ramas. `main` es estable; integra commits revisados por fast-forward a `dev`. No reescribas `main`.
-2. Los workflows están sincronizados por sus IDs existentes. El de consulta está activo; el indexador está inactivo. Las credenciales están asignadas y Ollama usa `Authentication: None`. No reimportes los JSON.
+2. **Estado histórico anterior a esta migración:** los workflows sincronizados por sus IDs tenían la consulta activa y el indexador inactivo; el embedding llamaba a Ollama con `Authentication: None`. En la migración actual, solo los JSON del repositorio se actualizaron; no se modificó ni se reimportó la instancia n8n guardada.
 3. La indexación actual coincide 38/38 UUID; el indexador se ejecuta manualmente, conforme a autorización docente. La reconciliación 20→19→20 ya se probó. La cobertura RAG sigue insuficiente para páginas web, Java/Spring, dashboards, automatización empresarial y contenedores; buscar oferta institucional verificable y recalibrar sin relajar el filtro.
 4. Completa revisión del frontend en escritorio y móvil, incluyendo registro, login, catálogo/filtros, consulta, fuentes, historial, perfil, calificación y logout/error.
 5. Si amplías el contrato OpenAPI, añade verificación de payloads HTTP contra schemas; luego vuelve a correr las validaciones. Revisa cambios y secretos y conserva commits localmente. No hacer push sin instrucción explícita.

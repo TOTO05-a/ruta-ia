@@ -202,6 +202,13 @@
   }
 
   async function loadHome() {
+    const categoryStatus = $("#query-category-status");
+    categoryStatus.textContent = "Opcional";
+    try {
+      await ensureCatalogCategories();
+    } catch {
+      categoryStatus.textContent = "No se cargaron las categorías; puedes continuar sin ese filtro.";
+    }
     await loadCourses("/courses?limit=3", $("#home-courses"), { compact: true });
   }
 
@@ -211,7 +218,11 @@
     const params = new URLSearchParams({ page: String(page), limit: "12" });
     const values = Object.fromEntries(new FormData(form).entries());
     Object.entries(values).forEach(([key, value]) => { if (value) params.set(key, value); });
-    try { await ensureCatalogCategories(); } catch { /* The filtered request below can still render its available courses. */ }
+    try {
+      await ensureCatalogCategories();
+    } catch (error) {
+      toast(`No se pudieron cargar todas las categorías: ${error.message}`, true);
+    }
     const result = await loadCourses(`/courses?${params}`, $("#catalog-courses"));
     const grid = $("#catalog-courses");
     grid.classList.toggle("list-layout", state.catalogLayout === "list");
@@ -245,15 +256,21 @@
     }
     state.catalogCategories = [...new Set(courses.map((course) => course.category))]
       .sort((a, b) => a.localeCompare(b, "es"));
+    populateCategories(state.catalogCategories);
     return state.catalogCategories;
   }
 
   function populateCategories(categories) {
-    const select = $("#catalog-filters").elements.category;
-    const selected = select.value;
-    select.replaceChildren(new Option("Todas las categorías", ""));
-    categories.forEach((category) => select.add(new Option(category, category)));
-    select.value = selected;
+    const options = [
+      [$("#catalog-filters").elements.category, "Todas las categorías"],
+      [$("#query-category"), "Todas las categorías"]
+    ];
+    options.forEach(([select, placeholder]) => {
+      const selected = select.value;
+      select.replaceChildren(new Option(placeholder, ""));
+      categories.forEach((category) => select.add(new Option(category, category)));
+      select.value = selected;
+    });
   }
 
   async function loadHistory() {
@@ -316,9 +333,12 @@
     const input = $("#question-input");
     const button = $("#ask-button");
     setMessage($("#query-message"), "");
-    setLoading(button, true, "Consultando el catálogo y el modelo local…");
+    setLoading(button, true, "Consultando el catálogo y el modelo configurado…");
     try {
-      const created = await api("/queries", { method: "POST", body: JSON.stringify({ question: input.value }) });
+      const queryInput = { question: input.value };
+      if ($("#query-category").value) queryInput.category = $("#query-category").value;
+      if ($("#query-level").value) queryInput.level = $("#query-level").value;
+      const created = await api("/queries", { method: "POST", body: JSON.stringify(queryInput) });
       state.query = created;
       await displayQuery(created.id);
       if (created.status === "Pendiente") {
@@ -341,6 +361,24 @@
       setMessage($("#query-message"), error.message, "error");
     } finally {
       setLoading(button, false);
+    }
+  }
+
+  async function downloadHistory() {
+    try {
+      const response = await fetch(`${API}/queries/export.csv`, { credentials: "include" });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.error?.message || "No se pudo exportar el historial.");
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const link = node("a");
+      link.href = url;
+      link.download = "historial-rutaia.csv";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (error) {
+      toast(error.message, true);
     }
   }
 
@@ -581,6 +619,7 @@
     $$("[data-go]").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.go)));
     $("#catalog-filters").addEventListener("submit", (event) => { event.preventDefault(); loadCatalog(1); });
     $("#history-filters").addEventListener("submit", (event) => { event.preventDefault(); loadHistory(); });
+    $("#export-history").addEventListener("click", downloadHistory);
     $("#profile-form").addEventListener("submit", saveProfile);
     $("#new-course-button").addEventListener("click", () => openCourseForm(null));
     $("#course-form").addEventListener("submit", saveCourse);

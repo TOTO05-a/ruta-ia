@@ -9,14 +9,18 @@ function validateId(id) {
     }
 }
 
-async function create(student, question) {
-    const query = await repository.create(student.id, question);
+async function create(student, input) {
+    const conversationHistory = (await repository.listRecentAnsweredByStudent(student.id)).slice(-3);
+    const query = await repository.create(student.id, input.question);
     try {
         await n8n.startQuery({
             queryId: query.id,
             question: query.question,
             experienceLevel: student.experience_level,
-            interestArea: student.interest_area
+            interestArea: student.interest_area,
+            ...(input.category ? { category: input.category } : {}),
+            ...(input.level ? { level: input.level } : {}),
+            conversationHistory
         });
     } catch (error) {
         await repository.markFailed(query.id, /^[A-Z0-9_]{1,64}$/.test(error.code || "") ? error.code : "N8N_UNAVAILABLE");
@@ -37,6 +41,10 @@ async function get(id, student) {
 
 async function list(studentId, filters) {
     return repository.listByStudent(studentId, filters);
+}
+
+async function exportHistory(studentId) {
+    return repository.listHistoryForExport(studentId);
 }
 
 async function listStudentHistory(targetStudentId, requestingStudent, filters) {
@@ -63,4 +71,4 @@ async function receiveCallback(input) {
     }
 }
 
-module.exports = { create, get, list, listStudentHistory, receiveCallback };
+module.exports = { create, get, list, exportHistory, listStudentHistory, receiveCallback };

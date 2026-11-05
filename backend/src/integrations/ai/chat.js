@@ -27,40 +27,25 @@ function jsonResponseFormat(format) {
 async function generate(body) {
     validateChatInput(body);
 
-    const isOpenRouter = env.AI_PROVIDER === "openrouter";
-    const baseUrl = isOpenRouter
-        ? "https://openrouter.ai/api/v1/chat/completions"
-        : `${env.OLLAMA_BASE_URL?.replace(/\/$/, "")}/api/chat`;
-    if (!isOpenRouter && !env.OLLAMA_BASE_URL) {
-        throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "El proveedor local de IA no está configurado");
-    }
-    if (isOpenRouter && !env.OPENROUTER_API_KEY) {
+    if (!env.OPENROUTER_API_KEY) {
         throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "OpenRouter no está configurado");
     }
 
-    const requestBody = isOpenRouter
-        ? {
-            model: env.OPENROUTER_CHAT_MODEL,
-            messages: body.messages,
-            temperature: body.options?.temperature ?? 0.2,
-            max_tokens: body.options?.num_predict ?? 192,
-            ...(jsonResponseFormat(body.format) ? { response_format: jsonResponseFormat(body.format) } : {})
-        }
-        : {
-            model: env.OLLAMA_CHAT_MODEL,
-            stream: false,
-            messages: body.messages,
-            options: body.options ?? { temperature: 0.2, num_predict: 192 },
-            ...(body.format ? { format: body.format } : {})
-        };
+    const requestBody = {
+        model: env.OPENROUTER_CHAT_MODEL,
+        messages: body.messages,
+        temperature: body.options?.temperature ?? 0.2,
+        max_tokens: body.options?.num_predict ?? 192,
+        ...(jsonResponseFormat(body.format) ? { response_format: jsonResponseFormat(body.format) } : {})
+    };
 
     let response;
     try {
-        response = await fetch(baseUrl, {
+        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
             method: "POST",
             headers: {
                 "content-type": "application/json",
-                ...(isOpenRouter ? { authorization: `Bearer ${env.OPENROUTER_API_KEY}` } : {})
+                authorization: `Bearer ${env.OPENROUTER_API_KEY}`
             },
             body: JSON.stringify(requestBody),
             signal: AbortSignal.timeout(env.AI_CHAT_TIMEOUT_MS)
@@ -71,7 +56,9 @@ async function generate(body) {
     }
 
     if (!response.ok) {
-        throw new ApiError(502, "AI_PROVIDER_REJECTED_REQUEST", "El proveedor de IA rechazó la solicitud");
+        const code = response.status === 429 ? "AI_PROVIDER_RATE_LIMITED" :
+            response.status >= 500 ? "AI_PROVIDER_UNAVAILABLE" : "AI_PROVIDER_REJECTED_REQUEST";
+        throw new ApiError(502, code, "El proveedor de IA rechazó la solicitud");
     }
 
     let data;
@@ -81,12 +68,15 @@ async function generate(body) {
         throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "El proveedor de IA devolvió una respuesta inválida");
     }
 
-    const content = isOpenRouter ? data?.choices?.[0]?.message?.content : data?.message?.content;
+    const choice = data?.choices?.[0];
+    const content = choice?.message?.content;
     if (typeof content !== "string" || !content.trim()) {
         throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "El proveedor de IA devolvió una respuesta inválida");
     }
+    if (jsonResponseFormat(body.format) && choice.finish_reason === "length") {
+        throw new ApiError(502, "AI_PROVIDER_INCOMPLETE_RESPONSE", "OpenRouter truncó la respuesta estructurada");
+    }
 
-    // Preserve Ollama's response shape so the current n8n validation node can consume either provider.
     return { message: { content } };
 }
 

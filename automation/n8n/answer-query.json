@@ -39,7 +39,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingModel || !request?.ollamaBaseUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nreturn [{ json: { model: request.embeddingModel, input: request.question, ollamaBaseUrl: request.ollamaBaseUrl } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nif (request.qdrantCollection !== 'rutaia_courses_openrouter_2048') throw new Error('Colección RAG no permitida');\nreturn [{ json: { input: request.question, embeddingUrl: request.embeddingUrl } }];"
       },
       "id": "1214c556-80f0-4f5c-870f-80c8f6c5f536",
       "name": "Preparar embedding de pregunta",
@@ -51,11 +51,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.ollamaBaseUrl.replace(/\\/$/, '') + '/api/embed' }}",
+        "url": "={{ $json.embeddingUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { model: $json.model, input: $json.input } }}",
+        "jsonBody": "={{ { input: $json.input } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b2ff63f1-0fd4-4f48-b20e-b20d92f1e016",
@@ -63,6 +65,9 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1000, 340],
+      "credentials": {
+        "httpHeaderAuth": {"id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf", "name": "RutaIA - secreto de sincronización"}
+      },
       "onError": "continueErrorOutput"
     },
     {
@@ -84,7 +89,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $json.vector, limit: 50, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity } }}",
+        "jsonBody": "={{ { query: $json.vector, limit: 50, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity, ...(( $('Webhook autenticado de consulta').first().json.body.category || $('Webhook autenticado de consulta').first().json.body.level) ? { filter: { must: [ ...( $('Webhook autenticado de consulta').first().json.body.category ? [{ key: 'category', match: { value: $('Webhook autenticado de consulta').first().json.body.category } }] : []), ...( $('Webhook autenticado de consulta').first().json.body.level ? [{ key: 'level', match: { value: $('Webhook autenticado de consulta').first().json.body.level } }] : []) ] } } : {}) } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "481b45cf-dc02-45ec-8658-75c793c9c247",
@@ -97,7 +102,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst courses = $('Leer catálogo activo PostgreSQL').first().json.data?.items;\nconst response = $input.first().json;\nconst hits = response.result?.points ?? response.body?.result?.points;\nif (!Array.isArray(courses) || !Array.isArray(hits)) throw new Error('Respuesta de catálogo o Qdrant inválida');\nconst active = new Map(courses.map(c => [c.id, c]));\nconst seen = new Set();\nconst sources = hits.map(hit => { const courseId = hit.payload?.course_id; const course = active.get(courseId); if (!course || seen.has(courseId) || !Number.isFinite(hit.score) || hit.score < request.minSimilarity) return null; seen.add(courseId); return { courseId, similarity: hit.score, name: course.name, description: course.description, category: course.category, level: course.level, intecapCareerType: course.intecapCareerType ?? null, durationHours: course.durationHours }; }).filter(Boolean).sort((a,b) => b.similarity-a.similarity).slice(0,3);\nif (sources.length < 3) return [{ json: { queryId: request.queryId, status: 'Sin resultados' } }];\nreturn [{ json: { queryId: request.queryId, question: request.question, experienceLevel: request.experienceLevel, interestArea: request.interestArea, chatModel: request.chatModel, status: 'Respondida', sources, context: sources.map((s,i) => `${i+1}. ${s.name} | ${s.category} | Nivel RutaIA: ${s.level} | Clasificación INTECAP: ${s.intecapCareerType ?? 'No indicada'} | ${s.durationHours} horas | score ${s.similarity}\\n${s.description}`).join('\\n\\n') } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst courses = $('Leer catálogo activo PostgreSQL').first().json.data?.items;\nconst response = $input.first().json;\nconst hits = response.result?.points ?? response.body?.result?.points;\nif (!Array.isArray(courses) || !Array.isArray(hits)) throw new Error('Respuesta de catálogo o Qdrant inválida');\nconst active = new Map(courses.map(c => [c.id, c]));\nconst seen = new Set();\nconst sources = hits.map(hit => { const courseId = hit.payload?.course_id; const course = active.get(courseId); if (!course || (request.category && course.category !== request.category) || (request.level && course.level !== request.level) || seen.has(courseId) || !Number.isFinite(hit.score) || hit.score < request.minSimilarity) return null; seen.add(courseId); return { courseId, similarity: hit.score, name: course.name, description: course.description, category: course.category, level: course.level, intecapCareerType: course.intecapCareerType ?? null, durationHours: course.durationHours }; }).filter(Boolean).sort((a,b) => b.similarity-a.similarity).slice(0,3);\nif (sources.length < 3) return [{ json: { queryId: request.queryId, status: 'Sin resultados' } }];\nreturn [{ json: { queryId: request.queryId, question: request.question, experienceLevel: request.experienceLevel, interestArea: request.interestArea, conversationHistory: Array.isArray(request.conversationHistory) ? request.conversationHistory.slice(-3) : [], chatModel: request.chatModel, status: 'Respondida', sources, context: sources.map((s,i) => `${i+1}. ${s.name} | ${s.category} | Nivel RutaIA: ${s.level} | Clasificación INTECAP: ${s.intecapCareerType ?? 'No indicada'} | ${s.durationHours} horas | score ${s.similarity}\\n${s.description}`).join('\\n\\n') } }];"
       },
       "id": "e4d0d3b4-8e42-4bfb-b958-5d54a7d373d7",
       "name": "Filtrar fuentes activas y umbral",
@@ -130,7 +135,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { format: { type: 'object', properties: { answer: { type: 'string' }, summary: { type: 'string' }, explanation: { type: 'string' } }, required: ['answer', 'summary', 'explanation'], additionalProperties: false }, options: { temperature: 0.2, num_predict: 192 }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Responde en español de forma concisa: answer máximo 55 palabras, summary máximo 18 y explanation máximo 25. Usa exclusivamente los cursos del contexto. No inventes cursos, características, requisitos ni hechos. Si el contexto no basta, dilo claramente. Devuelve los tres campos solicitados en JSON.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, courses: $json.sources }) }] } }}",
+        "jsonBody": "={{ { format: { type: 'object', properties: { answer: { type: 'string' }, summary: { type: 'string' }, explanation: { type: 'string' } }, required: ['answer', 'summary', 'explanation'], additionalProperties: false }, options: { temperature: 0.2, num_predict: 192 }, messages: [{ role: 'system', content: 'Eres RutaIA, orientador académico. Responde en español de forma concisa: answer máximo 55 palabras, summary máximo 18 y explanation máximo 25. Solo las fuentes Qdrant recuperadas para la consulta actual son autoritativas para afirmar hechos sobre cursos, categorías, niveles, requisitos, duración u oferta. La memoria conversacional previa solo sirve para preferencias y continuidad; nunca es fuente factual de cursos ni prevalece sobre las fuentes actuales. No inventes cursos, características, requisitos ni hechos. Si las fuentes actuales no bastan, dilo claramente. Devuelve los tres campos solicitados en JSON.' }, { role: 'user', content: JSON.stringify({ question: $json.question, experienceLevel: $json.experienceLevel, interestArea: $json.interestArea, conversationHistory: $json.conversationHistory || [], courses: $json.sources }) }] } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b5e4f091-38b5-49c0-afda-47edcaecb85e",
@@ -146,7 +151,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.message?.content ?? response.body?.message?.content;\nif (typeof content !== 'string') throw new Error('Ollama no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
+        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.message?.content ?? response.body?.message?.content;\nif (typeof content !== 'string') throw new Error('OpenRouter no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
       },
       "id": "6944ec2b-2a2f-4a83-a2bf-51c4881bc695",
       "name": "Validar callback de recomendación",

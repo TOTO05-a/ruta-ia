@@ -1,5 +1,6 @@
 const service = require("../services/query.service");
 const ApiError = require("../utils/api-error");
+const { toCsv } = require("../utils/csv");
 const { createQuerySchema, callbackSchema, paginationSchema } = require("../validators/query.validators");
 
 function validate(schema, value) {
@@ -9,8 +10,8 @@ function validate(schema, value) {
 }
 
 async function create(req, res) {
-    const { question } = validate(createQuerySchema, req.body);
-    const query = await service.create(req.auth, question);
+    const input = validate(createQuerySchema, req.body);
+    const query = await service.create(req.auth, input);
     return res.status(202).json({ data: { id: query.id, question: query.question, status: query.status, createdAt: query.createdAt } });
 }
 
@@ -20,6 +21,11 @@ async function get(req, res) {
 
 async function list(req, res) {
     return res.json({ data: await service.list(req.auth.id, validate(paginationSchema, req.query)) });
+}
+
+async function exportHistory(req, res) {
+    const records = await service.exportHistory(req.auth.id);
+    return res.status(200).type("text/csv").attachment("historial-rutaia.csv").send(toCsv(records));
 }
 
 async function studentHistory(req, res) {
@@ -38,4 +44,4 @@ async function callback(req, res) {
     return res.status(result.duplicate ? 200 : 202).json({ data: result });
 }
 
-module.exports = { create, get, list, studentHistory, callback };
+module.exports = { create, get, list, exportHistory, studentHistory, callback };

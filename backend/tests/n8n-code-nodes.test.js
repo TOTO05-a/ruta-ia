@@ -47,6 +47,15 @@ test("workflow RAG mantiene generación JSON breve a través del proxy de Expres
     assert.equal(node.parameters.url, "http://backend:3000/api/v1/internal/ai/chat");
     assert.match(node.parameters.jsonBody, /options: \{ temperature: 0\.2, num_predict: 192 \}/);
     assert.match(node.parameters.jsonBody, /answer máximo 55 palabras, summary máximo 18 y explanation máximo 25/);
+    assert.match(node.parameters.jsonBody, /Solo las fuentes Qdrant recuperadas para la consulta actual son autoritativas/);
+    assert.match(node.parameters.jsonBody, /conversationHistory: \$json\.conversationHistory \|\| \[\]/);
+});
+
+test("workflow RAG aplica filtros Qdrant opcionales de categoría y nivel", () => {
+    const node = answerWorkflow.nodes.find((candidate) => candidate.name === "Buscar cinco cursos en Qdrant");
+    assert.match(node.parameters.jsonBody, /key: 'category'/);
+    assert.match(node.parameters.jsonBody, /key: 'level'/);
+    assert.match(node.parameters.jsonBody, /: \{\}\) \} \}\}/);
 });
 
 test("workflow RAG prepara el embedding con la configuración enviada por Express", () => {
@@ -56,20 +65,17 @@ test("workflow RAG prepara el embedding con la configuración enviada por Expres
         question: "Me interesa cocina y gastronomía",
         experienceLevel: "Principiante",
         interestArea: "Gastronomía",
-        embeddingModel: "bge-m3",
-        chatModel: "qwen2.5:3b",
-        ollamaBaseUrl: "http://host.docker.internal:11434",
+        embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
         minSimilarity: 0.5,
-        qdrantCollection: "rutaia_courses",
+        qdrantCollection: "rutaia_courses_openrouter_2048",
         qdrantUrl: "http://qdrant:6333",
         callbackUrl: "http://backend:3000/api/v1/internal/n8n/results"
     };
     const context = { "Webhook autenticado de consulta": { body: request } };
 
     assert.deepEqual(executeCode(node, context, {}), [{
-        model: "bge-m3",
         input: "Me interesa cocina y gastronomía",
-        ollamaBaseUrl: "http://host.docker.internal:11434"
+        embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings"
     }]);
     assert.throws(() => executeCode(node, {
         "Webhook autenticado de consulta": { body: { ...request, callbackUrl: undefined } }
@@ -96,6 +102,31 @@ test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () =
             hit("active-b", 0.75),
             hit("active-c", 0.7)
         ] }
+    });
+
+    test("workflow RAG conserva memoria de las tres consultas previas y aplica filtros al catálogo activo", () => {
+        const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+        const courses = [
+            course("match-a"),
+            course("other-category", { category: "Datos" }),
+            course("other-level", { level: "Avanzado" }),
+            course("match-b"),
+            course("match-c")
+        ];
+        const history = [1, 2, 3, 4].map((item) => ({ question: `Pregunta ${item}`, answer: `Respuesta ${item}` }));
+        const result = executeCode(node, {
+            "Webhook autenticado de consulta": { body: {
+                queryId: "query-filtered",
+                minSimilarity: 0.7,
+                category: "Desarrollo web",
+                level: "Básico",
+                conversationHistory: history
+            } },
+            "Leer catálogo activo PostgreSQL": { data: { items: courses } }
+        }, { result: { points: courses.map((item, index) => hit(item.id, 0.9 - index / 100)) } });
+
+        assert.deepEqual(result[0].sources.map((source) => source.courseId), ["match-a", "match-b", "match-c"]);
+        assert.deepEqual(result[0].conversationHistory, history.slice(-3));
     });
 
     assert.equal(result[0].status, "Respondida");
@@ -156,33 +187,46 @@ test("indexación conserva asociación por índice y valida dimensión y valores
     const context = {
         "Preparar textos de cursos": {
             qdrantUrl: "http://qdrant:6333/",
-            collection: "rutaia-courses",
+            collection: "rutaia_courses_openrouter_2048",
             courses
         }
     };
     const result = executeCode(node, context, {
-        embeddings: [[1, 0, 0], [0, 1, 0]]
+        embeddings: [Array(2048).fill(1), Array(2048).fill(2)]
     });
 
     assert.equal(result[0].qdrantUrl, "http://qdrant:6333");
-    assert.equal(result[0].dimension, 3);
+    assert.equal(result[0].dimension, 2048);
     assert.deepEqual(result[0].points.map((point) => point.id), ["course-a", "course-b"]);
-    assert.deepEqual(result[0].points.map((point) => point.vector), [[1, 0, 0], [0, 1, 0]]);
+    assert.deepEqual(result[0].points.map((point) => point.vector), [Array(2048).fill(1), Array(2048).fill(2)]);
     assert.deepEqual(result[0].points.map((point) => point.payload.course_id), ["course-a", "course-b"]);
     assert.deepEqual(result[0].points.map((point) => point.payload.intecap_career_type), ["CTO", null]);
 
-    assert.throws(() => executeCode(node, context, { embeddings: [[1, 0, 0]] }), /cantidad de embeddings inválida/);
-    assert.throws(() => executeCode(node, context, { embeddings: [[1, 0], [0, 1, 0]] }), /dimensión o valores válidos/);
-    assert.throws(() => executeCode(node, context, { embeddings: [[1, Number.NaN, 0], [0, 1, 0]] }), /dimensión o valores válidos/);
+    assert.throws(
+        () => executeCode(node, { "Preparar textos de cursos": { ...context["Preparar textos de cursos"], collection: "rutaia_courses" } }, {
+            embeddings: [Array(2048).fill(1), Array(2048).fill(2)]
+        }),
+        /Destino de indexación no permitido/
+    );
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1)] }), /cantidad de embeddings inválida/);
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(1024).fill(1), Array(1024).fill(2)] }), /Destino de indexación no permitido/);
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1), Array(1024).fill(2)] }), /dimensión o valores válidos/);
+    const invalidVector = Array(2048).fill(0);
+    invalidVector[5] = Number.NaN;
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1), invalidVector] }), /dimensión o valores válidos/);
 });
 
 test("indexación vacía conserva el contexto y limpia vectores obsoletos sin ocultar fallos", () => {
     const prepare = codeNode(indexWorkflow, "Preparar textos de cursos");
     const context = {
-        "Leer configuración de indexación": { data: { qdrantUrl: "http://qdrant:6333", collection: "rutaia_courses" } },
+        "Leer configuración de indexación": { data: { qdrantUrl: "http://qdrant:6333", collection: "rutaia_courses_openrouter_2048" } },
         "Leer catálogo PostgreSQL": { data: { items: [] } }
     };
     const prepared = executeCode(prepare, context, {});
+    assert.throws(() => executeCode(prepare, {
+        ...context,
+        "Leer configuración de indexación": { data: { ...context["Leer configuración de indexación"].data, collection: "rutaia_courses" } }
+    }, {}), /Destino de indexación no permitido/);
     assert.equal(prepared.length, 1);
     assert.equal(prepared[0].emptyCatalog, true);
     assert.deepEqual(prepared[0].courses, []);

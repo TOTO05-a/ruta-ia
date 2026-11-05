@@ -42,8 +42,6 @@ services:
         condition: service_healthy
       qdrant:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       NODE_ENV: production
       N8N_HOST: ${N8N_HOST:-localhost}
@@ -86,18 +84,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     environment:
       NODE_ENV: ${NODE_ENV:-development}
-      AI_PROVIDER: ${AI_PROVIDER:-ollama}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       OPENROUTER_CHAT_MODEL: ${OPENROUTER_CHAT_MODEL:-openrouter/free}
+      OPENROUTER_EMBEDDING_MODEL: ${OPENROUTER_EMBEDDING_MODEL:-nvidia/nemotron-3.5-embed-1b:free}
       AI_CHAT_TIMEOUT_MS: ${AI_CHAT_TIMEOUT_MS:-120000}
+      AI_EMBEDDING_TIMEOUT_MS: ${AI_EMBEDDING_TIMEOUT_MS:-60000}
       PORT: 3000
       DATABASE_URL: postgresql://${POSTGRES_USER:-rutaia_user}:${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en .env}@postgres:5432/rutaia
       SESSION_SECRET: ${SESSION_SECRET:?Define SESSION_SECRET en .env}
       SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-168}
+      JWT_SECRET: ${JWT_SECRET:-}
+      JWT_TTL_SECONDS: ${JWT_TTL_SECONDS:-3600}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       N8N_QUERY_WEBHOOK_URL: http://n8n:5678/webhook/rutaia-query
       N8N_WEBHOOK_SECRET: ${N8N_WEBHOOK_SECRET:?Define N8N_WEBHOOK_SECRET en .env}
@@ -105,12 +104,9 @@ services:
       N8N_CALLBACK_SECRET: ${N8N_CALLBACK_SECRET:?Define N8N_CALLBACK_SECRET en .env}
       N8N_COURSE_SYNC_SECRET: ${N8N_COURSE_SYNC_SECRET:?Define N8N_COURSE_SYNC_SECRET en .env}
       N8N_TIMEOUT_MS: ${N8N_TIMEOUT_MS:-10000}
-      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-bge-m3}
-      OLLAMA_CHAT_MODEL: ${OLLAMA_CHAT_MODEL:-qwen2.5:3b}
       RAG_MIN_SIMILARITY: ${RAG_MIN_SIMILARITY:-}
       QDRANT_URL: http://qdrant:6333
-      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-rutaia_courses}
+      QDRANT_COLLECTION: ${QDRANT_COLLECTION:-rutaia_courses_openrouter_2048}
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     healthcheck:

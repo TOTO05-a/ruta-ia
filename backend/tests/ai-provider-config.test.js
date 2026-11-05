@@ -12,19 +12,23 @@ function loadConfig(overrides) {
     });
 }
 
-test("OpenRouter requiere clave cuando se selecciona como proveedor", () => {
-    const result = loadConfig({ AI_PROVIDER: "openrouter", OPENROUTER_API_KEY: "", OPENROUTER_CHAT_MODEL: "openrouter/free" });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /OPENROUTER_API_KEY/);
-});
-
 test("OpenRouter rechaza IDs que no garantizan variante gratuita", () => {
     const result = loadConfig({ AI_PROVIDER: "openrouter", OPENROUTER_API_KEY: "test-key", OPENROUTER_CHAT_MODEL: "openai/gpt-4o" });
     assert.notEqual(result.status, 0);
     assert.match(result.stderr, /solo se permiten openrouter\/free/);
 });
 
-test("la configuración predeterminada local no necesita clave OpenRouter", () => {
-    const result = loadConfig({ AI_PROVIDER: "ollama", OPENROUTER_API_KEY: "", OPENROUTER_CHAT_MODEL: "openrouter/free" });
+test("OpenRouter es el proveedor fijo y permite iniciar sin clave", () => {
+    const result = loadConfig({ OPENROUTER_API_KEY: "", OPENROUTER_CHAT_MODEL: "openrouter/free" });
     assert.equal(result.status, 0, result.stderr);
+});
+
+test("OpenRouter rechaza modelos de embeddings que no terminan en :free", () => {
+    const result = loadConfig({
+        AI_PROVIDER: "openrouter",
+        OPENROUTER_API_KEY: "test-key",
+        OPENROUTER_EMBEDDING_MODEL: "provider/model"
+    });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /OPENROUTER_EMBEDDING_MODEL/);
 });

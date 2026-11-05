@@ -62,6 +62,35 @@ async function listByStudent(studentId, { page, limit, status }) {
     return { items: result.rows, total: count.rows[0].total, page, limit };
 }
 
+async function listRecentAnsweredByStudent(studentId, limit = 3) {
+    const result = await pool.query(
+        `SELECT q.question, r.answer
+         FROM queries q
+         JOIN recommendations r ON r.query_id = q.id
+         WHERE q.student_id = $1 AND q.status = 'Respondida'
+         ORDER BY q.created_at DESC, q.id DESC
+         LIMIT $2`,
+        [studentId, limit]
+    );
+    return result.rows.reverse();
+}
+
+async function listHistoryForExport(studentId) {
+    const result = await pool.query(
+        `SELECT q.created_at AS "createdAt", q.status, q.question, r.answer, r.summary, r.explanation,
+                COALESCE(string_agg(c.name, ' | ' ORDER BY rs.position) FILTER (WHERE c.id IS NOT NULL), '') AS sources
+         FROM queries q
+         LEFT JOIN recommendations r ON r.query_id = q.id
+         LEFT JOIN recommendation_sources rs ON rs.recommendation_id = r.id
+         LEFT JOIN courses c ON c.id = rs.course_id
+         WHERE q.student_id = $1
+         GROUP BY q.id, r.id
+         ORDER BY q.created_at DESC, q.id DESC`,
+        [studentId]
+    );
+    return result.rows;
+}
+
 async function saveCallback(result) {
     const db = await pool.connect();
     try {
@@ -116,4 +145,7 @@ async function saveCallback(result) {
     }
 }
 
-module.exports = { create, markFailed, getById, listByStudent, saveCallback };
+module.exports = {
+    create, markFailed, getById, listByStudent, listRecentAnsweredByStudent,
+    listHistoryForExport, saveCallback
+};

@@ -1,7 +1,9 @@
 const { z } = require("zod");
 
 const createQuerySchema = z.object({
-    question: z.string().trim().min(1).max(4000)
+    question: z.string().trim().min(1).max(4000),
+    category: z.string().trim().min(1).max(100).optional(),
+    level: z.enum(["Básico", "Intermedio", "Avanzado"]).optional()
 }).strict();
 
 const callbackSchema = z.discriminatedUnion("status", [

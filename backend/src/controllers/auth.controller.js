@@ -43,9 +43,22 @@ async function login(req, res) {
     return res.status(200).json({ data: { student: result.student, csrfToken: result.session.csrfToken } });
 }
 
+async function token(req, res) {
+    const result = await authService.loginWithJwt(validate(loginSchema, req.body));
+    return res.status(200).json({
+        data: {
+            accessToken: result.token,
+            tokenType: "Bearer",
+            expiresIn: result.expiresIn,
+            expiresAt: result.expiresAt.toISOString(),
+            student: result.student
+        }
+    });
+}
+
 async function logout(req, res) {
     await authService.logout(req.auth.session_id);
-    clearSessionCookie(res);
+    if (req.auth_method === "session") clearSessionCookie(res);
     return res.status(204).end();
 }
 
@@ -67,4 +80,4 @@ async function csrf(req, res) {
     return res.json({ data: { csrfToken } });
 }
 
-module.exports = { register, login, logout, me, csrf };
+module.exports = { register, login, token, logout, me, csrf };

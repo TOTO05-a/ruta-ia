@@ -1,0 +1,327 @@
+{
+  "name": "RutaIA - Sincronización incremental de cursos",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "51643a88-a302-45fb-925b-16eed8c0f706",
+      "name": "Revisar eventos pendientes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://backend:3000/api/v1/internal/courses/sync-config",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "b2532ec1-e09f-4f54-8ac3-ae51e5b3feea",
+      "name": "Leer configuración incremental",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [480, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+          "name": "RutaIA - secreto de sincronización"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:3000/api/v1/internal/courses/sync-events/claim",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { limit: 1 } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "4c7b2166-1f54-4b13-9ed5-dcd58cdfdcbe",
+      "name": "Reclamar un evento",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+          "name": "RutaIA - secreto de sincronización"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const event = $input.first().json.data?.event;\nif (!event) return [];\nif (!['upsert', 'delete'].includes(event.action) || !event.payload?.id || !Number.isSafeInteger(Number(event.version))) throw new Error('Evento incremental inválido');\nreturn [{ json: event }];"
+      },
+      "id": "a42357e5-944e-4338-885a-609707f8adce",
+      "name": "Desempaquetar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "008c3bd0-5144-4e15-8994-9916ba809758",
+              "leftValue": "={{ $json.action === 'upsert' }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "171a1ddc-0290-4bf8-a260-72fdd3fb917b",
+      "name": "¿Debe indexarse el curso?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Leer configuración incremental').first().json.data.embeddingUrl }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { input: [`Curso: ${$json.payload.name}\\nDescripción: ${$json.payload.description}\\nCategoría: ${$json.payload.category}\\nNivel RutaIA: ${$json.payload.level}\\nClasificación INTECAP: ${$json.payload.intecapCareerType ?? 'No indicada'}\\nDuración: ${$json.payload.durationHours} horas`] } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "df179318-dd79-4b92-8ba1-34a2da413d80",
+      "name": "Embebir curso cambiado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 180],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+          "name": "RutaIA - secreto de sincronización"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const cfg = $('Leer configuración incremental').first().json.data;\nconst event = $('Desempaquetar evento').first().json;\nconst vectors = $input.first().json.embeddings ?? $input.first().json.data?.embeddings;\nif (cfg.collection !== 'rutaia_courses_openrouter_2048' || cfg.dimension !== 2048) throw new Error('Destino incremental no permitido');\nif (!Array.isArray(vectors) || vectors.length !== 1 || vectors[0].length !== cfg.dimension || vectors[0].some(n => !Number.isFinite(n))) throw new Error('Embedding incremental inválido');\nconst c = event.payload;\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension: cfg.dimension, point: { id: c.id, vector: vectors[0], payload: { course_id: c.id, name: c.name, description: c.description, category: c.category, level: c.level, intecap_career_type: c.intecapCareerType ?? null, duration_hours: c.durationHours, is_active: true } } } }];"
+      },
+      "id": "3bb8335d-bd1f-44a5-98ce-2b9dcbe0500b",
+      "name": "Validar punto incremental",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 180]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Validar punto incremental').first().json.qdrantUrl + '/collections/' + $('Validar punto incremental').first().json.collection }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { vectors: { size: $('Validar punto incremental').first().json.dimension, distance: 'Cosine' } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "c1b69550-c4ad-4a53-9db6-6b16cc1efbf0",
+      "name": "Crear colección incremental si falta",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1920, 180]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nif (![200, 201, 409].includes(response.statusCode)) throw new Error('No se pudo preparar la colección incremental');\nreturn [{ json: { ready: true } }];"
+      },
+      "id": "9db5511a-3065-47fa-b72d-d336b8026a96",
+      "name": "Validar colección incremental",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2160, 180]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "={{ $('Validar punto incremental').first().json.qdrantUrl + '/collections/' + $('Validar punto incremental').first().json.collection + '/points?wait=true' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { points: [$('Validar punto incremental').first().json.point] } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "f425164f-64af-4be8-8dac-9610863ea877",
+      "name": "Upsert curso incremental",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2400, 180]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Leer configuración incremental').first().json.data.qdrantUrl.replace(/\\/$/, '') + '/collections/' + $('Leer configuración incremental').first().json.data.collection + '/points/delete?wait=true' }}",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { points: [$json.payload.id] } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "98ef436e-fdc3-4adc-a6b8-2b5556b28af6",
+      "name": "Eliminar curso desactivado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 420]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const response = $input.first().json;\nif (!Number.isInteger(response.statusCode) || (response.statusCode >= 300 && response.statusCode !== 404)) throw new Error('Qdrant no pudo eliminar el curso desactivado');\nreturn [{ json: { deleted: true } }];"
+      },
+      "id": "edb1ba4d-a70f-48e5-86b4-9a7e53a1a640",
+      "name": "Validar eliminación incremental",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1680, 420]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:3000/api/v1/internal/courses/sync-events/ack",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ { id: $('Desempaquetar evento').first().json.id, version: $('Desempaquetar evento').first().json.version } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "bec5e88f-73d1-4667-8cb6-5107f01c0f8b",
+      "name": "Confirmar evento procesado",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2640, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "e7f8c409-7ba0-4a21-8ef8-e1c29c88e6cf",
+          "name": "RutaIA - secreto de sincronización"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Revisar eventos pendientes": {
+      "main": [[{"node": "Leer configuración incremental", "type": "main", "index": 0}]]
+    },
+    "Leer configuración incremental": {
+      "main": [[{"node": "Reclamar un evento", "type": "main", "index": 0}]]
+    },
+    "Reclamar un evento": {
+      "main": [[{"node": "Desempaquetar evento", "type": "main", "index": 0}]]
+    },
+    "Desempaquetar evento": {
+      "main": [[{"node": "¿Debe indexarse el curso?", "type": "main", "index": 0}]]
+    },
+    "¿Debe indexarse el curso?": {
+      "main": [
+        [{"node": "Embebir curso cambiado", "type": "main", "index": 0}],
+        [{"node": "Eliminar curso desactivado", "type": "main", "index": 0}]
+      ]
+    },
+    "Embebir curso cambiado": {
+      "main": [[{"node": "Validar punto incremental", "type": "main", "index": 0}]]
+    },
+    "Validar punto incremental": {
+      "main": [[{"node": "Crear colección incremental si falta", "type": "main", "index": 0}]]
+    },
+    "Crear colección incremental si falta": {
+      "main": [[{"node": "Validar colección incremental", "type": "main", "index": 0}]]
+    },
+    "Validar colección incremental": {
+      "main": [[{"node": "Upsert curso incremental", "type": "main", "index": 0}]]
+    },
+    "Upsert curso incremental": {
+      "main": [[{"node": "Confirmar evento procesado", "type": "main", "index": 0}]]
+    },
+    "Eliminar curso desactivado": {
+      "main": [[{"node": "Validar eliminación incremental", "type": "main", "index": 0}]]
+    },
+    "Validar eliminación incremental": {
+      "main": [[{"node": "Confirmar evento procesado", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {"executionOrder": "v1"},
+  "versionId": "19ab421d-61ea-4cb7-b815-3ef56fc52339",
+  "meta": {"templateCredsSetupCompleted": false},
+  "tags": []
+}

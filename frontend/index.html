@@ -92,6 +92,7 @@
             <form id="query-form" class="query-box">
               <label for="question-input" class="sr-only">Escribe tu pregunta</label>
               <textarea id="question-input" name="question" rows="3" required maxlength="4000" placeholder="Ej. Quiero aprender a construir aplicaciones web con bases de datos…"></textarea>
+              <div class="query-filter-row"><label>Filtrar por categoría <select id="query-category" name="category"><option value="">Todas las categorías</option></select></label><label>Filtrar por nivel <select id="query-level" name="level"><option value="">Todos los niveles</option><option>Básico</option><option>Intermedio</option><option>Avanzado</option></select></label><span id="query-category-status" role="status" aria-live="polite">Opcional</span></div>
               <div class="query-box-footer"><span><kbd>↵</kbd> <span>Escribe tu consulta</span></span><button id="ask-button" class="button button-primary" type="submit">Encontrar mi ruta <span aria-hidden="true">↗</span></button></div>
             </form>
             <p id="query-message" class="form-message" role="status" aria-live="polite"></p>
@@ -113,7 +114,7 @@
       </section>
 
       <section class="page-view" data-view="history">
-        <div class="page-heading"><div><div class="eyebrow">TUS CONSULTAS</div><h1>Un camino que queda contigo<span class="hero-comma">.</span></h1><p class="muted">Abre tus resultados guardados. No se vuelven a generar.</p></div></div>
+        <div class="page-heading"><div><div class="eyebrow">TUS CONSULTAS</div><h1>Un camino que queda contigo<span class="hero-comma">.</span></h1><p class="muted">Abre tus resultados guardados. No se vuelven a generar.</p></div><button id="export-history" class="button button-secondary" type="button">Exportar CSV</button></div>
         <form id="history-filters" class="filter-bar"><label><span class="sr-only">Estado</span><select name="status"><option value="">Todos los estados</option><option>Pendiente</option><option>Respondida</option><option>Sin resultados</option><option>Error</option></select></label><button class="button button-secondary" type="submit">Filtrar</button></form>
         <div id="history-list" class="history-list"><div class="loading-card">Cargando historial…</div></div>
       </section>
