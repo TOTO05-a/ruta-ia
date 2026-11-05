@@ -407,6 +407,36 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         assert.equal(repeatedCybersecurityAndPowerBiResults.reduce((total, result) => total + result.rowCount, 0), 0,
             "El seed de ciberseguridad y Power BI debe ser idempotente");
 
+        const javaAndPowerBiBasicSeed = fs.readFileSync(
+            path.join(workspaceRoot, "database/seeds/011_intecap_java_powerbi_basico.sql"),
+            "utf8"
+        );
+        const javaAndPowerBiBasicResults = await pool.query(javaAndPowerBiBasicSeed);
+        assert.equal(javaAndPowerBiBasicResults.reduce((total, result) => total + result.rowCount, 0), 2);
+        const expectedJavaAndPowerBiBasicCourses = [
+            ["Lenguaje de programación Java (E-learning)", "Básico", 40,
+                "https://cursos.intecap.edu.gt/detalle/45278/2026"],
+            ["Power BI básico", "Básico", 20,
+                "https://cursos.intecap.edu.gt/detalle/43108/2026"]
+        ];
+        for (const [name, level, durationHours, sourceUrl] of expectedJavaAndPowerBiBasicCourses) {
+            const result = await pool.query(
+                `SELECT id, description, level, duration_hours AS "durationHours", source_url AS "sourceUrl"
+                 FROM courses WHERE lower(name) = lower($1)`,
+                [name]
+            );
+            assert.equal(result.rowCount, 1, `${name}: curso institucional presente una sola vez`);
+            assert.equal(result.rows[0].level, level);
+            assert.equal(Number(result.rows[0].durationHours), durationHours);
+            assert.equal(result.rows[0].sourceUrl, sourceUrl);
+            assert.match(result.rows[0].description, /horas programadas calculadas desde el horario/);
+            const publicCourse = await request(`/api/v1/courses/${result.rows[0].id}`);
+            assert.equal(publicCourse.status, 200, `${name}: detalle público HTTP 200`);
+        }
+        const repeatedJavaAndPowerBiBasicResults = await pool.query(javaAndPowerBiBasicSeed);
+        assert.equal(repeatedJavaAndPowerBiBasicResults.reduce((total, result) => total + result.rowCount, 0), 0,
+            "El seed de Java y Power BI básico debe ser idempotente");
+
         const officialSourcesSeed = fs.readFileSync(
             path.join(workspaceRoot, "database/seeds/005_intecap_source_urls.sql"),
             "utf8"
@@ -416,7 +446,7 @@ test("API, PostgreSQL y callbacks mantienen contratos e integridad", {
         const sourceCoverage = await pool.query(
             "SELECT count(*)::int AS total, count(source_url)::int AS sourced FROM courses"
         );
-        assert.deepEqual(sourceCoverage.rows[0], { total: 35, sourced: 35 });
+        assert.deepEqual(sourceCoverage.rows[0], { total: 37, sourced: 37 });
         const officialRecommendationCourses = await pool.query(
             "SELECT id, source_url AS \"sourceUrl\" FROM courses WHERE is_active AND source_url IS NOT NULL ORDER BY name LIMIT 3"
         );
