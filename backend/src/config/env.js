@@ -2,9 +2,10 @@ const { z } = require("zod");
 
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
-    OPENROUTER_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().optional()),
-    OPENROUTER_CHAT_MODEL: z.string().default("openrouter/free"),
-    OPENROUTER_EMBEDDING_MODEL: z.string().default("nvidia/nemotron-3.5-embed-1b:free"),
+    GEMINI_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().optional()),
+    GEMINI_CHAT_MODEL: z.literal("gemini-3.5-flash-lite").default("gemini-3.5-flash-lite"),
+    GEMINI_EMBEDDING_MODEL: z.literal("gemini-embedding-2").default("gemini-embedding-2"),
+    GEMINI_EMBEDDING_DIMENSIONS: z.coerce.number().refine((value) => value === 1536, "debe ser 1536").default(1536),
     AI_CHAT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180_000).default(120_000),
     AI_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180_000).default(60_000),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
@@ -25,14 +26,8 @@ const envSchema = z.object({
         z.coerce.number().min(-1).max(1).optional()
     ),
     QDRANT_URL: z.string().url().optional(),
-    QDRANT_COLLECTION: z.string().min(1).default("rutaia_courses_openrouter_2048")
+    QDRANT_COLLECTION: z.string().min(1).default("rutaia_courses_gemini_1536")
 }).superRefine((value, ctx) => {
-    if (value.OPENROUTER_CHAT_MODEL !== "openrouter/free" && !/:free$/.test(value.OPENROUTER_CHAT_MODEL)) {
-        ctx.addIssue({ code: "custom", path: ["OPENROUTER_CHAT_MODEL"], message: "solo se permiten openrouter/free o IDs terminados en :free para evitar modelos con costo" });
-    }
-    if (!/:free$/.test(value.OPENROUTER_EMBEDDING_MODEL)) {
-        ctx.addIssue({ code: "custom", path: ["OPENROUTER_EMBEDDING_MODEL"], message: "solo se permiten modelos de embeddings gratuitos terminados en :free" });
-    }
     if (value.NODE_ENV === "production" && !value.SESSION_SECRET) {
         ctx.addIssue({ code: "custom", path: ["SESSION_SECRET"], message: "es obligatorio en producción" });
     }

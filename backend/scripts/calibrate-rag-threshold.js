@@ -4,7 +4,7 @@
 require("dotenv").config({ path: require("node:path").resolve(__dirname, "../../.env") });
 
 const apiBaseUrl = (process.env.RUTAIA_API_URL || `http://localhost:${process.env.APP_PORT || 3001}/api/v1`).replace(/\/$/, "");
-const model = process.env.OPENROUTER_EMBEDDING_MODEL || "nvidia/nemotron-3.5-embed-1b:free";
+const model = process.env.GEMINI_EMBEDDING_MODEL || "gemini-embedding-2";
 const catalogUrl = process.env.CATALOG_URL || `${apiBaseUrl}/courses?limit=100&page=1`;
 const syncSecret = process.env.N8N_COURSE_SYNC_SECRET || "";
 const cases = [
@@ -40,7 +40,16 @@ const academicQueries = [
     "Quiero aprender a proteger aplicaciones web.",
     "Necesito desplegar aplicaciones usando contenedores."
 ];
-const minSimilarity = Number(process.env.RAG_MIN_SIMILARITY || 0.535);
+function readMinimumSimilarity(value) {
+    if (value === undefined || value === "") return null;
+    const threshold = Number(value);
+    if (!Number.isFinite(threshold) || threshold < -1 || threshold > 1) {
+        throw new Error("RAG_MIN_SIMILARITY debe ser un número entre -1 y 1");
+    }
+    return threshold;
+}
+
+const minSimilarity = readMinimumSimilarity(process.env.RAG_MIN_SIMILARITY);
 
 async function getJson(url, options) {
     const response = await fetch(url, options);
@@ -48,8 +57,9 @@ async function getJson(url, options) {
     return response.json();
 }
 
-async function embed(inputs) {
+async function embed(inputs, task) {
     if (!syncSecret) throw new Error("N8N_COURSE_SYNC_SECRET es obligatorio para solicitar embeddings al proxy local");
+    if (!["document", "query"].includes(task)) throw new Error("La tarea de embeddings debe ser document o query");
     if (!Array.isArray(inputs) || inputs.length < 1 || inputs.length > 100) {
         throw new Error("El lote de calibración debe contener entre 1 y 100 textos");
     }
@@ -62,7 +72,7 @@ async function embed(inputs) {
             response = await fetch(`${apiBaseUrl}/internal/ai/embeddings`, {
                 method: "POST",
                 headers: { "content-type": "application/json", "x-n8n-sync-secret": syncSecret },
-                body: JSON.stringify({ input: batch }),
+                body: JSON.stringify({ input: batch, task }),
                 signal: AbortSignal.timeout(Number(process.env.AI_CALIBRATION_TIMEOUT_MS || 900_000))
             });
             if (response.ok) break;
@@ -76,7 +86,7 @@ async function embed(inputs) {
         }
         if (!response.ok) {
             if (responseErrorCode === "AI_PROVIDER_RATE_LIMITED") {
-                throw new Error("OpenRouter limitó las solicitudes; espera antes de reintentar la calibración");
+                throw new Error("Gemini limitó las solicitudes; espera antes de reintentar la calibración");
             }
             throw new Error(`El proxy de embeddings respondió HTTP ${response.status} para las entradas ${start + 1}-${start + batch.length}`);
         }
@@ -86,7 +96,7 @@ async function embed(inputs) {
         if (!Array.isArray(batchVectors) || batchVectors.length !== batch.length ||
             !Number.isInteger(dimension) || dimension < 1 ||
             batchVectors.some((vector) => !Array.isArray(vector) || vector.length !== dimension || vector.some((n) => !Number.isFinite(n)))) {
-            throw new Error(`OpenRouter devolvió embeddings inválidos para las entradas ${start + 1}-${start + batch.length}`);
+            throw new Error(`Gemini devolvió embeddings inválidos para las entradas ${start + 1}-${start + batch.length}`);
         }
         vectors.push(...batchVectors);
     }
@@ -112,19 +122,21 @@ async function main() {
     const courses = Array.isArray(catalog.data) ? catalog.data : catalog.data?.items;
     if (!Array.isArray(courses)) throw new Error("La API de catálogo no devolvió data.items");
     if (courses.length < 3) throw new Error(`Se requieren al menos 3 cursos activos; catálogo recibido: ${courses.length}`);
-    const inputs = [
-        ...courses.map(courseEmbeddingText),
-        ...cases.map(({ query }) => query),
-        ...academicQueries
-    ];
-    if (inputs.length > 100) throw new Error("El catálogo y los casos exceden el límite de 100 textos por lote");
-    const embeddings = await embed(inputs);
-    if (embeddings.length !== inputs.length) throw new Error("La cantidad de embeddings devuelta no coincide con las entradas");
-    const courseVectors = courses.map((course, index) => ({ course, vector: embeddings[index] }));
-    let embeddingIndex = courses.length;
+    const courseInputs = courses.map(courseEmbeddingText);
+    const queryInputs = [...cases.map(({ query }) => query), ...academicQueries];
+    if (courseInputs.length + queryInputs.length > 100) {
+        throw new Error("El catálogo y los casos exceden el límite de 100 textos por calibración");
+    }
+    const courseEmbeddings = await embed(courseInputs, "document");
+    const queryEmbeddings = await embed(queryInputs, "query");
+    if (courseEmbeddings.length !== courseInputs.length || queryEmbeddings.length !== queryInputs.length) {
+        throw new Error("La cantidad de embeddings devuelta no coincide con las entradas");
+    }
+    const courseVectors = courses.map((course, index) => ({ course, vector: courseEmbeddings[index] }));
+    let embeddingIndex = 0;
     const records = [];
     for (const testCase of cases) {
-        const queryVector = embeddings[embeddingIndex++];
+        const queryVector = queryEmbeddings[embeddingIndex++];
         const scored = courseVectors.map(({ course, vector }) => {
             if (vector.length !== queryVector.length) throw new Error("La dimensión de embedding del curso y consulta no coincide");
             return { course, score: cosine(queryVector, vector) };
@@ -146,7 +158,7 @@ async function main() {
     const minRelevantThird = positives.length ? Math.min(...positives.map((r) => r.thirdRelevantScore)) : null;
     const academicCoverage = [];
     for (const query of academicQueries) {
-        const queryVector = embeddings[embeddingIndex++];
+        const queryVector = queryEmbeddings[embeddingIndex++];
         const scored = courseVectors.map(({ course, vector }) => {
             if (vector.length !== queryVector.length) throw new Error("La dimensión de embedding del curso y consulta no coincide");
             return { course, score: cosine(queryVector, vector) };
@@ -156,13 +168,13 @@ async function main() {
             name: course.name,
             category: course.category,
             score: Number(score.toFixed(4)),
-            aboveThreshold: score >= minSimilarity
+            aboveThreshold: minSimilarity === null ? null : score >= minSimilarity
         }));
         academicCoverage.push({
             query,
-            aboveThresholdCount: topFive.filter((result) => result.aboveThreshold).length,
+            aboveThresholdCount: minSimilarity === null ? null : topFive.filter((result) => result.aboveThreshold).length,
             minimumSourcesForAnswer: 3,
-            sufficientSources: topFive.filter((result) => result.aboveThreshold).length >= 3,
+            sufficientSources: minSimilarity === null ? null : topFive.filter((result) => result.aboveThreshold).length >= 3,
             topFive
         });
     }
@@ -179,7 +191,11 @@ async function main() {
     }, null, 2));
 }
 
-main().catch((error) => {
-    console.error(`No se pudo calibrar RAG: ${error.message}`);
-    process.exitCode = 1;
-});
+if (require.main === module) {
+    main().catch((error) => {
+        console.error(`No se pudo calibrar RAG: ${error.message}`);
+        process.exitCode = 1;
+    });
+}
+
+module.exports = { embed, readMinimumSimilarity };

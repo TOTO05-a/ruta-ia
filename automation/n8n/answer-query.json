@@ -39,7 +39,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nif (request.qdrantCollection !== 'rutaia_courses_openrouter_2048') throw new Error('Colección RAG no permitida');\nreturn [{ json: { input: request.question, embeddingUrl: request.embeddingUrl } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nif (request.qdrantCollection !== 'rutaia_courses_gemini_1536') throw new Error('Colección RAG no permitida');\nreturn [{ json: { input: request.question, task: 'query', embeddingUrl: request.embeddingUrl } }];"
       },
       "id": "1214c556-80f0-4f5c-870f-80c8f6c5f536",
       "name": "Preparar embedding de pregunta",
@@ -57,7 +57,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { input: $json.input } }}",
+        "jsonBody": "={{ { input: $json.input, task: $json.task } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "b2ff63f1-0fd4-4f48-b20e-b20d92f1e016",
@@ -151,7 +151,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.message?.content ?? response.body?.message?.content;\nif (typeof content !== 'string') throw new Error('OpenRouter no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
+        "jsCode": "const original = $('Webhook autenticado de consulta').first().json.body;\nconst selected = $('Filtrar fuentes activas y umbral').first().json;\nconst response = $input.first().json;\nlet content = response.message?.content ?? response.body?.message?.content;\nif (typeof content !== 'string') throw new Error('Gemini no devolvió texto');\nconst parsed = JSON.parse(content);\nfor (const key of ['answer','summary','explanation']) if (typeof parsed[key] !== 'string' || !parsed[key].trim()) throw new Error('Respuesta RAG incompleta');\nreturn [{ json: { queryId: original.queryId, status: 'Respondida', answer: parsed.answer, summary: parsed.summary, explanation: parsed.explanation, sources: selected.sources.map(s => ({ courseId: s.courseId, similarity: s.similarity })) } }];"
       },
       "id": "6944ec2b-2a2f-4a83-a2bf-51c4881bc695",
       "name": "Validar callback de recomendación",

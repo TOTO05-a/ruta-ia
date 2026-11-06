@@ -4,7 +4,7 @@ const aiChat = require("../integrations/ai/chat");
 const aiEmbeddings = require("../integrations/ai/embeddings");
 const courseSyncOutbox = require("../repositories/course-sync-outbox.repository");
 
-const OPENROUTER_COURSE_COLLECTION = "rutaia_courses_openrouter_2048";
+const GEMINI_COURSE_COLLECTION = "rutaia_courses_gemini_1536";
 
 async function activeCourses(req, res) {
     const items = await repository.listAllActive();
@@ -12,19 +12,19 @@ async function activeCourses(req, res) {
 }
 
 async function indexingConfig(req, res) {
-    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.QDRANT_URL ||
-        env.QDRANT_COLLECTION !== OPENROUTER_COURSE_COLLECTION) {
+    if (!env.GEMINI_EMBEDDING_MODEL || !env.QDRANT_URL ||
+        env.QDRANT_COLLECTION !== GEMINI_COURSE_COLLECTION) {
         return res.status(503).json({
             error: {
                 code: "INDEXING_NOT_CONFIGURED",
-                message: "La indexación requiere la colección OpenRouter de 2048 dimensiones",
+                message: "La indexación requiere la colección Gemini de 1536 dimensiones",
                 requestId: req.requestId
             }
         });
     }
     return res.json({
         data: {
-            embeddingModel: env.OPENROUTER_EMBEDDING_MODEL,
+            embeddingModel: env.GEMINI_EMBEDDING_MODEL,
             embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
             collection: env.QDRANT_COLLECTION,
             qdrantUrl: env.QDRANT_URL
@@ -33,12 +33,12 @@ async function indexingConfig(req, res) {
 }
 
 async function courseSyncConfig(req, res) {
-    if (!env.OPENROUTER_EMBEDDING_MODEL || !env.QDRANT_URL ||
-        env.QDRANT_COLLECTION !== OPENROUTER_COURSE_COLLECTION) {
+    if (!env.GEMINI_EMBEDDING_MODEL || !env.QDRANT_URL ||
+        env.QDRANT_COLLECTION !== GEMINI_COURSE_COLLECTION) {
         return res.status(503).json({
             error: {
                 code: "COURSE_SYNC_NOT_CONFIGURED",
-                message: "La sincronización incremental requiere la colección configurada de 2048 dimensiones",
+                message: "La sincronización incremental requiere la colección Gemini configurada de 1536 dimensiones",
                 requestId: req.requestId
             }
         });
@@ -46,8 +46,8 @@ async function courseSyncConfig(req, res) {
     return res.json({
         data: {
             embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
-            collection: OPENROUTER_COURSE_COLLECTION,
-            dimension: 2048,
+            collection: GEMINI_COURSE_COLLECTION,
+            dimension: 1536,
             qdrantUrl: env.QDRANT_URL
         }
     });

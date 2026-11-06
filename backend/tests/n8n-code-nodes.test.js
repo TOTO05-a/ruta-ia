@@ -67,7 +67,7 @@ test("workflow RAG prepara el embedding con la configuración enviada por Expres
         interestArea: "Gastronomía",
         embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
         minSimilarity: 0.5,
-        qdrantCollection: "rutaia_courses_openrouter_2048",
+        qdrantCollection: "rutaia_courses_gemini_1536",
         qdrantUrl: "http://qdrant:6333",
         callbackUrl: "http://backend:3000/api/v1/internal/n8n/results"
     };
@@ -75,6 +75,7 @@ test("workflow RAG prepara el embedding con la configuración enviada por Expres
 
     assert.deepEqual(executeCode(node, context, {}), [{
         input: "Me interesa cocina y gastronomía",
+        task: "query",
         embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings"
     }]);
     assert.throws(() => executeCode(node, {
@@ -187,39 +188,39 @@ test("indexación conserva asociación por índice y valida dimensión y valores
     const context = {
         "Preparar textos de cursos": {
             qdrantUrl: "http://qdrant:6333/",
-            collection: "rutaia_courses_openrouter_2048",
+            collection: "rutaia_courses_gemini_1536",
             courses
         }
     };
     const result = executeCode(node, context, {
-        embeddings: [Array(2048).fill(1), Array(2048).fill(2)]
+        embeddings: [Array(1536).fill(1), Array(1536).fill(2)]
     });
 
     assert.equal(result[0].qdrantUrl, "http://qdrant:6333");
-    assert.equal(result[0].dimension, 2048);
+    assert.equal(result[0].dimension, 1536);
     assert.deepEqual(result[0].points.map((point) => point.id), ["course-a", "course-b"]);
-    assert.deepEqual(result[0].points.map((point) => point.vector), [Array(2048).fill(1), Array(2048).fill(2)]);
+    assert.deepEqual(result[0].points.map((point) => point.vector), [Array(1536).fill(1), Array(1536).fill(2)]);
     assert.deepEqual(result[0].points.map((point) => point.payload.course_id), ["course-a", "course-b"]);
     assert.deepEqual(result[0].points.map((point) => point.payload.intecap_career_type), ["CTO", null]);
 
     assert.throws(
         () => executeCode(node, { "Preparar textos de cursos": { ...context["Preparar textos de cursos"], collection: "rutaia_courses" } }, {
-            embeddings: [Array(2048).fill(1), Array(2048).fill(2)]
+            embeddings: [Array(1536).fill(1), Array(1536).fill(2)]
         }),
         /Destino de indexación no permitido/
     );
-    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1)] }), /cantidad de embeddings inválida/);
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(1536).fill(1)] }), /cantidad de embeddings inválida/);
     assert.throws(() => executeCode(node, context, { embeddings: [Array(1024).fill(1), Array(1024).fill(2)] }), /Destino de indexación no permitido/);
-    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1), Array(1024).fill(2)] }), /dimensión o valores válidos/);
-    const invalidVector = Array(2048).fill(0);
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(1536).fill(1), Array(1024).fill(2)] }), /dimensión o valores válidos/);
+    const invalidVector = Array(1536).fill(0);
     invalidVector[5] = Number.NaN;
-    assert.throws(() => executeCode(node, context, { embeddings: [Array(2048).fill(1), invalidVector] }), /dimensión o valores válidos/);
+    assert.throws(() => executeCode(node, context, { embeddings: [Array(1536).fill(1), invalidVector] }), /dimensión o valores válidos/);
 });
 
 test("indexación vacía conserva el contexto y limpia vectores obsoletos sin ocultar fallos", () => {
     const prepare = codeNode(indexWorkflow, "Preparar textos de cursos");
     const context = {
-        "Leer configuración de indexación": { data: { qdrantUrl: "http://qdrant:6333", collection: "rutaia_courses_openrouter_2048" } },
+        "Leer configuración de indexación": { data: { qdrantUrl: "http://qdrant:6333", collection: "rutaia_courses_gemini_1536" } },
         "Leer catálogo PostgreSQL": { data: { items: [] } }
     };
     const prepared = executeCode(prepare, context, {});

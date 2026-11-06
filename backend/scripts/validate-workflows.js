@@ -75,7 +75,7 @@ for (const file of files) {
             "la sincronización incremental debe reclamar y confirmar eventos durables");
         assert.ok(!JSON.stringify(workflow).includes("rutaia_courses\""),
             "la automatización no debe apuntar a la colección antigua de 1024 dimensiones");
-        assert.ok(JSON.stringify(workflow).includes("rutaia_courses_openrouter_2048"),
+        assert.ok(JSON.stringify(workflow).includes("rutaia_courses_gemini_1536"),
             "la automatización debe limitar su destino a la colección nueva");
         assert.equal(nodes.get("Leer configuración incremental").parameters.url,
             "http://backend:3000/api/v1/internal/courses/sync-config");

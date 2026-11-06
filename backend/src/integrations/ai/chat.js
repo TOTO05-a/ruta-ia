@@ -21,32 +21,39 @@ function validateChatInput(body) {
 }
 
 function jsonResponseFormat(format) {
-    return format?.type === "object" ? { type: "json_object" } : undefined;
+    return format?.type === "object";
 }
 
 async function generate(body) {
     validateChatInput(body);
+    if (!env.GEMINI_API_KEY) {
+        throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "Gemini no está configurado");
+    }
 
-    if (!env.OPENROUTER_API_KEY) {
-        throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "OpenRouter no está configurado");
+    const systemMessages = body.messages.filter((message) => message.role === "system").map((message) => message.content);
+    const contents = body.messages.filter((message) => message.role !== "system").map((message) => ({
+        role: message.role === "assistant" ? "model" : "user",
+        parts: [{ text: message.content }]
+    }));
+    if (contents.length === 0) {
+        throw new ApiError(400, "AI_CHAT_INVALID_INPUT", "La solicitud de generación no es válida");
     }
 
     const requestBody = {
-        model: env.OPENROUTER_CHAT_MODEL,
-        messages: body.messages,
-        temperature: body.options?.temperature ?? 0.2,
-        max_tokens: body.options?.num_predict ?? 192,
-        ...(jsonResponseFormat(body.format) ? { response_format: jsonResponseFormat(body.format) } : {})
+        ...(systemMessages.length ? { systemInstruction: { parts: [{ text: systemMessages.join("\n\n") }] } } : {}),
+        contents,
+        generationConfig: {
+            temperature: body.options?.temperature ?? 0.2,
+            maxOutputTokens: body.options?.num_predict ?? 192,
+            ...(jsonResponseFormat(body.format) ? { responseMimeType: "application/json" } : {})
+        }
     };
 
     let response;
     try {
-        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_CHAT_MODEL}:generateContent`, {
             method: "POST",
-            headers: {
-                "content-type": "application/json",
-                authorization: `Bearer ${env.OPENROUTER_API_KEY}`
-            },
+            headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
             body: JSON.stringify(requestBody),
             signal: AbortSignal.timeout(env.AI_CHAT_TIMEOUT_MS)
         });
@@ -58,25 +65,24 @@ async function generate(body) {
     if (!response.ok) {
         const code = response.status === 429 ? "AI_PROVIDER_RATE_LIMITED" :
             response.status >= 500 ? "AI_PROVIDER_UNAVAILABLE" : "AI_PROVIDER_REJECTED_REQUEST";
-        throw new ApiError(502, code, "El proveedor de IA rechazó la solicitud");
+        throw new ApiError(502, code, "Gemini rechazó la solicitud");
     }
 
     let data;
     try {
         data = await response.json();
     } catch {
-        throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "El proveedor de IA devolvió una respuesta inválida");
+        throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "Gemini devolvió una respuesta inválida");
     }
 
-    const choice = data?.choices?.[0];
-    const content = choice?.message?.content;
+    const candidate = data?.candidates?.[0];
+    const content = candidate?.content?.parts?.map((part) => part.text ?? "").join("");
     if (typeof content !== "string" || !content.trim()) {
-        throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "El proveedor de IA devolvió una respuesta inválida");
+        throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "Gemini devolvió una respuesta inválida");
     }
-    if (jsonResponseFormat(body.format) && choice.finish_reason === "length") {
-        throw new ApiError(502, "AI_PROVIDER_INCOMPLETE_RESPONSE", "OpenRouter truncó la respuesta estructurada");
+    if (jsonResponseFormat(body.format) && candidate.finishReason === "MAX_TOKENS") {
+        throw new ApiError(502, "AI_PROVIDER_INCOMPLETE_RESPONSE", "Gemini truncó la respuesta estructurada");
     }
-
     return { message: { content } };
 }
 

@@ -1,6 +1,6 @@
 const env = require("../../config/env");
 
-const OPENROUTER_COURSE_COLLECTION = "rutaia_courses_openrouter_2048";
+const GEMINI_COURSE_COLLECTION = "rutaia_courses_gemini_1536";
 
 async function startQuery(payload) {
     if (!env.N8N_QUERY_WEBHOOK_URL || !env.N8N_WEBHOOK_SECRET || !env.N8N_CALLBACK_URL || !env.N8N_CALLBACK_SECRET) {
@@ -8,13 +8,13 @@ async function startQuery(payload) {
         error.code = "N8N_NOT_CONFIGURED";
         throw error;
     }
-    if (!env.OPENROUTER_API_KEY ||
+    if (!env.GEMINI_API_KEY ||
         !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
         const error = new Error("RAG_CONFIGURATION_MISSING");
         error.code = "RAG_CONFIGURATION_MISSING";
         throw error;
     }
-    if (env.QDRANT_COLLECTION !== OPENROUTER_COURSE_COLLECTION) {
+    if (env.QDRANT_COLLECTION !== GEMINI_COURSE_COLLECTION) {
         const error = new Error("RAG_COLLECTION_NOT_CONFIGURED");
         error.code = "RAG_COLLECTION_NOT_CONFIGURED";
         throw error;

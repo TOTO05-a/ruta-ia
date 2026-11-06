@@ -5,6 +5,10 @@ const MAX_BATCH_SIZE = 100;
 const MAX_TOTAL_CHARACTERS = 500_000;
 const PROVIDER_BATCH_SIZE = 2;
 const MAX_PROVIDER_ATTEMPTS = 3;
+const TASK_PREFIX = {
+    document: (text) => `title: none | text: ${text}`,
+    query: (text) => `task: question answering | query: ${text}`
+};
 
 function validateEmbeddingInput(body) {
     const input = body?.input;
@@ -19,19 +23,16 @@ function validateEmbeddingInput(body) {
     return inputs;
 }
 
-async function requestProviderBatch(batch) {
+async function requestEmbedding(text) {
     for (let attempt = 0; attempt < MAX_PROVIDER_ATTEMPTS; attempt += 1) {
         let response;
         try {
-            response = await fetch("https://openrouter.ai/api/v1/embeddings", {
+            response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_EMBEDDING_MODEL}:embedContent`, {
                 method: "POST",
-                headers: {
-                    "content-type": "application/json",
-                    authorization: `Bearer ${env.OPENROUTER_API_KEY}`
-                },
+                headers: { "content-type": "application/json", "x-goog-api-key": env.GEMINI_API_KEY },
                 body: JSON.stringify({
-                    model: env.OPENROUTER_EMBEDDING_MODEL,
-                    input: batch
+                    content: { parts: [{ text }] },
+                    outputDimensionality: env.GEMINI_EMBEDDING_DIMENSIONS
                 }),
                 signal: AbortSignal.timeout(env.AI_EMBEDDING_TIMEOUT_MS)
             });
@@ -45,81 +46,48 @@ async function requestProviderBatch(batch) {
         }
 
         if (!response.ok) {
-            if (response.status === 400 && batch.length > 1) {
-                throw new ApiError(502, "AI_PROVIDER_BATCH_REJECTED", "OpenRouter rechazó el lote de embeddings");
-            }
             if (response.status >= 500 && attempt + 1 < MAX_PROVIDER_ATTEMPTS) {
                 await new Promise((resolve) => setTimeout(resolve, 500 * (2 ** attempt)));
                 continue;
             }
             const code = response.status === 429 ? "AI_PROVIDER_RATE_LIMITED" :
                 response.status >= 500 ? "AI_PROVIDER_UNAVAILABLE" : "AI_PROVIDER_REJECTED_REQUEST";
-            throw new ApiError(502, code, "OpenRouter no pudo generar embeddings");
+            throw new ApiError(502, code, "Gemini no pudo generar embeddings");
         }
 
         let data;
         try {
             data = await response.json();
         } catch {
-            throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "OpenRouter devolvió embeddings inválidos");
+            throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "Gemini devolvió embeddings inválidos");
         }
-        return data?.data;
-    }
-    throw new ApiError(502, "AI_PROVIDER_UNAVAILABLE", "OpenRouter no pudo generar embeddings");
-}
-
-async function requestProviderEmbeddings(batch) {
-    try {
-        return await requestProviderBatch(batch);
-    } catch (error) {
-        if (error.code !== "AI_PROVIDER_BATCH_REJECTED") throw error;
-
-        const items = [];
-        for (const [index, input] of batch.entries()) {
-            const singleItems = await requestProviderBatch([input]);
-            if (!Array.isArray(singleItems) || singleItems.length !== 1) {
-                throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "OpenRouter devolvió una cantidad de embeddings inválida");
-            }
-            items.push({ index, embedding: singleItems[0]?.embedding });
+        const vector = data?.embedding?.values;
+        if (!Array.isArray(vector) || vector.length !== env.GEMINI_EMBEDDING_DIMENSIONS ||
+            vector.some((value) => !Number.isFinite(value))) {
+            throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "Gemini devolvió embeddings inválidos");
         }
-        return items;
+        return vector;
     }
+    throw new ApiError(502, "AI_PROVIDER_UNAVAILABLE", "Gemini no pudo generar embeddings");
 }
 
 async function generate(body) {
     const inputs = validateEmbeddingInput(body);
-    if (!env.OPENROUTER_API_KEY) {
-        throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "OpenRouter no está configurado");
+    const task = body.task ?? "document";
+    if (!Object.hasOwn(TASK_PREFIX, task)) {
+        throw new ApiError(400, "AI_EMBEDDING_INVALID_INPUT", "La tarea de embeddings no es válida");
+    }
+    if (!env.GEMINI_API_KEY) {
+        throw new ApiError(503, "AI_PROVIDER_NOT_CONFIGURED", "Gemini no está configurado");
     }
 
-    const ordered = [];
-    let dimension;
-    for (let start = 0; start < inputs.length; start += PROVIDER_BATCH_SIZE) {
-        const batch = inputs.slice(start, start + PROVIDER_BATCH_SIZE);
-        const items = await requestProviderEmbeddings(batch);
-        if (!Array.isArray(items) || items.length !== batch.length) {
-            throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "OpenRouter devolvió una cantidad de embeddings inválida");
-        }
-        const batchVectors = Array(batch.length);
-        for (const [fallbackIndex, item] of items.entries()) {
-            const index = item?.index === undefined ? fallbackIndex : item.index;
-            const vector = item?.embedding;
-            if (!Number.isInteger(index) || index < 0 || index >= batch.length || batchVectors[index] ||
-                !Array.isArray(vector) || vector.length < 1 || vector.some((value) => !Number.isFinite(value))) {
-                throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "OpenRouter devolvió embeddings inválidos");
-            }
-            batchVectors[index] = vector;
-        }
-        const batchDimension = batchVectors[0]?.length;
-        if (!Number.isInteger(batchDimension) || batchVectors.some((vector) => !vector || vector.length !== batchDimension) ||
-            (dimension !== undefined && dimension !== batchDimension)) {
-            throw new ApiError(502, "AI_PROVIDER_INVALID_RESPONSE", "OpenRouter devolvió dimensiones de embeddings inconsistentes");
-        }
-        dimension = batchDimension;
-        ordered.push(...batchVectors);
+    const prefixedInputs = inputs.map(TASK_PREFIX[task]);
+    const embeddings = [];
+    for (let start = 0; start < prefixedInputs.length; start += PROVIDER_BATCH_SIZE) {
+        const batch = prefixedInputs.slice(start, start + PROVIDER_BATCH_SIZE);
+        embeddings.push(...await Promise.all(batch.map(requestEmbedding)));
     }
-
-    return { embeddings: ordered };
+    return { embeddings };
 }
 
 module.exports = { generate, validateEmbeddingInput };

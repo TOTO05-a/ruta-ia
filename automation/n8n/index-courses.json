@@ -44,7 +44,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nif (config.collection !== 'rutaia_courses_openrouter_2048') throw new Error('Destino de indexación no permitido');\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nreturn [{ json: { ...config, courses, emptyCatalog: courses.length === 0, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
+        "jsCode": "const config = $('Leer configuración de indexación').first().json.data;\nif (config.collection !== 'rutaia_courses_gemini_1536') throw new Error('Destino de indexación no permitido');\nconst courses = $('Leer catálogo PostgreSQL').first().json.data?.items;\nif (!Array.isArray(courses)) throw new Error('Respuesta del catálogo inválida');\nreturn [{ json: { ...config, courses, emptyCatalog: courses.length === 0, inputs: courses.map(c => `Curso: ${c.name}\\nDescripción: ${c.description}\\nCategoría: ${c.category}\\nNivel RutaIA: ${c.level}\\nClasificación INTECAP: ${c.intecapCareerType ?? 'No indicada'}\\nDuración: ${c.durationHours} horas`) } }];"
       },
       "id": "a84a0764-7316-4d2b-9a93-2d123416fe51",
       "name": "Preparar textos de cursos",
@@ -103,7 +103,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { input: $json.inputs } }}",
+        "jsonBody": "={{ { input: $json.inputs, task: 'document' } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "d79b216c-b4c8-4899-ad32-31786fd409fb",
@@ -118,7 +118,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.embeddings ?? result.body?.embeddings;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('OpenRouter devolvió una cantidad de embeddings inválida');\nconst dimension = vectors[0]?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nif (cfg.collection !== 'rutaia_courses_openrouter_2048' || dimension !== 2048) throw new Error('Destino de indexación no permitido');\nfor (const vector of vectors) if (!Array.isArray(vector) || vector.length !== dimension || vector.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: vectors[i], payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
+        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nconst result = $input.first().json;\nconst vectors = result.embeddings ?? result.body?.embeddings;\nif (!Array.isArray(vectors) || vectors.length !== cfg.courses.length) throw new Error('Gemini devolvió una cantidad de embeddings inválida');\nconst dimension = vectors[0]?.length;\nif (!Number.isInteger(dimension) || dimension < 1) throw new Error('Dimensión de embedding inválida');\nif (cfg.collection !== 'rutaia_courses_gemini_1536' || dimension !== 1536) throw new Error('Destino de indexación no permitido');\nfor (const vector of vectors) if (!Array.isArray(vector) || vector.length !== dimension || vector.some(n => !Number.isFinite(n))) throw new Error('Los embeddings no tienen dimensión o valores válidos');\nconst points = cfg.courses.map((course, i) => ({ id: course.id, vector: vectors[i], payload: { course_id: course.id, name: course.name, description: course.description, category: course.category, level: course.level, intecap_career_type: course.intecapCareerType ?? null, duration_hours: course.durationHours, is_active: true } }));\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension, points } }];"
       },
       "id": "5e9f4b52-ec46-4a5b-9be5-4227c50fc291",
       "name": "Validar y preparar puntos Qdrant",

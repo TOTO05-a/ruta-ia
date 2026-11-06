@@ -4,9 +4,9 @@
 
 ## Proveedor de IA y secretos
 
-OpenRouter es el proveedor acordado para embeddings y generación. El backend usa `OPENROUTER_EMBEDDING_MODEL` y `OPENROUTER_CHAT_MODEL`; sus valores predeterminados son `nvidia/nemotron-3.5-embed-1b:free` y `openrouter/free`.
+Gemini es el proveedor configurado para embeddings y generación. El backend usa `GEMINI_EMBEDDING_MODEL=gemini-embedding-2` y `GEMINI_CHAT_MODEL=gemini-3.5-flash-lite`, con una dimensión de embedding fija de 1536.
 
-Configura únicamente `OPENROUTER_API_KEY` en el `.env` local del backend. Nunca la copies a n8n, a un nodo, al navegador o a un workflow. n8n llama a proxies internos autenticados de Express:
+Configura únicamente `GEMINI_API_KEY` en el `.env` local del backend. Nunca la copies a n8n, a un nodo, al navegador o a un workflow. n8n llama a proxies internos autenticados de Express:
 
 - `POST /api/v1/internal/ai/embeddings` para embeddings.
 - `POST /api/v1/internal/ai/chat` para generar la respuesta grounded.
@@ -20,13 +20,13 @@ Ambos endpoints requieren la credencial Header Auth `RutaIA - secreto de sincron
 3. Valida cantidad, dimensiones y valores finitos antes de preparar los puntos de Qdrant.
 4. Crea la colección Cosine si no existe, inserta puntos con UUID del curso y elimina vectores de cursos inactivos.
 
-`index-courses.json` es la reconciliación completa, permanece **inactiva** y solo se ejecuta manualmente cuando se necesita reconstruir el índice. La colección anterior `rutaia_courses` tenía 1024 dimensiones. El modelo configurado devolvió 2048 dimensiones en una solicitud sintética; por eso el nuevo destino es `rutaia_courses_openrouter_2048`. El endpoint de configuración y el propio workflow rechazan otro nombre de colección, y la validación del vector exige 2048 dimensiones antes de cualquier escritura. La colección anterior no se reemplaza ni se borra. La reconciliación completa ya no tiene una ejecución periódica cada seis horas.
+`index-courses.json` es la reconciliación completa, permanece **inactiva** y solo se ejecuta manualmente cuando se necesita reconstruir el índice. La colección anterior `rutaia_courses` tiene 1024 dimensiones; el destino nuevo configurado es `rutaia_courses_gemini_1536`. El endpoint y el workflow rechazan otro nombre de colección, y la validación del vector exige exactamente 1536 dimensiones antes de cualquier escritura. La colección anterior no se reemplaza ni se borra. La reconciliación completa no tiene una ejecución periódica.
 
 ## Sincronización incremental opcional
 
 `sync-course-events.json` es un workflow independiente e inactivo. Al habilitarlo en n8n, consulta la cola cada minuto; cuando no hay cambios, no solicita embeddings ni lee/reindexa el catálogo. Las inserciones y los cambios relevantes de cursos escriben, mediante el trigger de la migración `005_course_qdrant_sync_outbox.sql`, un evento durable en la misma transacción PostgreSQL. Los cambios repetidos del mismo curso se consolidan en un único evento versionado. Desactivar un curso genera una eliminación del punto; crear, editar o reactivar uno genera un upsert.
 
-Antes de importar/activar el workflow, aplica las migraciones del backend y configura la colección `rutaia_courses_openrouter_2048` (2048 dimensiones), URL de Qdrant y la credencial interna de sincronización. El endpoint de configuración incremental falla cerrado si el destino no es exactamente esa colección, por lo que la sincronización automática nunca puede escribir en `rutaia_courses`. La reconciliación manual completa conserva su uso separado.
+Antes de importar/activar el workflow, aplica las migraciones del backend y configura la colección `rutaia_courses_gemini_1536` (1536 dimensiones), URL de Qdrant y la credencial interna de sincronización. El endpoint de configuración incremental falla cerrado si el destino no es exactamente esa colección, por lo que la sincronización automática nunca puede escribir en `rutaia_courses`. La reconciliación manual completa conserva su uso separado.
 
 El workflow reclama un evento con una concesión de cinco minutos, escribe/elimina el punto y solo entonces confirma el evento. Si falla el embedding o Qdrant, no lo confirma: el evento queda disponible para reintento al expirar la concesión. Si el curso cambia mientras se procesa, la versión anterior no puede confirmar ni borrar la versión nueva. El patrón es al-menos-una-vez, por lo que un fallo después de escribir en Qdrant y antes de confirmar puede repetir el upsert; los IDs de curso hacen la operación idempotente. Las fallas posteriores a una mutación PostgreSQL no revierten ni hacen fallar esa mutación.
 
@@ -37,10 +37,10 @@ La cola crea datos pendientes aunque el workflow permanezca inactivo; al habilit
 1. Express envía la consulta autenticada al webhook n8n, junto con los filtros opcionales de categoría/nivel y hasta tres pares pregunta/respuesta recientes del mismo estudiante.
 2. n8n solicita el embedding de la pregunta al proxy Express y recupera candidatos de Qdrant.
 3. Revalida cursos activos en PostgreSQL, aplica el umbral y requiere al menos tres fuentes.
-4. Si hay fuentes suficientes, envía a Express las fuentes seleccionadas; el backend llama a OpenRouter y nunca comparte su clave con n8n.
+4. Si hay fuentes suficientes, envía a Express las fuentes seleccionadas; el backend llama a Gemini y nunca comparte su clave con n8n.
 5. n8n valida la respuesta estructurada y persiste estado, fuentes y similitudes mediante el callback autenticado.
 
-El umbral `0.535` fue calibrado con BGE-M3; no se debe asumir válido para el nuevo modelo. `npm run calibrate:rag` obtiene el catálogo y envía 67 textos sintéticos/institucionales en lotes de dos al proxy; si el proveedor rechaza un lote, el proxy intenta sus textos individualmente. El modelo gratuito permite 50 solicitudes por día UTC; una calibración normal requiere al menos 34 llamadas y una reindexación de 38 cursos otras 19. Planifica ambas en días UTC distintos. La primera llamada confirmó embeddings de 2048 dimensiones, pero se agotó el cupo gratuito durante las pruebas y la calibración quedó pendiente; no hay umbral nuevo ni respuesta completa de chat validada. No reindexes ni actives los workflows hasta completar calibración, validar generación y actualizar n8n.
+La calibración real con Gemini se ejecutó sobre los 37 cursos activos y 22 consultas: la ventana fue `0.6347–0.6484` y `RAG_MIN_SIMILARITY=0.642` permanece provisional. En siete consultas académicas complementarias, cuatro alcanzaron tres candidatos sobre el umbral y tres no; esa medición no demuestra pertinencia. La colección `rutaia_courses_gemini_1536` contiene los 37 UUID activos (1536 dimensiones); la colección antigua de 1024 dimensiones permanece intacta. Dos acciones `delete` siguen pendientes en el outbox. Se cambió el modelo chat retirado a `gemini-3.5-flash-lite`. El responder Gemini se publicó y una E2E real de la app verificó callback e historial: terminó `Respondida` con tres fuentes. La cuenta y la consulta sintéticas se eliminaron.
 
 ## Actualizar una instancia n8n existente
 
@@ -48,9 +48,9 @@ El umbral `0.535` fue calibrado con BGE-M3; no se debe asumir válido para el nu
 2. Importa o actualiza los workflows en la interfaz local de n8n.
 3. Verifica que `Generar embeddings vía Express`, `Crear embedding de pregunta` y `Generar respuesta grounded` usen `RutaIA - secreto de sincronización`.
 4. Verifica que callbacks usen la credencial `RutaIA - callback Express` y el webhook la credencial `RutaIA - webhook bearer`.
-5. No actives el indexador ni ejecutes pruebas de consulta real hasta completar la verificación de dimensión, calibrar el umbral y autorizar las llamadas externas necesarias.
+5. El responder Gemini está publicado y pasó una E2E. Mantén el indexador despublicado hasta validar el workflow incremental y revisar los dos eventos pendientes.
 
-Los cambios en JSON no alteran las credenciales guardadas en n8n. Esta actualización cambia solo los archivos del repositorio; no modifica ni activa la instancia local.
+Estado de la instancia local (6 nov 2026): el responder Gemini está publicado y el indexador está despublicado. Las credenciales de webhook, proxy interno y callbacks se verificaron en la interfaz; no se guardó una clave Gemini en n8n. Los cambios en JSON no alteran por sí solos las credenciales guardadas en n8n. La configuración actual exige colección y vectores Gemini de 1536 dimensiones; no se debe ejecutar el flujo contra la colección anterior de 1024 dimensiones.
 
 ## Validación local
 
@@ -62,4 +62,4 @@ npm run validate:openapi
 npm test
 ```
 
-Estas comprobaciones son estáticas o usan mocks; no llaman a OpenRouter, no escriben en Qdrant y no prueban una ejecución completa n8n→Qdrant→PostgreSQL.
+Estas comprobaciones son estáticas o usan mocks; no llaman a Gemini, no escriben en Qdrant y no prueban una ejecución completa n8n→Qdrant→PostgreSQL.

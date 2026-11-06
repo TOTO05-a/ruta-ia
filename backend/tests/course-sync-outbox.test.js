@@ -75,8 +75,8 @@ test("incremental workflow skips empty polls and prepares one valid upsert for t
     const event = { id: "8", action: "upsert", version: 1, payload: course };
     const config = {
         qdrantUrl: "http://qdrant:6333",
-        collection: "rutaia_courses_openrouter_2048",
-        dimension: 2048
+        collection: "rutaia_courses_gemini_1536",
+        dimension: 1536
     };
     const nodeContext = {
         "Leer configuración incremental": { data: config },
@@ -85,15 +85,15 @@ test("incremental workflow skips empty polls and prepares one valid upsert for t
     const resolver = (name) => ({ first: () => ({ json: nodeContext[name] }) });
     const validate = new Function("$input", "$", nodeCode("Validar punto incremental"));
     const result = validate(
-        { first: () => ({ json: { embeddings: [Array(2048).fill(0.25)] } }) },
+        { first: () => ({ json: { embeddings: [Array(1536).fill(0.25)] } }) },
         resolver
     )[0].json;
-    assert.equal(result.collection, "rutaia_courses_openrouter_2048");
+    assert.equal(result.collection, "rutaia_courses_gemini_1536");
     assert.equal(result.point.id, course.id);
-    assert.equal(result.point.vector.length, 2048);
+    assert.equal(result.point.vector.length, 1536);
 });
 
-test("incremental workflow fails closed if the configured collection is not the new 2048-dimension target", () => {
+test("incremental workflow fails closed if the configured collection is not the new 1536-dimension target", () => {
     const code = incrementalWorkflow.nodes.find((node) => node.name === "Validar punto incremental").parameters.jsCode;
     const event = { id: "8", action: "upsert", version: 1, payload: { id: "course-id" } };
     const resolver = (name) => ({

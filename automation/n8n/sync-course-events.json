@@ -123,7 +123,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { input: [`Curso: ${$json.payload.name}\\nDescripción: ${$json.payload.description}\\nCategoría: ${$json.payload.category}\\nNivel RutaIA: ${$json.payload.level}\\nClasificación INTECAP: ${$json.payload.intecapCareerType ?? 'No indicada'}\\nDuración: ${$json.payload.durationHours} horas`] } }}",
+        "jsonBody": "={{ { input: [`Curso: ${$json.payload.name}\\nDescripción: ${$json.payload.description}\\nCategoría: ${$json.payload.category}\\nNivel RutaIA: ${$json.payload.level}\\nClasificación INTECAP: ${$json.payload.intecapCareerType ?? 'No indicada'}\\nDuración: ${$json.payload.durationHours} horas`], task: 'document' } }}",
         "options": {
           "response": {
             "response": {
@@ -147,7 +147,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const cfg = $('Leer configuración incremental').first().json.data;\nconst event = $('Desempaquetar evento').first().json;\nconst vectors = $input.first().json.embeddings ?? $input.first().json.data?.embeddings;\nif (cfg.collection !== 'rutaia_courses_openrouter_2048' || cfg.dimension !== 2048) throw new Error('Destino incremental no permitido');\nif (!Array.isArray(vectors) || vectors.length !== 1 || vectors[0].length !== cfg.dimension || vectors[0].some(n => !Number.isFinite(n))) throw new Error('Embedding incremental inválido');\nconst c = event.payload;\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension: cfg.dimension, point: { id: c.id, vector: vectors[0], payload: { course_id: c.id, name: c.name, description: c.description, category: c.category, level: c.level, intecap_career_type: c.intecapCareerType ?? null, duration_hours: c.durationHours, is_active: true } } } }];"
+        "jsCode": "const cfg = $('Leer configuración incremental').first().json.data;\nconst event = $('Desempaquetar evento').first().json;\nconst vectors = $input.first().json.embeddings ?? $input.first().json.data?.embeddings;\nif (cfg.collection !== 'rutaia_courses_gemini_1536' || cfg.dimension !== 1536) throw new Error('Destino incremental no permitido');\nif (!Array.isArray(vectors) || vectors.length !== 1 || vectors[0].length !== cfg.dimension || vectors[0].some(n => !Number.isFinite(n))) throw new Error('Embedding incremental inválido');\nconst c = event.payload;\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, dimension: cfg.dimension, point: { id: c.id, vector: vectors[0], payload: { course_id: c.id, name: c.name, description: c.description, category: c.category, level: c.level, intecap_career_type: c.intecapCareerType ?? null, duration_hours: c.durationHours, is_active: true } } } }];"
       },
       "id": "3bb8335d-bd1f-44a5-98ce-2b9dcbe0500b",
       "name": "Validar punto incremental",

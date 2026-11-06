@@ -2,7 +2,7 @@
   "use strict";
 
   const API = "/api/v1";
-  const state = { student: null, csrf: "", page: "home", catalogPage: 1, catalogLayout: "grid", catalogCategories: null, query: null, toastTimer: null };
+  const state = { student: null, csrf: "", page: "home", catalogPage: 1, catalogLayout: "grid", catalogCategories: null, query: null, conversationLoaded: false, conversationPromise: null, toastTimer: null };
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const node = (tag, className, text) => {
@@ -92,6 +92,7 @@
 
   function showApp(student) {
     state.student = student;
+    state.conversationLoaded = false;
     $("#auth-view").classList.add("hidden");
     $("#app-view").classList.remove("hidden");
     $("#welcome-name").textContent = (student.fullName || "estudiante").split(" ")[0];
@@ -209,7 +210,41 @@
     } catch {
       categoryStatus.textContent = "No se cargaron las categorías; puedes continuar sin ese filtro.";
     }
+    await loadConversation();
     await loadCourses("/courses?limit=3", $("#home-courses"), { compact: true });
+  }
+
+  async function loadConversation() {
+    if (state.conversationLoaded) return;
+    if (state.conversationPromise) return state.conversationPromise;
+    const list = $("#conversation-list");
+    const status = $("#conversation-status");
+    list.replaceChildren(node("div", "loading-card", "Cargando conversación…"));
+    state.conversationPromise = (async () => {
+      try {
+        const history = await api("/queries?page=1&limit=8");
+        const queries = await Promise.all(
+          history.items.slice().reverse().map(({ id }) => api(`/queries/${encodeURIComponent(id)}`))
+        );
+        list.replaceChildren();
+        if (!queries.length) {
+          list.append(node("div", "empty-state", "Aún no tienes consultas. Escribe tu primera pregunta aquí y seguimos desde ahí."));
+          status.textContent = "Tu espacio de conversación";
+        } else {
+          queries.forEach((query) => list.append(renderConversationTurn(query).element));
+          status.textContent = `Últimas ${queries.length} consulta${queries.length === 1 ? "" : "s"}`;
+          list.scrollTop = list.scrollHeight;
+        }
+        state.conversationLoaded = true;
+      } catch (error) {
+        state.conversationLoaded = false;
+        status.textContent = "No se pudo cargar el historial";
+        list.replaceChildren(node("div", "empty-state", `No se pudo cargar la conversación: ${error.message}`));
+      } finally {
+        state.conversationPromise = null;
+      }
+    })();
+    return state.conversationPromise;
   }
 
   async function loadCatalog(page = 1) {
@@ -333,30 +368,38 @@
     const input = $("#question-input");
     const button = $("#ask-button");
     setMessage($("#query-message"), "");
+    if (!input.value.trim()) return;
     setLoading(button, true, "Consultando el catálogo y el modelo configurado…");
     try {
+      if (state.conversationPromise) await state.conversationPromise;
       const queryInput = { question: input.value };
       if ($("#query-category").value) queryInput.category = $("#query-category").value;
       if ($("#query-level").value) queryInput.level = $("#query-level").value;
       const created = await api("/queries", { method: "POST", body: JSON.stringify(queryInput) });
       state.query = created;
-      await displayQuery(created.id);
+      const turn = renderConversationTurn(created);
+      $("#conversation-list").append(turn.element);
+      $("#conversation-list").scrollTop = $("#conversation-list").scrollHeight;
+      input.value = "";
+      input.style.height = "";
       if (created.status === "Pendiente") {
         const pollIntervalMs = 2000;
         const maxWaitMs = 180_000;
         for (let elapsedMs = 0; elapsedMs < maxWaitMs; elapsedMs += pollIntervalMs) {
           await sleep(pollIntervalMs);
           const current = await api(`/queries/${encodeURIComponent(created.id)}`);
-          if (current.status !== "Pendiente") { renderResult(current, $("#latest-result")); break; }
+          if (current.status !== "Pendiente") {
+            renderResult(current, turn.result, { showQuestion: false });
+            $("#conversation-list").scrollTop = $("#conversation-list").scrollHeight;
+            break;
+          }
         }
         const current = await api(`/queries/${encodeURIComponent(created.id)}`);
         if (current.status === "Pendiente") {
-          renderResult(current, $("#latest-result"));
+          renderResult(current, turn.result, { showQuestion: false });
           setMessage($("#query-message"), "La consulta sigue procesándose. Puedes ver su estado en tu historial.");
         }
       }
-      input.value = "";
-      $("#latest-result").scrollIntoView({ behavior: "smooth", block: "start" });
     } catch (error) {
       setMessage($("#query-message"), error.message, "error");
     } finally {
@@ -382,19 +425,29 @@
     }
   }
 
-  async function displayQuery(id) {
-    const query = await api(`/queries/${encodeURIComponent(id)}`);
-    renderResult(query, $("#latest-result"));
+  function renderConversationTurn(query) {
+    const element = node("article", "conversation-turn");
+    const userMessage = node("div", "chat-user-message");
+    userMessage.append(node("span", "chat-speaker", "Tú"), node("p", "", query.question));
+    const assistantMessage = node("div", "chat-assistant-message");
+    const assistantHeading = node("div", "chat-assistant-heading");
+    assistantHeading.append(node("span", "chat-assistant-avatar", "R"), node("span", "", "RutaIA"));
+    const result = node("section", "result-panel chat-result");
+    renderResult(query, result, { showQuestion: false });
+    assistantMessage.append(assistantHeading, result);
+    element.append(userMessage, assistantMessage);
+    return { element, result };
   }
 
-  function renderResult(query, target) {
+  function renderResult(query, target, { showQuestion = true } = {}) {
     target.replaceChildren();
     target.classList.remove("hidden");
     const top = node("div", "result-top");
     const heading = node("div");
     heading.append(node("div", "eyebrow", `CONSULTA · ${formatDate(query.createdAt)}`), node("h2", "", query.status === "Respondida" ? "Tu ruta recomendada" : query.status));
     top.append(heading, statusPill(query.status));
-    target.append(top, node("p", "muted", query.question));
+    target.append(top);
+    if (showQuestion) target.append(node("p", "muted", query.question));
     if (query.status === "Pendiente") {
       target.append(node("p", "result-answer", "Tu pregunta se está procesando con el catálogo institucional."));
       return;
@@ -446,30 +499,47 @@
 
   function ratingControl(recommendationId) {
     const row = node("div", "rating-row");
-    row.append(node("span", "", "¿Te fue útil?"));
-    const comment = document.createElement("input");
+    const copy = node("div", "rating-copy");
+    copy.append(node("strong", "", "¿Qué te pareció esta recomendación?"), node("span", "", "Tu opinión ayuda a mejorar la orientación."));
+    const comment = document.createElement("textarea");
     comment.className = "rating-comment";
     comment.placeholder = "Comentario opcional";
     comment.maxLength = 2000;
     comment.setAttribute("aria-label", "Comentario opcional sobre la recomendación");
-    comment.style.maxWidth = "250px";
+    comment.rows = 2;
+    const stars = node("div", "rating-stars");
+    stars.setAttribute("role", "group");
+    stars.setAttribute("aria-label", "Calificar de 1 a 5 estrellas");
+    const feedback = node("span", "rating-feedback");
+    feedback.setAttribute("aria-live", "polite");
+    const buttons = [];
     for (let score = 1; score <= 5; score += 1) {
       const button = node("button", "star-button", "★");
       button.type = "button";
       button.setAttribute("aria-label", `Calificar con ${score} de 5 estrellas`);
+      button.setAttribute("aria-pressed", "false");
       button.addEventListener("click", async () => {
+        buttons.forEach((star) => { star.disabled = true; });
         try {
           await api(`/recommendations/${encodeURIComponent(recommendationId)}/rating`, {
             method: "POST", body: JSON.stringify({ score, ...(comment.value.trim() ? { comment: comment.value.trim() } : {}) })
           });
-          $$(".star-button", row).forEach((star, index) => star.classList.toggle("selected", index < score));
+          buttons.forEach((star, index) => {
+            star.classList.toggle("selected", index < score);
+            star.setAttribute("aria-pressed", String(index < score));
+          });
           comment.disabled = true;
+          feedback.textContent = "Gracias por calificar esta recomendación.";
           toast("Gracias por calificar esta recomendación.");
-        } catch (error) { toast(error.message, true); }
+        } catch (error) {
+          buttons.forEach((star) => { star.disabled = false; });
+          toast(error.message, true);
+        }
       });
-      row.append(button);
+      buttons.push(button);
+      stars.append(button);
     }
-    row.append(comment);
+    row.append(copy, stars, comment, feedback);
     return row;
   }
 
@@ -614,6 +684,16 @@
     $("#login-form").addEventListener("submit", (event) => { event.preventDefault(); submitAuth(event.currentTarget, "/auth/login"); });
     $("#register-form").addEventListener("submit", (event) => { event.preventDefault(); submitAuth(event.currentTarget, "/auth/register"); });
     $("#query-form").addEventListener("submit", submitQuery);
+    $("#question-input").addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+      event.preventDefault();
+      $("#query-form").requestSubmit();
+    });
+    $("#question-input").addEventListener("input", (event) => {
+      const input = event.currentTarget;
+      input.style.height = "auto";
+      input.style.height = `${Math.min(input.scrollHeight, 240)}px`;
+    });
     $$(".suggestion").forEach((button) => button.addEventListener("click", () => { $("#question-input").value = button.dataset.question; $("#question-input").focus(); }));
     $$(".nav-item[data-page]").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.page)));
     $$("[data-go]").forEach((button) => button.addEventListener("click", () => showPage(button.dataset.go)));

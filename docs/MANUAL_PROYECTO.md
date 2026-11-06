@@ -1,17 +1,21 @@
 # Manual de continuidad de RutaIA
 
-**Actualizado:** 5 de noviembre de 2026
+**Actualizado:** 6 de noviembre de 2026
 **Propósito:** permitir que otra sesión retome el proyecto sin inferir estado, inventar cursos ni exponer secretos.
 
 ## 1. Qué es y qué está funcionando
 
 La presentación académica editable y el guion de sustentación están en [docs/entrega/RutaIA_presentacion_final.pptx](entrega/RutaIA_presentacion_final.pptx).
 
-RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegador usa la API Express; PostgreSQL conserva cuentas, cursos, consultas y calificaciones; n8n coordina la indexación y el flujo RAG; Qdrant recupera candidatos vectoriales; OpenRouter es el proveedor acordado para embeddings y generación mediante proxies del backend. El profesor autorizó la excepción de Node.js/Express.
+RutaIA orienta a estudiantes a partir de un catálogo institucional. El navegador usa la API Express; PostgreSQL conserva cuentas, cursos, consultas y calificaciones; n8n coordina la indexación y el flujo RAG; Qdrant recupera candidatos vectoriales; Gemini es el proveedor configurado para embeddings y generación mediante proxies del backend. El profesor autorizó la excepción de Node.js/Express.
 
-**Estado comprobado (5 nov 2026):** `npm test` pasa con 63 aprobadas, 0 fallidas y 1 integración opcional omitida; `npm run test:integration` pasa 1/1. OpenAPI valida 32 rutas, 35 operaciones y 120 referencias; los workflows versionados validan 40 nodos y 45 conexiones. OpenRouter confirmó previamente embeddings de 2048 dimensiones; una petición sintética al proxy el 5 nov devolvió 502 `AI_PROVIDER_RATE_LIMITED`, así que no se hicieron más llamadas. La generación completa y la calibración siguen sin validarse. Qdrant conserva `rutaia_courses` (1024 dimensiones, 38 puntos); la nueva `rutaia_courses_openrouter_2048` no existe y no se escribieron puntos. La consulta de cuota informó plan gratuito, uso cero y límite `-1/10s`, pero no mostró el saldo diario gratuito. La migración 005 figura aplicada en la base principal y en `rutaia_test`.
+**Estado comprobado:** `npm test` pasa con 63 aprobadas, 0 fallidas y 1 integración opcional omitida; `npm run test:integration` pasa 1/1; OpenAPI valida 32 rutas, 35 operaciones y 120 referencias; los workflows versionados validan 40 nodos y 45 conexiones; `npm audit` reporta cero vulnerabilidades. Compose valida y el backend responde `/health/ready` con `ready`. La calibración real de Gemini sobre 37 cursos y 22 consultas dio la ventana `0.6347–0.6484`; `RAG_MIN_SIMILARITY=0.642` permanece provisional. La E2E real con Gemini publicado terminó `Respondida`, guardó tres fuentes y apareció en el historial; la cuenta y consulta temporales se limpiaron. Se cambió el modelo retirado `gemini-2.5-flash-lite` a `gemini-3.5-flash-lite` y se reconstruyó el backend. Qdrant tiene 37 UUID activos en `rutaia_courses_gemini_1536` (1536 dimensiones); la colección anterior `rutaia_courses` (38 puntos/1024 dimensiones) se conservó intacta. Quedan dos eventos `delete` pendientes en la cola incremental. En n8n, el responder Gemini está publicado y el indexador continúa despublicado.
 
-**Implementaciones locales (5 nov):** se añadieron JWT Bearer opcional (sin cambiar la sesión-cookie predeterminada), filtros vectoriales por categoría/nivel, memoria limitada a las tres respuestas más recientes del mismo estudiante, exportación CSV protegida por propietario y sincronización incremental con outbox PostgreSQL. Las pruebas unitarias cubren estos contratos. La migración 005 figura aplicada en `rutaia` y `rutaia_test`; el workflow incremental y los workflows OpenRouter siguen inactivos y la instancia n8n no se modificó. Compose valida con JWT opcional. Consulta e indexación rechazan cualquier colección distinta de `rutaia_courses_openrouter_2048`.
+Las notas siguientes con fechas anteriores describen evidencia histórica y no deben interpretarse como validación del proveedor Gemini ni del índice actual.
+
+**Implementaciones locales (5 nov):** se añadieron JWT Bearer opcional (sin cambiar la sesión-cookie predeterminada), filtros vectoriales por categoría/nivel, memoria limitada a las tres respuestas más recientes del mismo estudiante, exportación CSV protegida por propietario y sincronización incremental con outbox PostgreSQL. Las pruebas unitarias cubren estos contratos. La migración 005 figura aplicada en `rutaia` y `rutaia_test`; el workflow incremental y los JSON Gemini siguen inactivos y la instancia n8n no se modificó. Compose valida con JWT opcional. Consulta e indexación rechazan cualquier colección distinta de `rutaia_courses_gemini_1536`.
+
+**Actualización posterior de n8n:** la nota de arriba sobre la instancia sin modificar corresponde al cierre de aquella etapa. Después, el indexador quedó despublicado, el responder Gemini se publicó con las credenciales verificadas y la E2E se completó correctamente; la consulta de prueba quedó limpiada.
 
 **Autoría:** desarrollo individual del estudiante propietario del proyecto. No atribuir tareas, decisiones ni contribuciones a integrantes inexistentes. El enunciado conserva sus requisitos, aunque describa equipos.
 
@@ -72,13 +76,13 @@ flowchart LR
   N8N -->|cursos activos y callback con secretos| API
   N8N -->|vectores y búsqueda| Q[(Qdrant)]
   N8N -->|embeddings y chat por endpoints autenticados| API
-  API -->|modelos gratuitos| OR[OpenRouter]
+  API -->|embeddings y generación| GM[Gemini]
   N8N -->|metadatos propios| PG
 ```
 
 En Compose, los nombres DNS internos son `backend`, `postgres`, `qdrant` y `n8n`. El browser usa los puertos publicados en loopback: aplicación `APP_PORT` (3001 en esta PC; 3000 por defecto), PostgreSQL 5432, Qdrant 6333 y n8n 5678. No se deben publicar esos puertos directamente a Internet.
 
-El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar. Cookie de sesión HttpOnly más `X-CSRF-Token` protegen las mutaciones. El browser no llama Qdrant, n8n ni OpenRouter directamente. n8n usa endpoints internos autenticados de Express para embeddings y generación; solo el backend lee la clave OpenRouter.
+El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar. Cookie de sesión HttpOnly más `X-CSRF-Token` protegen las mutaciones. El browser no llama Qdrant, n8n ni Gemini directamente. n8n usa endpoints internos autenticados de Express para embeddings y generación; solo el backend lee `GEMINI_API_KEY`.
 
 ## 3. Mapa del repositorio
 
@@ -92,7 +96,7 @@ El backend sirve `frontend/` estáticamente y aplica las migraciones al iniciar.
 - `database/docker-init/001-n8n-schema.sql`: preparación del esquema PostgreSQL de n8n.
 - `automation/n8n/index-courses.json`: indexación/reconciliación de cursos activos.
 - `automation/n8n/answer-query.json`: consulta, recuperación, selección de fuentes, generación y callback.
-- `automation/n8n/sync-course-events.json`: workflow incremental de eventos de cursos, inactivo hasta configurar y validar OpenRouter/Qdrant.
+- `automation/n8n/sync-course-events.json`: workflow incremental de eventos de cursos, inactivo hasta configurar y validar Gemini/Qdrant.
 - `docs/api/openapi.yaml`: contrato de API.
 - `docs/architecture/`, `docs/testing/`: modelo, contexto, diagnóstico y evidencia.
 
@@ -143,19 +147,20 @@ Copia `.env.example` a `.env` en la raíz. `.env` es local/ignorado y nunca se d
 | `SESSION_SECRET`, `SESSION_TTL_HOURS` | Firma/secreto de sesiones y duración. Secreto aleatorio de al menos 32 caracteres. |
 | `JWT_SECRET`, `JWT_TTL_SECONDS` | JWT Bearer opcional para clientes que no usan cookie; secreto aleatorio propio de al menos 32 caracteres, distinto de `SESSION_SECRET`. Sin él, la sesión-cookie sigue disponible y `/api/v1/auth/token` responde 503. |
 | `FRONTEND_URL`, `APP_PORT` | Origen permitido por CORS y puerto publicado de la app. Si se usa 3001, pon `FRONTEND_URL=http://localhost:3001`. |
-| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección activa; Compose usa `http://qdrant:6333` y apunta a `rutaia_courses_openrouter_2048` (2048 dimensiones). El backend y el workflow completo fallan cerrados ante cualquier otro destino; la colección previa `rutaia_courses` (Cosine, 1024 dimensiones, 38 puntos) se conserva intacta. |
+| `QDRANT_URL`, `QDRANT_COLLECTION` | URL/colección activa; Compose usa `http://qdrant:6333` y apunta a `rutaia_courses_gemini_1536` (1536 dimensiones). El backend y los workflows fallan cerrados ante cualquier otro destino; la colección previa `rutaia_courses` (Cosine, 1024 dimensiones, 38 puntos en la última inspección) se conserva intacta. |
 | `N8N_QUERY_WEBHOOK_URL`, `N8N_WEBHOOK_SECRET` | Webhook que Express llama y su autenticación bearer. Compose usa `http://n8n:5678/webhook/rutaia-query`. |
 | `N8N_CALLBACK_URL`, `N8N_CALLBACK_SECRET` | Callback interno que n8n invoca en Express y su secreto. Compose usa `http://backend:3000/api/v1/internal/n8n/results`. |
 | `N8N_COURSE_SYNC_SECRET` | Protege las consultas internas de cursos/configuración para n8n. |
 | `N8N_TIMEOUT_MS` | Timeout de petición desde Express hacia n8n. |
 | `N8N_PORT`, `N8N_HOST`, `N8N_ENCRYPTION_KEY`, `GENERIC_TIMEZONE` | Interfaz y cifrado de credenciales n8n; fija una clave aleatoria de al menos 32 caracteres y no la cambies después de guardar credenciales. |
-| `OPENROUTER_API_KEY` | Clave privada necesaria para llamadas RAG. Solo el backend la lee; no se copia a n8n. |
-| `OPENROUTER_CHAT_MODEL`, `OPENROUTER_EMBEDDING_MODEL` | Modelos gratuitos predeterminados `openrouter/free` y `nvidia/nemotron-3.5-embed-1b:free`; el backend limita los IDs a variantes gratuitas. |
+| `N8N_USER_MANAGEMENT_JWT_DURATION_HOURS` | Duración máxima de sesión de inicio de sesión n8n; Compose la fija por defecto en 720 horas (30 días). |
+| `GEMINI_API_KEY` | Clave privada necesaria para llamadas RAG. Solo el backend la lee; no se copia a n8n. |
+| `GEMINI_CHAT_MODEL`, `GEMINI_EMBEDDING_MODEL`, `GEMINI_EMBEDDING_DIMENSIONS` | Modelos fijados en `gemini-3.5-flash-lite` y `gemini-embedding-2`; la dimensión configurada y validada es 1536. |
 | `AI_CHAT_TIMEOUT_MS`, `AI_EMBEDDING_TIMEOUT_MS` | Límite de espera para generación y embeddings; predeterminados 120 y 60 segundos. |
-| `RAG_MIN_SIMILARITY` | Umbral Qdrant. El valor histórico `0.535` se calibró con BGE-M3 y no debe reutilizarse sin recalibrar el nuevo modelo. |
+| `RAG_MIN_SIMILARITY` | Umbral Qdrant. El `.env` local usa provisionalmente `0.642`, elegido tras calibrar Gemini con 37 cursos activos y 22 consultas; la ventana observada fue `0.6347–0.6484`. Falta E2E y ampliar la evaluación de pertinencia. El valor histórico `0.535` corresponde a BGE-M3. |
 | `RUTAIA_TEST_DATABASE_URL` | Solo runner de integración; loopback y base `/rutaia_test`. Nunca una base con información de uso real. |
 
-OpenRouter es el proveedor acordado para embeddings y generación. Los textos salen del entorno local hacia el proveedor; usa preguntas sintéticas. La dimensión del modelo de embeddings aún debe comprobarse frente a la colección existente de 1024 dimensiones antes de escribir en Qdrant.
+Gemini es el proveedor configurado para embeddings y generación. Los textos del catálogo y las consultas salen del entorno local hacia el proveedor; no envíes información privada. El código exige la colección nueva de 1536 dimensiones y evita escribir en la colección anterior de 1024 dimensiones.
 
 Secretos distintos para sesión, cifrado n8n, webhook, callback y sincronización. Para el password PostgreSQL usa letras, números, `_` y `-` para que la URL construida no se rompa.
 
@@ -166,7 +171,7 @@ Secretos distintos para sesión, cifrado n8n, webhook, callback y sincronizació
 1. Instala/abre Docker Desktop con motor Linux y clona/abre este repositorio.
 2. Si `.env` no existe, copia `.env.example` a `.env`; sustituye **todos** los `CHANGE_ME` por secretos aleatorios. No reemplaces un `.env` existente con secretos válidos.
 3. Comprueba que `APP_PORT` esté libre. En esta PC se utiliza 3001 y el `FRONTEND_URL` debe coincidir.
-4. El entorno local usa `RAG_MIN_SIMILARITY=0.535`, candidato contrastado con consultas de cocina italiana y gastronomía en el workflow. El margen de score observado es pequeño; vuelve a evaluarlo si cambia catálogo o modelo.
+4. El `.env` de esta PC tiene `RAG_MIN_SIMILARITY=0.642`, elegido tras repetir `npm run calibrate:rag` con 37 cursos activos; la ventana observada fue `0.6347–0.6484`. Mantén el valor como provisional hasta validar RAG E2E y pertinencia; `.535` pertenece a BGE-M3 y no debe reutilizarse para Gemini.
 
 ### Levantar y comprobar
 
@@ -223,7 +228,7 @@ El runner valida host/nombre de DB antes de conectarse. La suite migra la base d
 
 `npm run validate:openapi` valida YAML, referencias locales y operaciones en comparación con declaraciones de routers/montajes que lee de `backend/src/app.js`; no sustituye una revisión semántica completa de cada esquema de request y response.
 
-La calibración histórica `npm run calibrate:rag` se hizo con Ollama/BGE-M3, 38 cursos y 22 casos; observó la ventana `0.5292–0.5396` y usó `.535`. Esas mediciones no son aplicables al nuevo modelo. El calibrador actual requiere `N8N_COURSE_SYNC_SECRET` local y no escribe en Qdrant; agrupa los 67 textos en lotes de dos en el proxy y recurre a solicitudes individuales si el proveedor rechaza un lote. El modelo gratuito permite como máximo 50 solicitudes por día UTC; una reindexación de 38 cursos requiere otras 19 llamadas en lotes exitosos. Planifica calibración y reindexación en días UTC distintos para conservar margen. El cupo actual está agotado; una solicitud sintética confirmó embeddings de 2048 dimensiones. No reindexes ni actives workflows hasta completar calibración, validar generación y actualizar n8n.
+La calibración histórica `npm run calibrate:rag` se hizo con Ollama/BGE-M3, 38 cursos y 22 casos; observó la ventana `0.5292–0.5396` y usó `.535`. Esas mediciones no son aplicables a Gemini. El calibrador actual requiere `N8N_COURSE_SYNC_SECRET`, genera embeddings `document` para cursos y `query` para preguntas, y no escribe en Qdrant. La ejecución contacta al proveedor mediante Express y puede consumir cuota; no la ejecutes sin autorizar el envío de esos textos. No reindexes ni actives workflows hasta completar calibración, validar generación y actualizar n8n.
 
 ## 7. Flujo principal y qué falta probar
 
@@ -231,11 +236,11 @@ La calibración histórica `npm run calibrate:rag` se hizo con Ollama/BGE-M3, 38
  2. **Catálogo:** consulta solo cursos activos en PostgreSQL; admite texto, categoría, nivel y paginación. CRUD admin puede crear/editar/activar/desactivar. La UI obtiene categorías de todas las páginas y muestra enlace a la ficha oficial INTECAP cuando `sourceUrl` apunta al dominio institucional HTTPS. `level` conserva dificultad didáctica RutaIA y `intecapCareerType` conserva CTO/CTM/CTMS por separado; ofertas modulares sin tipo de carrera usan `NULL`. Los seeds 001–011 cargan 37 cursos con fuente HTTPS; la base local tiene 38 cursos activos, uno administrado desde la app sin fuente enlazada. La integración cubre los seeds oficiales, horas documentadas, URLs, detalle e idempotencia.
 3. **Consulta:** estudiante autenticado envía pregunta con CSRF. Express crea registro y llama el webhook autenticado de n8n.
    - La UI consulta el estado cada 2 segundos hasta 180 segundos antes de dejar un mensaje de espera y permitir revisar el historial.
-4. **RAG ejecutado:** la arquitectura llama a Express para obtener embeddings, consulta candidatos en Qdrant, revalida cursos activos en PostgreSQL, aplica umbral y pasa las fuentes elegibles a generación. La evidencia E2E documentada corresponde a la implementación anterior con Ollama; OpenRouter aún no está validado de extremo a extremo y no se debe afirmar que RAG funciona en esta migración.
+4. **RAG ejecutado:** la arquitectura llama a Express para obtener embeddings, consulta candidatos en Qdrant, revalida cursos activos en PostgreSQL, aplica umbral y pasa las fuentes elegibles a generación. La evidencia E2E documentada corresponde a la implementación anterior con Ollama; Gemini aún no está validado de extremo a extremo y no se debe afirmar que RAG funciona en esta migración.
 5. **Historial:** cada estudiante solo puede consultar sus consultas y resultados. La integración API/DB prueba historial propio, aislamiento entre cuentas, admin, 401 sin sesión y 404 para estudiante inexistente.
 6. **Calificación:** la UI ofrece rating 1–5 para una recomendación; el backend persiste una sola por recomendación. En la prueba E2E de gastronomía el rating devolvió HTTP 201 y se limpió junto con los datos temporales.
 
-Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persistencia, pero no sustituyen la prueba integral. Los workflows versionados llaman a los proxies internos autenticados de Express; la instancia n8n activa no se modificó durante esta migración. La E2E anterior con Ollama y el timeout de generación son evidencia histórica, no una prueba de OpenRouter. No actives los workflows ni reindexes hasta validar dimensión y calibrar el umbral con el nuevo modelo.
+Las pruebas de callbacks con fixtures en PostgreSQL validan contrato y persistencia, pero no sustituyen la prueba integral. Los workflows versionados llaman a los proxies internos autenticados de Express; la instancia n8n activa no se modificó durante esta migración. La E2E anterior con Ollama y el timeout de generación son evidencia histórica, no una prueba de Gemini. No actives los workflows ni reindexes hasta calibrar el umbral con el nuevo modelo y confirmar la nueva colección.
 
 ## 8. Problemas pendientes confirmados
 

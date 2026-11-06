@@ -10,10 +10,10 @@ const configuredValues = {
     N8N_CALLBACK_URL: "http://backend.test/api/v1/internal/n8n/results",
     N8N_CALLBACK_SECRET: "y".repeat(32),
     N8N_TIMEOUT_MS: 1000,
-    OPENROUTER_API_KEY: "test-openrouter-key",
-    OPENROUTER_EMBEDDING_MODEL: "nvidia/nemotron-3.5-embed-1b:free",
+    GEMINI_API_KEY: "test-gemini-key",
+    GEMINI_EMBEDDING_MODEL: "gemini-embedding-2",
     QDRANT_URL: "http://qdrant.test:6333",
-    QDRANT_COLLECTION: "rutaia_courses_openrouter_2048",
+    QDRANT_COLLECTION: "rutaia_courses_gemini_1536",
     RAG_MIN_SIMILARITY: 0.7
 };
 

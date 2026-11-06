@@ -88,23 +88,44 @@
           <div class="hero-copy">
             <div class="eyebrow"><span class="live-dot"></span> TU CENTRO DE ORIENTACIÓN</div>
             <h1>Hola, <span id="welcome-name" class="text-gradient">estudiante</span><span class="hero-comma">.</span><br>¿Qué quieres aprender?</h1>
-            <p class="muted">Cuéntanos tu meta. Buscaremos en el catálogo institucional y te mostraremos por qué cada curso puede ayudarte.</p>
-            <form id="query-form" class="query-box">
-              <label for="question-input" class="sr-only">Escribe tu pregunta</label>
-              <textarea id="question-input" name="question" rows="3" required maxlength="4000" placeholder="Ej. Quiero aprender a construir aplicaciones web con bases de datos…"></textarea>
-              <div class="query-filter-row"><label>Filtrar por categoría <select id="query-category" name="category"><option value="">Todas las categorías</option></select></label><label>Filtrar por nivel <select id="query-level" name="level"><option value="">Todos los niveles</option><option>Básico</option><option>Intermedio</option><option>Avanzado</option></select></label><span id="query-category-status" role="status" aria-live="polite">Opcional</span></div>
-              <div class="query-box-footer"><span><kbd>↵</kbd> <span>Escribe tu consulta</span></span><button id="ask-button" class="button button-primary" type="submit">Encontrar mi ruta <span aria-hidden="true">↗</span></button></div>
-            </form>
-            <p id="query-message" class="form-message" role="status" aria-live="polite"></p>
-            <div class="suggestion-row"><span>PRUEBA CON</span><button class="suggestion" data-question="Quiero aprender a crear páginas web">Crear páginas web</button><button class="suggestion" data-question="Me interesa analizar datos y construir dashboards">Analizar datos</button><button class="suggestion" data-question="Quiero aprender sobre inteligencia artificial">Inteligencia artificial</button></div>
+            <p class="muted">Conversemos sobre tu meta. Te recomendaré cursos del catálogo institucional y te explicaré por qué pueden ayudarte.</p>
           </div>
-          <div class="hero-art" aria-hidden="true"><div class="hero-grid"></div><div class="hero-ring ring-a"></div><div class="hero-ring ring-b"></div><div class="hero-disc"><span>R</span><i>IA</i></div><div class="hero-float float-top">RUTA <b>01</b></div><div class="hero-float float-bottom"><span class="live-dot"></span> APRENDIZAJE CONECTADO</div></div>
         </div>
+        <section class="chat-shell" aria-label="Conversación de orientación">
+          <div class="chat-heading">
+            <div><div class="eyebrow">ORIENTACIÓN PERSONALIZADA</div><h2>Tu conversación</h2></div>
+            <span id="conversation-status" class="chat-history-label">Tus consultas recientes</span>
+          </div>
+          <div id="conversation-list" class="conversation-list" role="log" aria-label="Mensajes de la conversación" aria-live="polite" aria-relevant="additions text">
+            <div class="loading-card">Cargando conversación…</div>
+          </div>
+          <form id="query-form" class="query-box chat-composer">
+            <label for="question-input" class="sr-only">Escribe tu pregunta</label>
+            <textarea id="question-input" name="question" rows="4" required maxlength="4000" placeholder="Cuéntame qué te gustaría aprender o pregúntame algo sobre una recomendación…"></textarea>
+            <div class="chat-composer-options">
+              <div class="query-filter-row">
+                <label>Filtrar por categoría <select id="query-category" name="category"><option value="">Todas las categorías</option></select></label>
+                <label>Filtrar por nivel <select id="query-level" name="level"><option value="">Todos los niveles</option><option>Básico</option><option>Intermedio</option><option>Avanzado</option></select></label>
+                <span id="query-category-status" role="status" aria-live="polite">Opcional</span>
+              </div>
+              <div class="suggestion-row" aria-label="Ejemplos de preguntas">
+                <span>PRUEBA CON</span>
+                <button type="button" class="suggestion" data-question="Quiero aprender a crear páginas web">Crear páginas web</button>
+                <button type="button" class="suggestion" data-question="Me interesa analizar datos y construir dashboards">Analizar datos</button>
+                <button type="button" class="suggestion" data-question="Quiero aprender sobre inteligencia artificial">Inteligencia artificial</button>
+              </div>
+            </div>
+            <div class="query-box-footer">
+              <span><kbd>↵</kbd> Enviar · <kbd>Shift</kbd>+<kbd>↵</kbd> nueva línea</span>
+              <button id="ask-button" class="button button-primary" type="submit">Enviar consulta <span aria-hidden="true">↗</span></button>
+            </div>
+            <p id="query-message" class="form-message" role="status" aria-live="polite"></p>
+          </form>
+        </section>
         <section class="section-block">
           <div class="section-heading"><div><div class="eyebrow">PUNTO DE PARTIDA</div><h2>Tu ruta, a tu ritmo</h2></div><button class="text-button" data-go="catalog">Ver catálogo <span>↗</span></button></div>
           <div id="home-courses" class="course-grid compact-grid"><div class="loading-card">Cargando cursos institucionales…</div></div>
         </section>
-        <section id="latest-result" class="result-panel hidden"></section>
       </section>
 
       <section class="page-view" data-view="catalog">
