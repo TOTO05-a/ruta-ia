@@ -11,6 +11,10 @@ const { createQuerySchema } = require("../src/validators/query.validators");
 
 test("query input accepts optional category and level filters and rejects invalid values", () => {
     assert.equal(createQuerySchema.safeParse({ question: "Aprender programación" }).success, true);
+    assert.equal(createQuerySchema.safeParse({ pregunta: "Aprender programación", umbral: 0.78 }).success, true);
+    assert.equal(createQuerySchema.safeParse({ question: "Pregunta", umbral: -1 }).success, true);
+    assert.equal(createQuerySchema.safeParse({ question: "Pregunta", umbral: 1.01 }).success, false);
+    assert.equal(createQuerySchema.safeParse({ question: "Pregunta", pregunta: "Otra" }).success, false);
     assert.equal(createQuerySchema.safeParse({
         question: "Aprender programación",
         category: "Desarrollo web",
@@ -48,6 +52,7 @@ test("query creation sends only the authenticated student's latest three answere
             interest_area: "Desarrollo web"
         }, {
             question: "Nueva pregunta",
+            umbral: 0.85,
             category: "Desarrollo web",
             level: "Básico"
         });
@@ -62,6 +67,7 @@ test("query creation sends only the authenticated student's latest three answere
     assert.equal(capturedPayload.category, "Desarrollo web");
     assert.equal(capturedPayload.level, "Básico");
     assert.equal(capturedPayload.question, "Nueva pregunta");
+    assert.equal(capturedPayload.umbral, 0.85);
 });
 
 test("recent memory repository is limited to answered queries owned by the requesting student", async () => {

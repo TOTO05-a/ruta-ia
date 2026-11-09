@@ -2,13 +2,13 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const env = require("../src/config/env");
-const { generateChat } = require("../src/integrations/ai/gemini");
+const { generateChat } = require("../src/integrations/ai/openrouter");
 
 async function withProvider(overrides, fetchMock, action) {
-    const keys = ["GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "AI_CHAT_TIMEOUT_MS"];
+    const keys = ["OPENROUTER_API_KEY", "OPENROUTER_CHAT_MODEL", "AI_CHAT_TIMEOUT_MS", "FRONTEND_URL"];
     const prior = Object.fromEntries(keys.map((key) => [key, env[key]]));
     const priorFetch = global.fetch;
-    Object.assign(env, { GEMINI_API_KEY: "test-key", GEMINI_CHAT_MODEL: "gemini-3.5-flash-lite", AI_CHAT_TIMEOUT_MS: 1000, ...overrides });
+    Object.assign(env, { OPENROUTER_API_KEY: "test-key", OPENROUTER_CHAT_MODEL: "test/model", AI_CHAT_TIMEOUT_MS: 1000, FRONTEND_URL: "http://localhost:3000", ...overrides });
     global.fetch = fetchMock;
     try { return await action(); }
     finally { Object.assign(env, prior); global.fetch = priorFetch; }
@@ -21,22 +21,25 @@ const validBody = {
 };
 const generatedContent = JSON.stringify({ answer: "Cursos encontrados", summary: "Resumen", explanation: "Fuentes" });
 
-test("Gemini recibe la conversación y responde en el formato normalizado del backend", async () => {
+test("OpenRouter recibe la conversación y responde en el formato normalizado del backend", async () => {
     let request;
     await withProvider({}, async (url, options) => {
         request = { url, options };
-        return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: generatedContent }] }, finishReason: "STOP" }] }) };
+        return { ok: true, json: async () => ({ choices: [{ message: { content: generatedContent }, finish_reason: "stop" }] }) };
     }, async () => {
         const result = await generateChat(validBody);
         assert.equal(result.message.content, generatedContent);
     });
 
-    assert.equal(request.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent");
-    assert.equal(request.options.headers["x-goog-api-key"], "test-key");
+    assert.equal(request.url, "https://openrouter.ai/api/v1/chat/completions");
+    assert.equal(request.options.headers.authorization, "Bearer test-key");
+    assert.equal(request.options.headers["HTTP-Referer"], "http://localhost:3000");
     const body = JSON.parse(request.options.body);
-    assert.equal(body.systemInstruction.parts[0].text, "Responde solo con los cursos indicados.");
-    assert.deepEqual(body.contents, [{ role: "user", parts: [{ text: "Busco gastronomía." }] }]);
-    assert.deepEqual(body.generationConfig, { temperature: 0.2, maxOutputTokens: 192, responseMimeType: "application/json" });
+    assert.equal(body.model, "test/model");
+    assert.deepEqual(body.messages, validBody.messages);
+    assert.equal(body.temperature, 0.2);
+    assert.equal(body.max_tokens, 192);
+    assert.deepEqual(body.response_format, { type: "json_object" });
     assert.equal(JSON.stringify(body).includes("test-key"), false);
 });
 
@@ -44,6 +47,16 @@ test("proxy rechaza mensajes malformados antes de contactar al proveedor", async
     let called = false;
     await withProvider({}, async () => { called = true; }, async () => {
         await assert.rejects(generateChat({ messages: [{ role: "developer", content: "x" }] }), (error) => error.code === "AI_CHAT_INVALID_INPUT");
+    });
+    assert.equal(called, false);
+});
+
+test("proxy exige clave y modelo OpenRouter antes de contactar al proveedor", async () => {
+    let called = false;
+    await withProvider({ OPENROUTER_API_KEY: "", OPENROUTER_CHAT_MODEL: undefined }, async () => {
+        called = true;
+    }, async () => {
+        await assert.rejects(generateChat(validBody), (error) => error.code === "AI_PROVIDER_NOT_CONFIGURED");
     });
     assert.equal(called, false);
 });
@@ -66,7 +79,7 @@ test("proxy identifica límite de solicitudes sin exponer el cuerpo del proveedo
 
 test("proxy rechaza respuestas JSON estructuradas truncadas", async () => {
     await withProvider({}, async () => ({
-        ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: "{\\\"answer\\\":" }] }, finishReason: "MAX_TOKENS" }] })
+        ok: true, json: async () => ({ choices: [{ message: { content: "{\\\"answer\\\":" }, finish_reason: "length" }] })
     }), async () => {
         await assert.rejects(generateChat(validBody), (error) => error.code === "AI_PROVIDER_INCOMPLETE_RESPONSE");
     });

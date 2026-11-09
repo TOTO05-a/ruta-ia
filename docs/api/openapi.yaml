@@ -287,7 +287,7 @@ paths:
     post:
       summary: Registra una pregunta antes de iniciar n8n
       operationId: createQuery
-      description: Puede restringir la búsqueda semántica por categoría institucional y nivel. El backend añade hasta las tres consultas respondidas más recientes del mismo estudiante como contexto conversacional.
+      description: Puede restringir la búsqueda semántica por categoría institucional, nivel y umbral de similitud (entre -1 y 1). El backend añade hasta las tres consultas respondidas más recientes del mismo estudiante como contexto conversacional.
       security:
         - sessionCookie: []
         - bearerAuth: []
@@ -304,9 +304,15 @@ paths:
             schema:
               type: object
               additionalProperties: false
-              required: [question]
+              oneOf:
+                - required: [question]
+                  not: { required: [pregunta] }
+                - required: [pregunta]
+                  not: { required: [question] }
               properties:
                 question: { type: string, minLength: 1, maxLength: 4000 }
+                pregunta: { type: string, minLength: 1, maxLength: 4000 }
+                umbral: { type: number, minimum: -1, maximum: 1, description: Si se omite, se usa RAG_MIN_SIMILARITY del servidor. }
                 category: { type: string, minLength: 1, maxLength: 100 }
                 level: { type: string, enum: [Básico, Intermedio, Avanzado] }
       responses:

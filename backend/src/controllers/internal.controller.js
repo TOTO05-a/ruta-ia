@@ -1,6 +1,7 @@
 const repository = require("../repositories/course.repository");
 const env = require("../config/env");
 const gemini = require("../integrations/ai/gemini");
+const openrouter = require("../integrations/ai/openrouter");
 const courseSyncOutbox = require("../repositories/course-sync-outbox.repository");
 
 const GEMINI_COURSE_COLLECTION = "rutaia_courses_gemini_1536";
@@ -73,7 +74,7 @@ async function acknowledgeCourseSyncEvent(req, res) {
 }
 
 async function generateChat(req, res) {
-    const result = await gemini.generateChat(req.body);
+    const result = await openrouter.generateChat(req.body);
     return res.json(result);
 }
 

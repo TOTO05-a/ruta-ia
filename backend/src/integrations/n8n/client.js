@@ -8,8 +8,9 @@ async function startQuery(payload) {
         error.code = "N8N_NOT_CONFIGURED";
         throw error;
     }
-    if (!env.GEMINI_API_KEY ||
-        !env.QDRANT_URL || env.RAG_MIN_SIMILARITY === undefined) {
+    const minSimilarity = payload.umbral ?? env.RAG_MIN_SIMILARITY;
+    if (!env.GEMINI_API_KEY || !env.QDRANT_URL ||
+        !Number.isFinite(minSimilarity) || minSimilarity < -1 || minSimilarity > 1) {
         const error = new Error("RAG_CONFIGURATION_MISSING");
         error.code = "RAG_CONFIGURATION_MISSING";
         throw error;
@@ -32,7 +33,7 @@ async function startQuery(payload) {
                 ...payload,
                 callbackUrl: env.N8N_CALLBACK_URL,
                 embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
-                minSimilarity: env.RAG_MIN_SIMILARITY,
+                minSimilarity,
                 qdrantCollection: env.QDRANT_COLLECTION,
                 qdrantUrl: env.QDRANT_URL
             }),

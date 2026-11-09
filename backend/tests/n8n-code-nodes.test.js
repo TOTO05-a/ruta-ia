@@ -82,6 +82,8 @@ test("workflow RAG envía errores con un callback fijo sin un nodo de preparaci�
 
 test("workflow RAG aplica filtros Qdrant opcionales de categoría y nivel", () => {
     const node = answerWorkflow.nodes.find((candidate) => candidate.name === "Buscar cinco cursos en Qdrant");
+    assert.match(node.parameters.jsonBody, /limit: 5/);
+    assert.doesNotMatch(node.parameters.jsonBody, /score_threshold/);
     assert.match(node.parameters.jsonBody, /key: 'category'/);
     assert.match(node.parameters.jsonBody, /key: 'level'/);
     assert.match(node.parameters.jsonBody, /: \{\}\) \} \}\}/);
@@ -105,7 +107,8 @@ test("workflow RAG prepara el embedding con la configuración enviada por Expres
     assert.deepEqual(executeCode(node, context, {}), [{
         input: "Me interesa cocina y gastronomía",
         task: "query",
-        embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings"
+        embeddingUrl: "http://backend:3000/api/v1/internal/ai/embeddings",
+        minSimilarity: 0.5
     }]);
     assert.throws(() => executeCode(node, {
         "Webhook autenticado de consulta": { body: { ...request, callbackUrl: undefined } }
@@ -134,31 +137,6 @@ test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () =
         ] }
     });
 
-    test("workflow RAG conserva memoria de las tres consultas previas y aplica filtros al catálogo activo", () => {
-        const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
-        const courses = [
-            course("match-a"),
-            course("other-category", { category: "Datos" }),
-            course("other-level", { level: "Avanzado" }),
-            course("match-b"),
-            course("match-c")
-        ];
-        const history = [1, 2, 3, 4].map((item) => ({ question: `Pregunta ${item}`, answer: `Respuesta ${item}` }));
-        const result = executeCode(node, {
-            "Webhook autenticado de consulta": { body: {
-                queryId: "query-filtered",
-                minSimilarity: 0.7,
-                category: "Desarrollo web",
-                level: "Básico",
-                conversationHistory: history
-            } },
-            "Leer catálogo activo PostgreSQL": { data: { items: courses } }
-        }, { result: { points: courses.map((item, index) => hit(item.id, 0.9 - index / 100)) } });
-
-        assert.deepEqual(result[0].sources.map((source) => source.courseId), ["match-a", "match-b", "match-c"]);
-        assert.deepEqual(result[0].conversationHistory, history.slice(-3));
-    });
-
     assert.equal(result[0].status, "Respondida");
     assert.deepEqual(result[0].sources.map((source) => source.courseId), ["active-a", "active-b", "active-c"]);
     assert.deepEqual(result[0].sources.map((source) => source.similarity), [0.8, 0.75, 0.7]);
@@ -168,17 +146,65 @@ test("workflow RAG selecciona solo cursos activos únicos sobre el umbral", () =
     assert.doesNotMatch(result[0].context, /inactive/);
 });
 
-test("workflow RAG devuelve Sin resultados con menos de tres fuentes elegibles", () => {
+test("workflow RAG conserva de una a cinco fuentes y permite comparar 0.50 con 0.85", () => {
     const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const courses = Array.from({ length: 5 }, (_, index) => course(`threshold-${index}`));
+    const points = [0.9, 0.8, 0.7, 0.6, 0.4].map((score, index) => hit(courses[index].id, score));
+    const run = (umbral) => executeCode(node, {
+        "Webhook autenticado de consulta": { body: { queryId: "query-threshold", question: "Pregunta", umbral } },
+        "Leer catálogo activo PostgreSQL": { data: { items: courses } }
+    }, { result: { points } })[0];
+    const lowThreshold = run(0.5);
+    const highThreshold = run(0.85);
+
+    assert.equal(lowThreshold.status, "Respondida");
+    assert.equal(highThreshold.status, "Respondida");
+    assert.equal(lowThreshold.sources.length, 4);
+    assert.equal(highThreshold.sources.length, 1);
+    assert.match(lowThreshold.context, /Curso threshold-1/);
+    assert.doesNotMatch(highThreshold.context, /Curso threshold-1/);
+});
+
+test("workflow RAG devuelve Sin resultados cuando no hay fuentes que alcancen el umbral", () => {
+    const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const decision = answerWorkflow.nodes.find((candidate) => candidate.name === "¿Hay fuentes relevantes?");
     const result = executeCode(node, {
         "Webhook autenticado de consulta": { body: { queryId: "query-2", minSimilarity: 0.8 } },
         "Leer catálogo activo PostgreSQL": { data: { items: [course("one"), course("two")] } }
-    }, { result: { points: [hit("one", 0.9), hit("two", 0.4)] } });
+    }, { result: { points: [hit("one", 0.79), hit("two", 0.4)] } });
 
     assert.deepEqual(result, [{ queryId: "query-2", status: "Sin resultados" }]);
+    assert.equal(decision.parameters.conditions.conditions[0].rightValue, "Respondida");
+    assert.equal(answerWorkflow.connections[decision.name].main[0][0].node, "Generar respuesta grounded");
+    assert.equal(answerWorkflow.connections[decision.name].main[1][0].node, "Guardar estado sin resultados");
 });
 
-test("workflow RAG ordena por score y conserva las tres fuentes más relevantes", () => {
+test("workflow RAG conserva memoria de tres consultas previas y aplica filtros al catálogo activo", () => {
+    const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
+    const courses = [
+        course("match-a"),
+        course("other-category", { category: "Datos" }),
+        course("other-level", { level: "Avanzado" }),
+        course("match-b"),
+        course("match-c")
+    ];
+    const history = [1, 2, 3, 4].map((item) => ({ question: `Pregunta ${item}`, answer: `Respuesta ${item}` }));
+    const result = executeCode(node, {
+        "Webhook autenticado de consulta": { body: {
+            queryId: "query-filtered",
+            minSimilarity: 0.7,
+            category: "Desarrollo web",
+            level: "Básico",
+            conversationHistory: history
+        } },
+        "Leer catálogo activo PostgreSQL": { data: { items: courses } }
+    }, { result: { points: courses.map((item, index) => hit(item.id, 0.9 - index / 100)) } });
+
+    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["match-a", "match-b", "match-c"]);
+    assert.deepEqual(result[0].conversationHistory, history.slice(-3));
+});
+
+test("workflow RAG ordena por score y conserva como máximo cinco fuentes", () => {
     const node = codeNode(answerWorkflow, "Filtrar fuentes activas y umbral");
     const courses = Array.from({ length: 7 }, (_, index) => course(`course-${index}`));
     const points = courses.map((item, index) => hit(item.id, 0.7 + index / 100));
@@ -187,8 +213,8 @@ test("workflow RAG ordena por score y conserva las tres fuentes más relevantes"
         "Leer catálogo activo PostgreSQL": { data: { items: courses } }
     }, { result: { points } });
 
-    assert.equal(result[0].sources.length, 3);
-    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4"]);
+    assert.equal(result[0].sources.length, 5);
+    assert.deepEqual(result[0].sources.map((source) => source.courseId), ["course-6", "course-5", "course-4", "course-3", "course-2"]);
 });
 
 test("workflow RAG valida el JSON normalizado antes del callback", () => {

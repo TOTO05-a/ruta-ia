@@ -12,7 +12,7 @@ El profesor autorizó usar Node.js/Express en lugar de Java/Spring Boot. Se cons
 - Git para clonar el repositorio.
 - Para desarrollo del backend fuera de Docker: Node.js 22+ y npm.
 - Catálogo institucional elegido: INTECAP. La [programación oficial de cursos](https://intecap.edu.gt/informacion-de-cursos/) enlaza el [listado y fichas de oferta](https://cursos.intecap.edu.gt/). Los seeds idempotentes `database/seeds/001`–`011` mantienen 37 cursos con fuente HTTPS. Hay 37 cursos activos en la base local tras desactivar dos registros de prueba; Qdrant conserva 38 vectores en la colección anterior de 1024 dimensiones, incluidos dos `delete` pendientes de sincronización. No se verificó aún la colección Gemini de 1536 dimensiones. Los seeds 009–011 calculan las horas de ocho cursos desde sus calendarios oficiales y las describen como horas programadas, no como carga curricular oficial. El nivel didáctico `level` de RutaIA (Básico/Intermedio/Avanzado) y la clasificación oficial de carrera `intecapCareerType` (CTO/CTM/CTMS) se almacenan por separado; no se convierten entre sí. No asignar niveles ni horas faltantes sin respaldo oficial.
-- Una clave propia de Gemini configurada localmente en `.env` para usar embeddings y generación RAG. La configuración fija los modelos `gemini-embedding-2` y `gemini-3.5-flash-lite`; n8n nunca recibe la clave.
+- Claves locales en `.env` para Gemini (embeddings) y OpenRouter (generación RAG); n8n nunca recibe las claves.
 
 ## Instalación y configuración inicial
 
@@ -31,22 +31,25 @@ Edita `.env` localmente. No lo subas a Git ni compartas sus valores. Configura:
 - `N8N_WEBHOOK_SECRET`, `N8N_CALLBACK_SECRET` y `N8N_COURSE_SYNC_SECRET`: secretos distintos, aleatorios, de al menos 24 caracteres.
 - `APP_PORT`: puerto local de la aplicación; por defecto 3000. En esta PC se usa 3001 porque 3000 estaba ocupado.
 - `FRONTEND_URL`: origen del navegador; por ejemplo `http://localhost:3001` si cambias `APP_PORT` a 3001.
-- `GEMINI_API_KEY`: configura la clave solo en este archivo local. Nunca la compartas por chat, Git, navegador ni n8n.
-- `GEMINI_CHAT_MODEL` y `GEMINI_EMBEDDING_MODEL`: modelos permitidos `gemini-3.5-flash-lite` y `gemini-embedding-2`; la validación del backend rechaza modelos distintos.
+- `GEMINI_API_KEY`: configura la clave local para generar embeddings; nunca la compartas por chat, Git, navegador ni n8n.
+- `GEMINI_EMBEDDING_MODEL`: modelo de embeddings `gemini-embedding-2`.
+- `OPENROUTER_API_KEY` y `OPENROUTER_CHAT_MODEL`: clave y modelo que el backend usa para generar respuestas. No se envían a n8n ni al navegador.
+- El modelo de OpenRouter se elige explícitamente; revisa su disponibilidad, compatibilidad con JSON y costo antes de configurarlo.
 - `GEMINI_EMBEDDING_DIMENSIONS`: debe permanecer en 1536 para coincidir con la colección configurada.
-- El proveedor de IA está fijado en Gemini; no se configura un selector de proveedor alternativo.
 - `AI_CHAT_TIMEOUT_MS` y `AI_EMBEDDING_TIMEOUT_MS`: tiempos máximos de las solicitudes; por defecto 120 y 60 segundos.
 - `RAG_MIN_SIMILARITY`: configuración local actual `0.642`, punto medio de la ventana Gemini recalculada con 37 cursos activos y 22 consultas (`0.6347–0.6484`). Sigue siendo provisional hasta validar consultas RAG reales y ampliar la evaluación de pertinencia.
+- Cada consulta puede incluir `umbral` entre `-1` y `1`; ese valor reemplaza `RAG_MIN_SIMILARITY` solo para la consulta. Si se omite, se usa la configuración del servidor.
 
-Gemini es el proveedor configurado para embeddings y generación. El backend mantiene la clave y n8n solo llama a endpoints Express autenticados. Las preguntas y textos de cursos enviados a esos endpoints salen de la computadora hacia el proveedor; usa consultas sintéticas durante pruebas y no introduzcas información privada. La calibración real confirmó que embeddings funcionaban en esa ejecución, pero no garantiza disponibilidad futura, generación de chat ni una respuesta RAG E2E. El backend falla cerrada si el umbral está vacío.
+Gemini genera embeddings y OpenRouter genera respuestas. El backend mantiene ambas claves y n8n solo llama a endpoints Express autenticados. Las preguntas y textos de cursos salen de la computadora hacia los proveedores; usa consultas sintéticas durante pruebas y no introduzcas información privada. El backend falla cerrada si faltan claves o configuración del proveedor.
 
 Para habilitarlo, edita solo tu `.env` local (no compartas la clave ni la pegues en n8n):
 
 ```dotenv
 GEMINI_API_KEY=pega_aqui_tu_clave_local
-GEMINI_CHAT_MODEL=gemini-3.5-flash-lite
 GEMINI_EMBEDDING_MODEL=gemini-embedding-2
 GEMINI_EMBEDDING_DIMENSIONS=1536
+OPENROUTER_API_KEY=pega_aqui_tu_clave_local
+OPENROUTER_CHAT_MODEL=proveedor/modelo
 ```
 
 Guarda el archivo y ejecuta `docker compose up -d --build backend` para que Compose actualice el entorno del contenedor. Nunca incluyas esa clave en el workflow ni crees una credencial Gemini en n8n. La indexación y las consultas solo aceptan `rutaia_courses_gemini_1536` y embeddings de 1536 dimensiones; la colección anterior `rutaia_courses` de 1024 dimensiones no se modifica.
@@ -62,7 +65,7 @@ chmod 600 .env
 
 Edita `.env` con los secretos locales requeridos arriba. Para una instalación nueva, reemplaza todos los `CHANGE_ME` y conserva la contraseña de PostgreSQL URL-safe. No compartas ni hagas commit de `.env`.
 
-Completa `GEMINI_API_KEY` en `.env` solo cuando autorices el envío de textos a Gemini. El destino nuevo es `rutaia_courses_gemini_1536`; no indexa por sí solo ni sustituye la colección anterior.
+Completa `GEMINI_API_KEY` y `OPENROUTER_API_KEY` en `.env` solo cuando autorices el envío de textos a esos proveedores; configura también el identificador de modelo de OpenRouter. El destino nuevo es `rutaia_courses_gemini_1536`; no indexa por sí solo ni sustituye la colección anterior.
 
 Arranca y comprueba servicios:
 
@@ -209,7 +212,7 @@ JWT Bearer está disponible en `POST /api/v1/auth/token` si se configura `JWT_SE
 
 ## Estado comprobado en este entorno — 6 de noviembre de 2026
 
-**Configuración vigente del código:** Gemini (`gemini-3.5-flash-lite`, `gemini-embedding-2`), embeddings de 1536 dimensiones y colección `rutaia_courses_gemini_1536`. Las notas siguientes que mencionan OpenRouter, otra colección o sus resultados describen etapas previas y no validan esta configuración. Los workflows versionados no actualizan una instancia n8n ya desplegada.
+**Configuración vigente del código:** OpenRouter para generación, Gemini (`gemini-embedding-2`) para embeddings de 1536 dimensiones y colección `rutaia_courses_gemini_1536`. Las notas siguientes describen verificaciones de etapas anteriores y no validan una ejecución con la configuración actual. Los workflows versionados no actualizan una instancia n8n ya desplegada.
 
 **Verificación local de esta sesión:** 63 pruebas aprobadas, 0 fallidas y 1 integración opcional omitida; integración PostgreSQL 1/1; OpenAPI 32 rutas/35 operaciones/120 referencias; workflows 40 nodos y 45 conexiones; `npm audit` sin vulnerabilidades. La calibración Gemini sobre 37 cursos y 22 consultas confirmó la ventana `0.6347–0.6484`; `0.642` sigue provisional. Una E2E real de la app con el responder Gemini publicado terminó `Respondida`, guardó tres fuentes y apareció en historial; el usuario y la consulta sintéticos se eliminaron. Se detectó el retiro de `gemini-2.5-flash-lite` y se cambió a `gemini-3.5-flash-lite`. Qdrant tiene 37 UUID en `rutaia_courses_gemini_1536`; la colección antigua (38 puntos/1024 dimensiones) sigue intacta. Quedan dos acciones `delete` en la cola incremental. En n8n, el responder Gemini está publicado y el indexador sigue despublicado.
 

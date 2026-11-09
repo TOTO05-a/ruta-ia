@@ -3,9 +3,10 @@ const { z } = require("zod");
 const envSchema = z.object({
     NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
     GEMINI_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().optional()),
-    GEMINI_CHAT_MODEL: z.literal("gemini-3.5-flash-lite").default("gemini-3.5-flash-lite"),
     GEMINI_EMBEDDING_MODEL: z.literal("gemini-embedding-2").default("gemini-embedding-2"),
     GEMINI_EMBEDDING_DIMENSIONS: z.coerce.number().refine((value) => value === 1536, "debe ser 1536").default(1536),
+    OPENROUTER_API_KEY: z.preprocess((value) => value === "" ? undefined : value, z.string().optional()),
+    OPENROUTER_CHAT_MODEL: z.preprocess((value) => value === "" ? undefined : value, z.string().trim().min(1).optional()),
     AI_CHAT_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180_000).default(120_000),
     AI_EMBEDDING_TIMEOUT_MS: z.coerce.number().int().min(1000).max(180_000).default(60_000),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),

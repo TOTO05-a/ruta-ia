@@ -12,15 +12,17 @@ function loadConfig(overrides) {
     });
 }
 
-test("Gemini queda fijado a modelos conocidos y la app puede iniciar sin clave", () => {
-    const result = loadConfig({ GEMINI_API_KEY: "", GEMINI_CHAT_MODEL: "gemini-3.5-flash-lite" });
+test("la app puede iniciar sin claves de proveedor configuradas", () => {
+    const result = loadConfig({ GEMINI_API_KEY: "", OPENROUTER_API_KEY: "", OPENROUTER_CHAT_MODEL: "" });
     assert.equal(result.status, 0, result.stderr);
 });
 
-test("la configuración rechaza activar un modelo Gemini distinto al gratuito documentado", () => {
-    const result = loadConfig({ GEMINI_CHAT_MODEL: "gemini-2.5-pro" });
-    assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /GEMINI_CHAT_MODEL/);
+test("la configuración conserva el modelo OpenRouter indicado", () => {
+    const result = spawnSync(process.execPath, ["-e", `process.stdout.write(JSON.stringify(require(${JSON.stringify(envModule)})))`], {
+        encoding: "utf8", env: { ...process.env, NODE_ENV: "test", OPENROUTER_CHAT_MODEL: "provider/model" }
+    });
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(JSON.parse(result.stdout).OPENROUTER_CHAT_MODEL, "provider/model");
 });
 
 test("la colección Gemini usa dimensiones fijas independientes del índice anterior", () => {

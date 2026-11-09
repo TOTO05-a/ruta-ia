@@ -39,7 +39,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nif (!request?.queryId || !request?.question || !request?.embeddingUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(request?.minSimilarity)) throw new Error('Payload de consulta incompleto');\nif (request.qdrantCollection !== 'rutaia_courses_gemini_1536') throw new Error('Colección RAG no permitida');\nreturn [{ json: { input: request.question, task: 'query', embeddingUrl: request.embeddingUrl } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst minSimilarity = request?.umbral ?? request?.minSimilarity;\nif (!request?.queryId || !request?.question || !request?.embeddingUrl || !request?.qdrantCollection || !request?.qdrantUrl || !request?.callbackUrl || !Number.isFinite(minSimilarity) || minSimilarity < -1 || minSimilarity > 1) throw new Error('Payload de consulta incompleto o umbral inválido');\nif (request.qdrantCollection !== 'rutaia_courses_gemini_1536') throw new Error('Colección RAG no permitida');\nreturn [{ json: { input: request.question, task: 'query', embeddingUrl: request.embeddingUrl, minSimilarity } }];"
       },
       "id": "1214c556-80f0-4f5c-870f-80c8f6c5f536",
       "name": "Preparar embedding de pregunta",
@@ -89,7 +89,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { query: $json.vector, limit: 50, with_payload: true, with_vector: false, score_threshold: $('Webhook autenticado de consulta').first().json.body.minSimilarity, ...(( $('Webhook autenticado de consulta').first().json.body.category || $('Webhook autenticado de consulta').first().json.body.level) ? { filter: { must: [ ...( $('Webhook autenticado de consulta').first().json.body.category ? [{ key: 'category', match: { value: $('Webhook autenticado de consulta').first().json.body.category } }] : []), ...( $('Webhook autenticado de consulta').first().json.body.level ? [{ key: 'level', match: { value: $('Webhook autenticado de consulta').first().json.body.level } }] : []) ] } } : {}) } }}",
+        "jsonBody": "={{ { query: $json.vector, limit: 5, with_payload: true, with_vector: false, ...(( $('Webhook autenticado de consulta').first().json.body.category || $('Webhook autenticado de consulta').first().json.body.level) ? { filter: { must: [ ...( $('Webhook autenticado de consulta').first().json.body.category ? [{ key: 'category', match: { value: $('Webhook autenticado de consulta').first().json.body.category } }] : []), ...( $('Webhook autenticado de consulta').first().json.body.level ? [{ key: 'level', match: { value: $('Webhook autenticado de consulta').first().json.body.level } }] : []) ] } } : {}) } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "481b45cf-dc02-45ec-8658-75c793c9c247",
@@ -102,7 +102,7 @@
     {
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst courses = $('Leer catálogo activo PostgreSQL').first().json.data?.items;\nconst response = $input.first().json;\nconst hits = response.result?.points ?? response.body?.result?.points;\nif (!Array.isArray(courses) || !Array.isArray(hits)) throw new Error('Respuesta de catálogo o Qdrant inválida');\nconst active = new Map(courses.map(c => [c.id, c]));\nconst seen = new Set();\nconst sources = hits.map(hit => { const courseId = hit.payload?.course_id; const course = active.get(courseId); if (!course || (request.category && course.category !== request.category) || (request.level && course.level !== request.level) || seen.has(courseId) || !Number.isFinite(hit.score) || hit.score < request.minSimilarity) return null; seen.add(courseId); return { courseId, similarity: hit.score, name: course.name, description: course.description, category: course.category, level: course.level, intecapCareerType: course.intecapCareerType ?? null, durationHours: course.durationHours }; }).filter(Boolean).sort((a,b) => b.similarity-a.similarity).slice(0,3);\nif (sources.length < 3) return [{ json: { queryId: request.queryId, status: 'Sin resultados' } }];\nreturn [{ json: { queryId: request.queryId, question: request.question, experienceLevel: request.experienceLevel, interestArea: request.interestArea, conversationHistory: Array.isArray(request.conversationHistory) ? request.conversationHistory.slice(-3) : [], chatModel: request.chatModel, status: 'Respondida', sources, context: sources.map((s,i) => `${i+1}. ${s.name} | ${s.category} | Nivel RutaIA: ${s.level} | Clasificación INTECAP: ${s.intecapCareerType ?? 'No indicada'} | ${s.durationHours} horas | score ${s.similarity}\\n${s.description}`).join('\\n\\n') } }];"
+        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nconst minSimilarity = request.umbral ?? request.minSimilarity;\nconst courses = $('Leer catálogo activo PostgreSQL').first().json.data?.items;\nconst response = $input.first().json;\nconst hits = response.result?.points ?? response.body?.result?.points;\nif (!Array.isArray(courses) || !Array.isArray(hits)) throw new Error('Respuesta de catálogo o Qdrant inválida');\nconst active = new Map(courses.map(c => [c.id, c]));\nconst seen = new Set();\nconst sources = hits.map(hit => { const courseId = hit.payload?.course_id; const course = active.get(courseId); if (!course || (request.category && course.category !== request.category) || (request.level && course.level !== request.level) || seen.has(courseId) || !Number.isFinite(hit.score) || hit.score < minSimilarity) return null; seen.add(courseId); return { courseId, similarity: hit.score, name: course.name, description: course.description, category: course.category, level: course.level, intecapCareerType: course.intecapCareerType ?? null, durationHours: course.durationHours }; }).filter(Boolean).sort((a,b) => b.similarity-a.similarity).slice(0,5);\nif (sources.length === 0) return [{ json: { queryId: request.queryId, status: 'Sin resultados' } }];\nreturn [{ json: { queryId: request.queryId, question: request.question, experienceLevel: request.experienceLevel, interestArea: request.interestArea, conversationHistory: Array.isArray(request.conversationHistory) ? request.conversationHistory.slice(-3) : [], status: 'Respondida', sources, context: sources.map((s,i) => `${i+1}. ${s.name} | ${s.category} | Nivel RutaIA: ${s.level} | Clasificación INTECAP: ${s.intecapCareerType ?? 'No indicada'} | ${s.durationHours} horas | score ${s.similarity}\\n${s.description}`).join('\\n\\n') } }];"
       },
       "id": "e4d0d3b4-8e42-4bfb-b958-5d54a7d373d7",
       "name": "Filtrar fuentes activas y umbral",
@@ -121,7 +121,7 @@
         "options": {}
       },
       "id": "14fd111c-f5a9-439a-8c0c-dce4d321a70d",
-      "name": "¿Hay al menos tres fuentes?",
+      "name": "¿Hay fuentes relevantes?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [1960, 340]
@@ -231,8 +231,8 @@
     "Crear embedding de pregunta": {"main": [[{"node": "Validar vector y preparar búsqueda", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
     "Validar vector y preparar búsqueda": {"main": [[{"node": "Buscar cinco cursos en Qdrant", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
     "Buscar cinco cursos en Qdrant": {"main": [[{"node": "Filtrar fuentes activas y umbral", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
-    "Filtrar fuentes activas y umbral": {"main": [[{"node": "¿Hay al menos tres fuentes?", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
-    "¿Hay al menos tres fuentes?": {"main": [[{"node": "Generar respuesta grounded", "type": "main", "index": 0}], [{"node": "Guardar estado sin resultados", "type": "main", "index": 0}]]},
+    "Filtrar fuentes activas y umbral": {"main": [[{"node": "¿Hay fuentes relevantes?", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "¿Hay fuentes relevantes?": {"main": [[{"node": "Generar respuesta grounded", "type": "main", "index": 0}], [{"node": "Guardar estado sin resultados", "type": "main", "index": 0}]]},
     "Generar respuesta grounded": {"main": [[{"node": "Validar callback de recomendación", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
     "Validar callback de recomendación": {"main": [[{"node": "Guardar recomendación en Express", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]}
   },

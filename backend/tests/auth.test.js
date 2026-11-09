@@ -217,7 +217,7 @@ test("preguntas vacías se rechazan antes de persistir o llamar a n8n", () => {
     assert.equal(createQuerySchema.safeParse({ question: "Quiero aprender desarrollo web" }).success, true);
 });
 
-test("callback de n8n valida estado, entre tres y cinco fuentes y score finito", () => {
+test("callback de n8n valida estado, entre una y cinco fuentes y score finito", () => {
     const id = "7e5ac5b4-5918-4e0a-b784-2b1521759bc1";
     const response = {
         queryId: id,
@@ -231,7 +231,8 @@ test("callback de n8n valida estado, entre tres y cinco fuentes y score finito",
         }))
     };
     assert.equal(callbackSchema.safeParse(response).success, true);
-    assert.equal(callbackSchema.safeParse({ ...response, sources: response.sources.slice(0, 2) }).success, false);
+    assert.equal(callbackSchema.safeParse({ ...response, sources: response.sources.slice(0, 1) }).success, true);
+    assert.equal(callbackSchema.safeParse({ ...response, sources: [] }).success, false);
     assert.equal(callbackSchema.safeParse({ ...response, sources: [{ ...response.sources[0], similarity: Infinity }, ...response.sources.slice(1)] }).success, false);
     assert.equal(callbackSchema.safeParse({ queryId: id, status: "Sin resultados" }).success, true);
 });

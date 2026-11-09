@@ -375,6 +375,7 @@
       const queryInput = { question: input.value };
       if ($("#query-category").value) queryInput.category = $("#query-category").value;
       if ($("#query-level").value) queryInput.level = $("#query-level").value;
+      if ($("#query-threshold").value !== "") queryInput.umbral = Number($("#query-threshold").value);
       const created = await api("/queries", { method: "POST", body: JSON.stringify(queryInput) });
       state.query = created;
       const turn = renderConversationTurn(created);

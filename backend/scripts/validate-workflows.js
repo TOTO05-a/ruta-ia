@@ -126,11 +126,16 @@ for (const file of files) {
         const qdrantNode = workflow.nodes.find((node) => node.name === "Buscar cinco cursos en Qdrant");
         assert.ok(qdrantNode.parameters.jsonBody.includes("key: 'category'") &&
             qdrantNode.parameters.jsonBody.includes("key: 'level'") &&
+            qdrantNode.parameters.jsonBody.includes("limit: 5") &&
+            !qdrantNode.parameters.jsonBody.includes("score_threshold") &&
             qdrantNode.parameters.jsonBody.includes(": {})"),
-            "los filtros opcionales de categoría y nivel deben omitirse cuando no se especifican");
+            "Qdrant debe recuperar hasta cinco candidatos sin filtrar el umbral antes de comparar sus scores");
         const filterNode = workflow.nodes.find((node) => node.name === "Filtrar fuentes activas y umbral");
-        assert.match(filterNode.parameters.jsCode, /sort\(\(a,b\) => b\.similarity-a\.similarity\)\.slice\(0,3\)/,
-            "el contexto RAG debe conservar solo las tres fuentes elegibles mejor clasificadas");
+        assert.ok(filterNode.parameters.jsCode.includes("request.umbral ?? request.minSimilarity") &&
+            filterNode.parameters.jsCode.includes("hit.score < minSimilarity") &&
+            filterNode.parameters.jsCode.includes("sources.length === 0") &&
+            filterNode.parameters.jsCode.includes(".slice(0,5)"),
+            "el contexto RAG debe incluir hasta cinco fuentes que alcancen el umbral y omitir el LLM si no hay ninguna");
         assert.ok(!workflow.nodes.some((node) => node.name === "Preparar callback de error seguro"),
             "el callback de error seguro debe prepararse en el nodo HTTP");
         const errorCallback = workflow.nodes.find((node) => node.name === "Guardar estado de error");

@@ -1,10 +1,22 @@
 const { z } = require("zod");
 
+const queryTextSchema = z.string().trim().min(1).max(4000);
+
 const createQuerySchema = z.object({
-    question: z.string().trim().min(1).max(4000),
+    question: queryTextSchema.optional(),
+    pregunta: queryTextSchema.optional(),
+    umbral: z.number().min(-1).max(1).optional(),
     category: z.string().trim().min(1).max(100).optional(),
     level: z.enum(["Básico", "Intermedio", "Avanzado"]).optional()
-}).strict();
+}).strict()
+    .refine((value) => Boolean(value.question) !== Boolean(value.pregunta), {
+        message: "Envía question o pregunta, pero no ambos",
+        path: ["question"]
+    })
+    .transform(({ pregunta, ...value }) => ({
+        ...value,
+        question: value.question ?? pregunta
+    }));
 
 const callbackSchema = z.discriminatedUnion("status", [
     z.object({
@@ -16,7 +28,7 @@ const callbackSchema = z.discriminatedUnion("status", [
         sources: z.array(z.object({
             courseId: z.uuid(),
             similarity: z.number().finite()
-        }).strict()).min(3).max(5)
+        }).strict()).min(1).max(5)
     }).strict(),
     z.object({ queryId: z.uuid(), status: z.literal("Sin resultados") }).strict(),
     z.object({

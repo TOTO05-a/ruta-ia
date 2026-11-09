@@ -50,6 +50,7 @@ html[data-theme=light] .welcome-hero{background:radial-gradient(ellipse at 90% 0
 .chat-composer .query-filter-row{gap:10px;padding:8px 0 0}
 .chat-composer .query-filter-row label{font-size:10px}
 .chat-composer .query-filter-row select{min-width:145px;height:33px}
+.chat-composer .query-filter-row input{min-width:150px;height:33px;padding:5px 9px}
 .chat-composer .query-filter-row>span{margin-left:0}
 .chat-composer .suggestion-row{margin:0}
 .chat-composer .suggestion-row>span{font-size:8px}

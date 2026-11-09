@@ -109,3 +109,14 @@ test("n8n client sends the authenticated minimal query and server-owned configur
         qdrantUrl: configuredValues.QDRANT_URL
     });
 });
+
+test("n8n client prioriza el umbral recibido y conserva la configuración del servidor como respaldo", async () => {
+    let requestBody;
+    await withMockedFetch(async (_url, options) => {
+        requestBody = JSON.parse(options.body);
+        return { ok: true, status: 200 };
+    }, {}, () => startQuery({ queryId: "query-umbral", question: "Pregunta", umbral: 0.5 }));
+
+    assert.equal(requestBody.minSimilarity, 0.5);
+    assert.equal(requestBody.umbral, 0.5);
+});

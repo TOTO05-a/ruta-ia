@@ -18,6 +18,7 @@ async function create(student, input) {
             question: query.question,
             experienceLevel: student.experience_level,
             interestArea: student.interest_area,
+            ...(input.umbral !== undefined ? { umbral: input.umbral } : {}),
             ...(input.category ? { category: input.category } : {}),
             ...(input.level ? { level: input.level } : {}),
             conversationHistory
