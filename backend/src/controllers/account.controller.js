@@ -1,11 +1,17 @@
 const env = require("../config/env");
-const authService = require("../services/auth.service");
+const service = require("../services/account.service");
 const ApiError = require("../utils/api-error");
-const { registerSchema, loginSchema, formatIssues } = require("../validators/auth.validators");
-const requireAuth = require("../middleware/require-auth");
+const {
+    registerSchema,
+    loginSchema,
+    updateProfileSchema,
+    listSchema,
+    formatIssues
+} = require("../validators/account.validators");
+const { requireAuth } = require("../middleware/auth");
 
-function validate(schema, body) {
-    const parsed = schema.safeParse(body);
+function validate(schema, value) {
+    const parsed = schema.safeParse(value);
     if (!parsed.success) {
         throw new ApiError(400, "VALIDATION_ERROR", "Revisa los datos enviados", formatIssues(parsed.error.issues));
     }
@@ -32,19 +38,19 @@ function clearSessionCookie(res) {
 }
 
 async function register(req, res) {
-    const result = await authService.register(validate(registerSchema, req.body));
+    const result = await service.register(validate(registerSchema, req.body));
     setSessionCookie(res, result.session);
     return res.status(201).json({ data: { student: result.student, csrfToken: result.session.csrfToken } });
 }
 
 async function login(req, res) {
-    const result = await authService.login(validate(loginSchema, req.body));
+    const result = await service.login(validate(loginSchema, req.body));
     setSessionCookie(res, result.session);
     return res.status(200).json({ data: { student: result.student, csrfToken: result.session.csrfToken } });
 }
 
 async function token(req, res) {
-    const result = await authService.loginWithJwt(validate(loginSchema, req.body));
+    const result = await service.loginWithJwt(validate(loginSchema, req.body));
     return res.status(200).json({
         data: {
             accessToken: result.token,
@@ -57,14 +63,15 @@ async function token(req, res) {
 }
 
 async function logout(req, res) {
-    await authService.logout(req.auth.session_id);
+    await service.logout(req.auth.session_id);
     if (req.auth_method === "session") clearSessionCookie(res);
     return res.status(204).end();
 }
 
 function me(req, res) {
     const { session_id, csrf_token, ...student } = req.auth;
-    void session_id; void csrf_token;
+    void session_id;
+    void csrf_token;
     return res.json({ data: { student: {
         id: student.id,
         fullName: student.full_name,
@@ -76,8 +83,20 @@ function me(req, res) {
 }
 
 async function csrf(req, res) {
-    const csrfToken = await authService.getCsrf(req.auth.session_id);
+    const csrfToken = await service.getCsrf(req.auth.session_id);
     return res.json({ data: { csrfToken } });
 }
 
-module.exports = { register, login, token, logout, me, csrf };
+async function updateMe(req, res) {
+    return res.json({ data: await service.updateProfile(req.auth.id, validate(updateProfileSchema, req.body)) });
+}
+
+async function list(req, res) {
+    return res.json({ data: await service.list(validate(listSchema, req.query)) });
+}
+
+async function getById(req, res) {
+    return res.json({ data: await service.getById(req.params.id) });
+}
+
+module.exports = { register, login, token, logout, me, csrf, updateMe, list, getById };

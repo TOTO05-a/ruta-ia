@@ -2,7 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const env = require("../src/config/env");
-const { generate } = require("../src/integrations/ai/chat");
+const { generateChat } = require("../src/integrations/ai/gemini");
 
 async function withProvider(overrides, fetchMock, action) {
     const keys = ["GEMINI_API_KEY", "GEMINI_CHAT_MODEL", "AI_CHAT_TIMEOUT_MS"];
@@ -27,7 +27,7 @@ test("Gemini recibe la conversación y responde en el formato normalizado del ba
         request = { url, options };
         return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: generatedContent }] }, finishReason: "STOP" }] }) };
     }, async () => {
-        const result = await generate(validBody);
+        const result = await generateChat(validBody);
         assert.equal(result.message.content, generatedContent);
     });
 
@@ -43,14 +43,14 @@ test("Gemini recibe la conversación y responde en el formato normalizado del ba
 test("proxy rechaza mensajes malformados antes de contactar al proveedor", async () => {
     let called = false;
     await withProvider({}, async () => { called = true; }, async () => {
-        await assert.rejects(generate({ messages: [{ role: "developer", content: "x" }] }), (error) => error.code === "AI_CHAT_INVALID_INPUT");
+        await assert.rejects(generateChat({ messages: [{ role: "developer", content: "x" }] }), (error) => error.code === "AI_CHAT_INVALID_INPUT");
     });
     assert.equal(called, false);
 });
 
 test("el error del proveedor no filtra detalles ni claves", async () => {
     await withProvider({}, async () => ({ ok: false, status: 401, text: async () => "test-key denied" }), async () => {
-        await assert.rejects(generate(validBody), (error) => {
+        await assert.rejects(generateChat(validBody), (error) => {
             assert.equal(error.code, "AI_PROVIDER_REJECTED_REQUEST");
             assert.doesNotMatch(error.message, /test-key|denied/);
             return true;
@@ -60,7 +60,7 @@ test("el error del proveedor no filtra detalles ni claves", async () => {
 
 test("proxy identifica límite de solicitudes sin exponer el cuerpo del proveedor", async () => {
     await withProvider({}, async () => ({ ok: false, status: 429, text: async () => "quota exceeded" }), async () => {
-        await assert.rejects(generate(validBody), (error) => error.code === "AI_PROVIDER_RATE_LIMITED");
+        await assert.rejects(generateChat(validBody), (error) => error.code === "AI_PROVIDER_RATE_LIMITED");
     });
 });
 
@@ -68,6 +68,6 @@ test("proxy rechaza respuestas JSON estructuradas truncadas", async () => {
     await withProvider({}, async () => ({
         ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: "{\\\"answer\\\":" }] }, finishReason: "MAX_TOKENS" }] })
     }), async () => {
-        await assert.rejects(generate(validBody), (error) => error.code === "AI_PROVIDER_INCOMPLETE_RESPONSE");
+        await assert.rejects(generateChat(validBody), (error) => error.code === "AI_PROVIDER_INCOMPLETE_RESPONSE");
     });
 });

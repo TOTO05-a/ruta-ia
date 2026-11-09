@@ -2,6 +2,7 @@ const crypto = require("node:crypto");
 const pool = require("../db/pool");
 const env = require("../config/env");
 const jwtService = require("../services/jwt.service");
+const ApiError = require("../utils/api-error");
 
 const COOKIE_NAME = "rutaia_session";
 
@@ -92,4 +93,12 @@ requireAuth.COOKIE_NAME = COOKIE_NAME;
 requireAuth.digest = digest;
 requireAuth.parseCookies = parseCookies;
 requireAuth.create = createRequireAuth;
-module.exports = requireAuth;
+
+function requireAdmin(req, res, next) {
+    if (!req.auth || req.auth.role !== "admin") {
+        return next(new ApiError(403, "FORBIDDEN", "No tienes permiso para esta operación"));
+    }
+    return next();
+}
+
+module.exports = { requireAuth, requireAdmin, digest, parseCookies };

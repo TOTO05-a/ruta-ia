@@ -1,7 +1,6 @@
 const repository = require("../repositories/course.repository");
 const env = require("../config/env");
-const aiChat = require("../integrations/ai/chat");
-const aiEmbeddings = require("../integrations/ai/embeddings");
+const gemini = require("../integrations/ai/gemini");
 const courseSyncOutbox = require("../repositories/course-sync-outbox.repository");
 
 const GEMINI_COURSE_COLLECTION = "rutaia_courses_gemini_1536";
@@ -74,12 +73,12 @@ async function acknowledgeCourseSyncEvent(req, res) {
 }
 
 async function generateChat(req, res) {
-    const result = await aiChat.generate(req.body);
+    const result = await gemini.generateChat(req.body);
     return res.json(result);
 }
 
 async function generateEmbeddings(req, res) {
-    const result = await aiEmbeddings.generate(req.body);
+    const result = await gemini.generateEmbeddings(req.body);
     return res.json(result);
 }
 

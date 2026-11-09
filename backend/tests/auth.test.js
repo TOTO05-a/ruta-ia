@@ -3,13 +3,11 @@ const assert = require("node:assert/strict");
 const crypto = require("node:crypto");
 const { spawnSync } = require("node:child_process");
 const path = require("node:path");
-const { registerSchema, loginSchema } = require("../src/validators/auth.validators");
+const { registerSchema, loginSchema, updateProfileSchema } = require("../src/validators/account.validators");
 const { courseSchema, coursePatchSchema, statusSchema } = require("../src/validators/course.validators");
-const { updateProfileSchema } = require("../src/validators/student.validators");
 const { createQuerySchema, callbackSchema } = require("../src/validators/query.validators");
 const { ratingSchema } = require("../src/validators/rating.validators");
-const requireAdmin = require("../src/middleware/require-admin");
-const requireAuth = require("../src/middleware/require-auth");
+const { requireAdmin, requireAuth } = require("../src/middleware/auth");
 const jwtService = require("../src/services/jwt.service");
 const { hashPassword, verifyPassword } = require("../src/services/password.service");
 

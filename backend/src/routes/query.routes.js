@@ -1,6 +1,6 @@
 const express = require("express");
 const controller = require("../controllers/query.controller");
-const requireAuth = require("../middleware/require-auth");
+const { requireAuth } = require("../middleware/auth");
 const requireN8nCallback = require("../middleware/require-n8n-callback");
 const requireN8nSync = require("../middleware/require-n8n-sync");
 const internalController = require("../controllers/internal.controller");

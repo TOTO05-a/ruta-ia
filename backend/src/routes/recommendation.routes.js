@@ -1,8 +1,7 @@
 const express = require("express");
 const ratingController = require("../controllers/rating.controller");
 const statisticsController = require("../controllers/statistics.controller");
-const requireAuth = require("../middleware/require-auth");
-const requireAdmin = require("../middleware/require-admin");
+const { requireAuth, requireAdmin } = require("../middleware/auth");
 
 const router = express.Router();
 

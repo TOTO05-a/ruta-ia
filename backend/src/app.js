@@ -7,9 +7,8 @@ const env = require("./config/env");
 const requestId = require("./middleware/request-id");
 const errorHandler = require("./middleware/error-handler");
 const healthRoutes = require("./routes/health.routes");
-const authRoutes = require("./routes/auth.routes");
+const accountRoutes = require("./routes/account.routes");
 const courseRoutes = require("./routes/course.routes");
-const studentRoutes = require("./routes/student.routes");
 const queryRoutes = require("./routes/query.routes");
 const recommendationRoutes = require("./routes/recommendation.routes");
 
@@ -45,9 +44,8 @@ app.use(express.json({ limit: "1mb", strict: true }));
 
 app.use("/health", healthRoutes);
 app.use("/api/v1/health", healthRoutes);
-app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1", accountRoutes);
 app.use("/api/v1", courseRoutes);
-app.use("/api/v1", studentRoutes);
 app.use("/api/v1", queryRoutes);
 app.use("/api/v1", recommendationRoutes);
 app.use(express.static(path.resolve(__dirname, "../../frontend"), { extensions: ["html"] }));

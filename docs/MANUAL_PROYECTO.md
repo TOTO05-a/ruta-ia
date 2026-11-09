@@ -108,7 +108,7 @@ Lee las capas en este orden y muestra siempre la implementación real:
 
 1. `backend/src/app.js`: middleware, rutas y frontend estático.
 2. Un endpoint recorre `routes/` → `controllers/` → `validators/` → `services/` → `repositories/` → `db/pool.js`/PostgreSQL. Las validaciones usan Zod; las consultas SQL están en repositorios.
-3. Registro/sesión: `auth.controller.register/login/logout`; `auth.service.register/login/logout`; `session.service.createSession/destroySession`; `password.service.hashPassword/verifyPassword`.
+3. Registro/sesión y perfil: `account.controller.register/login/logout/updateMe`; `account.service.register/login/logout/updateProfile`; `session.service.createSession/destroySession`; `password.service.hashPassword/verifyPassword`.
 4. Cursos: `course.controller.list/adminList/get/adminGet/create/update/setStatus`; `course.service.getPublicList/getAdminList/getById/create/update/setActive`.
 5. Consultas: `query.controller.create/get/list/studentHistory/callback`; `query.service.create/get/list/listStudentHistory/receiveCallback`; `integrations/n8n/client.js` inicia el webhook autenticado y el callback recibe el resultado.
 6. Ratings/métricas: `rating.service.create`; `statistics.controller.get` y `statistics.repository.js`.

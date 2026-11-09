@@ -1,7 +1,7 @@
 const { randomBytes } = require("node:crypto");
 const pool = require("../db/pool");
 const env = require("../config/env");
-const { digest } = require("../middleware/require-auth");
+const { digest } = require("../middleware/auth");
 
 async function createSession(studentId, db = pool) {
     const token = randomBytes(32).toString("base64url");
