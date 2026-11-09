@@ -204,17 +204,6 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const request = $('Webhook autenticado de consulta').first().json.body;\nreturn [{ json: { queryId: request.queryId, status: 'Error', errorCode: 'N8N_PROCESSING_ERROR' } }];"
-      },
-      "id": "0b522ad8-e230-460d-9022-6b15edb63b01",
-      "name": "Preparar callback de error seguro",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1720, 680]
-    },
-    {
-      "parameters": {
         "method": "POST",
         "url": "={{ $('Webhook autenticado de consulta').first().json.body.callbackUrl }}",
         "authentication": "genericCredentialType",
@@ -222,7 +211,7 @@
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ $json }}",
+        "jsonBody": "={{ { queryId: $('Webhook autenticado de consulta').first().json.body.queryId, status: 'Error', errorCode: 'N8N_PROCESSING_ERROR' } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "9dd6bf19-8e8d-47fd-9ad2-c55779cb670b",
@@ -237,16 +226,15 @@
   ],
   "connections": {
     "Webhook autenticado de consulta": {"main": [[{"node": "Leer catálogo activo PostgreSQL", "type": "main", "index": 0}]]},
-    "Leer catálogo activo PostgreSQL": {"main": [[{"node": "Preparar embedding de pregunta", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Preparar embedding de pregunta": {"main": [[{"node": "Crear embedding de pregunta", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Crear embedding de pregunta": {"main": [[{"node": "Validar vector y preparar búsqueda", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Validar vector y preparar búsqueda": {"main": [[{"node": "Buscar cinco cursos en Qdrant", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Buscar cinco cursos en Qdrant": {"main": [[{"node": "Filtrar fuentes activas y umbral", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Filtrar fuentes activas y umbral": {"main": [[{"node": "¿Hay al menos tres fuentes?", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
+    "Leer catálogo activo PostgreSQL": {"main": [[{"node": "Preparar embedding de pregunta", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Preparar embedding de pregunta": {"main": [[{"node": "Crear embedding de pregunta", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Crear embedding de pregunta": {"main": [[{"node": "Validar vector y preparar búsqueda", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Validar vector y preparar búsqueda": {"main": [[{"node": "Buscar cinco cursos en Qdrant", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Buscar cinco cursos en Qdrant": {"main": [[{"node": "Filtrar fuentes activas y umbral", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Filtrar fuentes activas y umbral": {"main": [[{"node": "¿Hay al menos tres fuentes?", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
     "¿Hay al menos tres fuentes?": {"main": [[{"node": "Generar respuesta grounded", "type": "main", "index": 0}], [{"node": "Guardar estado sin resultados", "type": "main", "index": 0}]]},
-    "Generar respuesta grounded": {"main": [[{"node": "Validar callback de recomendación", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Validar callback de recomendación": {"main": [[{"node": "Guardar recomendación en Express", "type": "main", "index": 0}], [{"node": "Preparar callback de error seguro", "type": "main", "index": 0}]]},
-    "Preparar callback de error seguro": {"main": [[{"node": "Guardar estado de error", "type": "main", "index": 0}]]}
+    "Generar respuesta grounded": {"main": [[{"node": "Validar callback de recomendación", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]},
+    "Validar callback de recomendación": {"main": [[{"node": "Guardar recomendación en Express", "type": "main", "index": 0}], [{"node": "Guardar estado de error", "type": "main", "index": 0}]]}
   },
   "active": false,
   "settings": {"executionOrder": "v1"},

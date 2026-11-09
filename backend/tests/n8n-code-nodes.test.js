@@ -24,6 +24,14 @@ function executeCode(source, nodeData, input) {
     return normalized.map((item) => item.json);
 }
 
+function evaluateExpression(expression, nodeData) {
+    assert.match(expression, /^=\{\{[\s\S]*\}\}$/);
+    const source = expression.slice(3, -2);
+    const lookup = (name) => ({ first: () => ({ json: nodeData[name] }) });
+    const result = new vm.Script(`(${source})`).runInNewContext({ $: lookup });
+    return JSON.parse(JSON.stringify(result));
+}
+
 function course(id, overrides = {}) {
     return {
         id,
@@ -49,6 +57,27 @@ test("workflow RAG mantiene generación JSON breve a través del proxy de Expres
     assert.match(node.parameters.jsonBody, /answer máximo 55 palabras, summary máximo 18 y explanation máximo 25/);
     assert.match(node.parameters.jsonBody, /Solo las fuentes Qdrant recuperadas para la consulta actual son autoritativas/);
     assert.match(node.parameters.jsonBody, /conversationHistory: \$json\.conversationHistory \|\| \[\]/);
+});
+
+test("workflow RAG envía errores con un callback fijo sin un nodo de preparación", () => {
+    const errorNode = answerWorkflow.nodes.find((node) => node.name === "Guardar estado de error");
+    assert.ok(errorNode);
+    assert.equal(answerWorkflow.nodes.some((node) => node.name === "Preparar callback de error seguro"), false);
+    assert.deepEqual(evaluateExpression(errorNode.parameters.jsonBody, {
+        "Webhook autenticado de consulta": { body: { queryId: "query-error" } }
+    }), {
+        queryId: "query-error",
+        status: "Error",
+        errorCode: "N8N_PROCESSING_ERROR"
+    });
+
+    for (const node of answerWorkflow.nodes.filter((candidate) => candidate.onError === "continueErrorOutput")) {
+        assert.equal(
+            answerWorkflow.connections[node.name].main[1][0].node,
+            "Guardar estado de error",
+            `${node.name} debe enviar su salida de error al callback seguro`
+        );
+    }
 });
 
 test("workflow RAG aplica filtros Qdrant opcionales de categoría y nivel", () => {
@@ -241,4 +270,27 @@ test("indexación vacía conserva el contexto y limpia vectores obsoletos sin oc
         { cleared: false, reason: "collection_not_created" }
     ]);
     assert.throws(() => executeCode(cleanup, {}, { statusCode: 503 }), /Qdrant no pudo limpiar/);
+});
+
+test("indexación elimina vectores obsoletos directamente con los IDs del catálogo activo", () => {
+    const deletion = indexWorkflow.nodes.find((node) => node.name === "Eliminar puntos de cursos ya inactivos");
+    assert.ok(deletion);
+    assert.equal(indexWorkflow.nodes.some((node) => node.name === "Preparar filtro de vectores obsoletos"), false);
+    assert.equal(
+        indexWorkflow.connections["Upsert idempotente en Qdrant"].main[0][0].node,
+        "Eliminar puntos de cursos ya inactivos"
+    );
+
+    const nodeData = {
+        "Preparar textos de cursos": {
+            qdrantUrl: "http://qdrant:6333/",
+            collection: "rutaia_courses_gemini_1536",
+            courses: [{ id: "course-1" }, { id: "course-2" }]
+        }
+    };
+    assert.equal(evaluateExpression(deletion.parameters.url, nodeData),
+        "http://qdrant:6333/collections/rutaia_courses_gemini_1536/points/delete?wait=true");
+    assert.deepEqual(evaluateExpression(deletion.parameters.jsonBody, nodeData), {
+        filter: { must_not: [{ key: "course_id", match: { any: ["course-1", "course-2"] } }] }
+    });
 });

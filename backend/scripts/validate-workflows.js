@@ -4,6 +4,7 @@ const path = require("node:path");
 
 const workflowDirectory = path.resolve(__dirname, "../../automation/n8n");
 const files = ["index-courses.json", "sync-course-events.json", "answer-query.json"];
+const expectedNodes = { "index-courses.json": 12, "sync-course-events.json": 13, "answer-query.json": 13 };
 let totalNodes = 0;
 let totalEdges = 0;
 let totalCodeNodes = 0;
@@ -13,6 +14,7 @@ for (const file of files) {
     const workflow = JSON.parse(fs.readFileSync(filePath, "utf8"));
     assert.equal(workflow.active, false, `${file} debe exportarse inactivo`);
     assert.ok(Array.isArray(workflow.nodes) && workflow.nodes.length > 0, `${file} no contiene nodos`);
+    assert.equal(workflow.nodes.length, expectedNodes[file], `${file} cambió su flujo simplificado esperado`);
     assert.ok(!JSON.stringify(workflow).includes("openrouter.ai"), `${file} no debe enviar datos a OpenRouter`);
 
     const names = new Set();
@@ -66,6 +68,13 @@ for (const file of files) {
             "un catálogo vacío debe limpiar Qdrant sin llamar al proveedor de embeddings");
         assert.equal(routes["Eliminar vectores de catálogo vacío"]?.main?.[0]?.[0]?.node, "Validar limpieza del catálogo vacío",
             "la limpieza debe distinguir colección inexistente de fallos reales de Qdrant");
+        const obsoleteVectors = workflow.nodes.find((node) => node.name === "Eliminar puntos de cursos ya inactivos");
+        assert.ok(!workflow.nodes.some((node) => node.name === "Preparar filtro de vectores obsoletos"),
+            "el filtro de cursos activos debe construirse en la solicitud Qdrant");
+        assert.equal(routes["Upsert idempotente en Qdrant"]?.main?.[0]?.[0]?.node, "Eliminar puntos de cursos ya inactivos",
+            "la reconciliación debe eliminar puntos obsoletos después del upsert");
+        assert.match(obsoleteVectors.parameters.url, /Preparar textos de cursos/);
+        assert.match(obsoleteVectors.parameters.jsonBody, /courses\.map\(course => course\.id\)/);
     }
 
     if (file === "sync-course-events.json") {
@@ -89,6 +98,7 @@ for (const file of files) {
     }
 
     if (file === "answer-query.json") {
+        const routes = workflow.connections ?? {};
         const embedNode = workflow.nodes.find((node) => node.name === "Crear embedding de pregunta");
         const chatNode = workflow.nodes.find((node) => node.name === "Generar respuesta grounded");
         assert.equal(embedNode.parameters.url, "={{ $json.embeddingUrl }}",
@@ -121,6 +131,14 @@ for (const file of files) {
         const filterNode = workflow.nodes.find((node) => node.name === "Filtrar fuentes activas y umbral");
         assert.match(filterNode.parameters.jsCode, /sort\(\(a,b\) => b\.similarity-a\.similarity\)\.slice\(0,3\)/,
             "el contexto RAG debe conservar solo las tres fuentes elegibles mejor clasificadas");
+        assert.ok(!workflow.nodes.some((node) => node.name === "Preparar callback de error seguro"),
+            "el callback de error seguro debe prepararse en el nodo HTTP");
+        const errorCallback = workflow.nodes.find((node) => node.name === "Guardar estado de error");
+        assert.match(errorCallback.parameters.jsonBody, /status: 'Error', errorCode: 'N8N_PROCESSING_ERROR'/);
+        for (const node of workflow.nodes.filter((candidate) => candidate.onError === "continueErrorOutput")) {
+            assert.equal(routes[node.name]?.main?.[1]?.[0]?.node, "Guardar estado de error",
+                `${node.name} debe conservar el callback de error`);
+        }
     }
 
     totalNodes += workflow.nodes.length;
@@ -128,3 +146,6 @@ for (const file of files) {
 }
 
 console.log(`Validación completada: ${totalNodes} nodos, ${totalEdges} conexiones y ${totalCodeNodes} Code nodes compilables.`);
+assert.equal(totalNodes, 38, "los workflows deben mantener el total simplificado de nodos");
+assert.equal(totalEdges, 43, "los workflows deben mantener todas sus conexiones");
+assert.equal(totalCodeNodes, 11, "los workflows deben mantener el total simplificado de Code nodes");

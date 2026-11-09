@@ -160,23 +160,12 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
-        "jsCode": "const cfg = $('Preparar textos de cursos').first().json;\nreturn [{ json: { qdrantUrl: cfg.qdrantUrl.replace(/\\/$/, ''), collection: cfg.collection, activeIds: cfg.courses.map(c => c.id) } }];"
-      },
-      "id": "325997fb-3f70-4bb5-822d-421a18af78f2",
-      "name": "Preparar filtro de vectores obsoletos",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2180, 360]
-    },
-    {
-      "parameters": {
         "method": "POST",
-        "url": "={{ $('Preparar filtro de vectores obsoletos').first().json.qdrantUrl + '/collections/' + $('Preparar filtro de vectores obsoletos').first().json.collection + '/points/delete?wait=true' }}",
+        "url": "={{ $('Preparar textos de cursos').first().json.qdrantUrl.replace(/\\/$/, '') + '/collections/' + $('Preparar textos de cursos').first().json.collection + '/points/delete?wait=true' }}",
         "sendBody": true,
         "contentType": "json",
         "specifyBody": "json",
-        "jsonBody": "={{ { filter: { must_not: [{ key: 'course_id', match: { any: $('Preparar filtro de vectores obsoletos').first().json.activeIds } }] } } }}",
+        "jsonBody": "={{ { filter: { must_not: [{ key: 'course_id', match: { any: $('Preparar textos de cursos').first().json.courses.map(course => course.id) } }] } } }}",
         "options": {"response": {"response": {"responseFormat": "json"}}}
       },
       "id": "27671b77-0d68-4239-beb3-5a373804a12f",
@@ -196,8 +185,7 @@
     "Generar embeddings vía Express": {"main": [[{"node": "Validar y preparar puntos Qdrant", "type": "main", "index": 0}]]},
     "Validar y preparar puntos Qdrant": {"main": [[{"node": "Crear colección si falta", "type": "main", "index": 0}]]},
     "Crear colección si falta": {"main": [[{"node": "Upsert idempotente en Qdrant", "type": "main", "index": 0}]]},
-    "Upsert idempotente en Qdrant": {"main": [[{"node": "Preparar filtro de vectores obsoletos", "type": "main", "index": 0}]]},
-    "Preparar filtro de vectores obsoletos": {"main": [[{"node": "Eliminar puntos de cursos ya inactivos", "type": "main", "index": 0}]]}
+    "Upsert idempotente en Qdrant": {"main": [[{"node": "Eliminar puntos de cursos ya inactivos", "type": "main", "index": 0}]]}
   },
   "active": false,
   "settings": {"executionOrder": "v1"},
